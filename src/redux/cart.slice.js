@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-axios.defaults.baseURL = "http://localhost:5000";
+axios.defaults.baseURL = "https://ecommerce-backend-dsyt8h5e8-husseins-projects-8485646e.vercel.app";
 
 // Helper function
 const processCartItems = (items) => {
