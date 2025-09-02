@@ -24,7 +24,7 @@ export const clearCartThunk = createAsyncThunk(
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-axios.defaults.baseURL = "http://localhost:5000";
+axios.defaults.baseURL = "https://e-commerce-backend-production-7ac6.up.railway.app";
 
 // Helper function
 const processCartItems = (items) => {
