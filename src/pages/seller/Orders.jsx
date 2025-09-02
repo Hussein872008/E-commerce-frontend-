@@ -198,7 +198,7 @@ export default function SellerOrders() {
                                   <img
                                     src={item.product?.image && typeof item.product.image === "string" && item.product.image.match(/\.(jpg|jpeg|png|webp)$/i)
                                       ? item.product.image
-                                      : "/placeholder-product.png"}
+                                      : "/placeholder-image.webp"}
                                     alt={item.product?.title || "Product"}
                                     className="w-8 h-8 rounded object-cover border mr-2"
                                   />

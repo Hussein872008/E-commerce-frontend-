@@ -19,32 +19,34 @@ const processOrderItems = (items) => {
         }
     }
 
-    return items.map(item => ({
-        ...item,
-        _id: item._id || Math.random().toString(36).substring(7),
-        trackingNumber: item.trackingNumber || 'Unknown',
-        buyer: item.buyer && typeof item.buyer === 'object' ? {
-            name: item.buyer.name ? item.buyer.name : 'Unknown',
-            email: item.buyer.email ? item.buyer.email : 'Unknown'
-        } : { name: 'Unknown', email: 'Unknown' },
-        items: Array.isArray(item.items) ? item.items.map(i => ({
-            ...i,
-            product: i.product ? {
-                ...i.product,
-                _id: i.product._id || null,
-                title: i.product.title || 'Unknown Product',
-                price: i.product.price || 0,
-                image: i.product.image && typeof i.product.image === 'string' && i.product.image.match(/\.(jpg|jpeg|png|webp)$/i)
-                    ? i.product.image
-                    : '/placeholder-product.png'
-            } : {
-                _id: null,
-                title: 'Deleted Product',
-                price: 0,
-                image: '/placeholder-product.png'
-            }
-        })) : []
-    }));
+    return items
+        .filter(item => !!item._id) // تجاهل أي طلب ليس له _id
+        .map(item => ({
+            ...item,
+            _id: item._id, // فقط من الباكيند
+            trackingNumber: item.trackingNumber || 'Unknown',
+            buyer: item.buyer && typeof item.buyer === 'object' ? {
+                name: item.buyer.name ? item.buyer.name : 'Unknown',
+                email: item.buyer.email ? item.buyer.email : 'Unknown'
+            } : { name: 'Unknown', email: 'Unknown' },
+            items: Array.isArray(item.items) ? item.items.map(i => ({
+                ...i,
+                product: i.product ? {
+                    ...i.product,
+                    _id: i.product._id || null,
+                    title: i.product.title || 'Unknown Product',
+                    price: i.product.price || 0,
+                    image: i.product.image && typeof i.product.image === 'string' && i.product.image.match(/\.(jpg|jpeg|png|webp)$/i)
+                        ? i.product.image
+                        : '/placeholder-image.webp'
+                } : {
+                    _id: null,
+                    title: 'Deleted Product',
+                    price: 0,
+                    image: '/placeholder-image.webp'
+                }
+            })) : []
+        }));
 };
 
 // Async Thunks

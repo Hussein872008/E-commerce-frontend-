@@ -16,7 +16,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 // المشتري
 import BuyerLayout from "./layouts/BuyerLayout";
 import Store from "./pages/buyer/Store";
-import Orders from "./pages/buyer/Orders";       // ← تضيفها لاحقًا
+import Orders from "./pages/buyer/Orders";      
 
 // البائع
 import SellerLayout from "./layouts/SellerLayout";

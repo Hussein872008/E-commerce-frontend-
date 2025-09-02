@@ -1,18 +1,19 @@
+
 import { useEffect, useState, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaHeart, FaTrash, FaShareAlt, FaExchangeAlt, FaShoppingCart, FaArrowLeft, FaSpinner } from 'react-icons/fa';
+import { FaHeart, FaTrash, FaArrowLeft } from 'react-icons/fa';
 import { toast } from 'react-toastify';
-import ProductComparisonModal from './ProductComparisonModal';
 import EmptyState from './EmptyState';
+import ProductCard from './store/ProductCard';
 
 const WishlistPage = () => {
     const { user, token } = useSelector((state) => state.auth);
+    const darkMode = useSelector(state => state.theme.darkMode);
     const [wishlist, setWishlist] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedProducts, setSelectedProducts] = useState([]);
-    const [showComparisonModal, setShowComparisonModal] = useState(false);
+    // مقارنة المنتجات لم تعد مدعومة
     const [bulkLoading, setBulkLoading] = useState(false);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
@@ -25,7 +26,7 @@ const WishlistPage = () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setWishlist(data.products || []);
-            setSelectedProducts([]);
+            // setSelectedProducts([]); // removed: no longer needed
         } catch (err) {
             console.error('Failed to load wishlist:', err);
             setError(err.response?.data?.error || 'Failed to load wishlist');
@@ -95,21 +96,7 @@ const WishlistPage = () => {
         }
     };
 
-    const toggleProductSelection = (productId) => {
-        setSelectedProducts(prev =>
-            prev.includes(productId)
-                ? prev.filter(id => id !== productId)
-                : [...prev, productId]
-        );
-    };
-
-    const toggleSelectAll = () => {
-        if (selectedProducts.length === wishlist.length) {
-            setSelectedProducts([]);
-        } else {
-            setSelectedProducts(wishlist.map(item => item.product._id));
-        }
-    };
+    // اختيار المنتجات لم يعد مدعوماً
 
     useEffect(() => {
         if (user) fetchWishlist();
@@ -118,148 +105,76 @@ const WishlistPage = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div>
+                <div className={`animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 ${darkMode ? 'border-blue-300' : 'border-green-600'}`}></div>
             </div>
         );
     }
     if (error) {
         return (
-            <div className="container mx-auto p-4 text-center">
-                <p className="text-red-600 mb-4">{error}</p>
-                <button
-                    onClick={fetchWishlist}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                >
-                    Retry
-                </button>
-            </div>
+                <div className={`container mx-auto p-4 text-center ${darkMode ? 'bg-gray-900 text-blue-100' : 'bg-white text-gray-800'}`}> 
+                    <p className={`mb-4 ${darkMode ? 'text-red-400' : 'text-red-600'}`}>{error}</p>
+                    <button
+                        onClick={fetchWishlist}
+                        className={`px-4 py-2 rounded font-bold shadow transition-all ${darkMode ? 'bg-blue-800 text-blue-100 hover:bg-blue-700' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                    >
+                        Retry
+                    </button>
+                </div>
         );
     }
 
-    return (
-         <div className="container mx-auto p-4">
+         return (
+        <div className={`container mx-auto p-4 min-h-screen transition-colors duration-500 ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-100' : 'bg-gradient-to-br from-blue-50 via-indigo-100 to-purple-50 text-gray-800'}`}>
             <div className="flex items-center mb-6">
-                <button onClick={() => navigate(-1)} className="mr-4 p-2 rounded-full hover:bg-gray-100">
+                <button onClick={() => navigate(-1)} className={`mr-4 p-2 rounded-full transition-all ${darkMode ? 'hover:bg-gray-800 text-blue-200' : 'hover:bg-gray-100 text-gray-700'}`}> 
                     <FaArrowLeft />
                 </button>
-                <h1 className="text-2xl font-bold">Your Wishlist ({wishlist.length})</h1>
+                <h1 className={`text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r ${darkMode ? 'from-blue-200 via-blue-400 to-purple-400' : 'from-blue-700 via-indigo-700 to-purple-700'}`}>Your Wishlist ({wishlist.length})</h1>
             </div>
 
             {wishlist.length === 0 ? (
-                <EmptyState
-                    icon={<FaHeart className="text-5xl text-gray-300" />}
-                    title="Your wishlist is empty"
-                    description="Start adding products to your wishlist to see them here"
-                    action={
-                        <Link to="/store" className="mt-4 inline-block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                <div className="flex flex-col items-center justify-center py-20 px-4 text-center min-h-[60vh]">
+                    <div className={`flex flex-col items-center justify-center`}>
+                        <div className={`mb-6 p-6 rounded-full flex items-center justify-center ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                            <FaHeart className={`text-6xl ${darkMode ? 'text-blue-400' : 'text-gray-400'}`} />
+                        </div>
+                        <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Your wishlist is empty</h2>
+                        <p className={`mb-6 max-w-md ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Start adding products to your wishlist to see them here</p>
+                        <Link 
+                            to="/store" 
+                            className={`px-6 py-3 rounded-lg font-semibold transition-all mt-2 ${darkMode ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-green-500 text-white hover:bg-green-600'}`}
+                        >
                             Browse Products
                         </Link>
-                    }
-                />
+                    </div>
+                </div>
             ) : (
                 <>
-                    <div className="mb-4 flex items-center justify-between">
-                        <div className="flex items-center">
-                            <input
-                                type="checkbox"
-                                checked={selectedProducts.length === wishlist.length && wishlist.length > 0}
-                                onChange={toggleSelectAll}
-                                className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 mr-2"
-                            />
-                            <span className="text-sm text-gray-600">
-                                {selectedProducts.length} {selectedProducts.length === 1 ? 'item' : 'items'} selected
-                            </span>
-                        </div>
-
-                        {selectedProducts.length > 0 && (
-                            <div className="flex space-x-2">
-                                <button
-                                    onClick={() => setShowComparisonModal(true)}
-                                    disabled={selectedProducts.length < 2 || selectedProducts.length > 4 || bulkLoading}
-                                    className={`px-3 py-1 text-sm rounded flex items-center ${selectedProducts.length < 2 || selectedProducts.length > 4
-                                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                            : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                                        }`}
-                                >
-                                    <FaExchangeAlt className="mr-1" />
-                                    Compare
-                                </button>
-                                <button
-                                    onClick={handleBulkAddToCart}
-                                    disabled={bulkLoading}
-                                    className="px-3 py-1 text-sm rounded flex items-center bg-green-100 text-green-600 hover:bg-green-200 disabled:opacity-75"
-                                >
-                                    <FaShoppingCart className="mr-1" />
-                                    {bulkLoading ? 'Adding...' : 'Add to Cart'}
-                                </button>
-                                <button
-                                    onClick={handleBulkRemove}
-                                    disabled={bulkLoading}
-                                    className="px-3 py-1 text-sm rounded flex items-center bg-red-100 text-red-600 hover:bg-red-200 disabled:opacity-75"
-                                >
-                                    <FaTrash className="mr-1" />
-                                    Remove
-                                </button>
-                            </div>
-                        )}
-                    </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                        {wishlist.map((item) => (
-                            <div
-                                key={item.product._id}
-                                className={`bg-white p-4 rounded-lg shadow hover:shadow-lg transition relative ${selectedProducts.includes(item.product._id) ? 'ring-2 ring-green-500' : ''
-                                    }`}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={selectedProducts.includes(item.product._id)}
-                                    onChange={() => toggleProductSelection(item.product._id)}
-                                    className="absolute top-2 left-2 h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                />
-                                <button
-                                    onClick={() => handleRemoveFromWishlist(item.product._id)}
-                                    className="absolute top-2 right-2 p-2 text-red-500 hover:text-red-700 rounded-full hover:bg-red-50"
-                                    title="Remove from wishlist"
-                                >
-                                    <FaTrash />
-                                </button>
-                                <Link to={`/product/${item.product._id}`} className="block">
-                                    <img
-                                        src={
-                                            item.product.image?.startsWith('http')
-                                                ? item.product.image
-                                                : item.product.image?.includes('/uploads/')
-                                                                    ? item.product.image
-                : `/uploads/${item.product.image}`
-                                        }
-                                        alt={item.product.title}
-                                        className="w-full h-48 object-contain mb-4"
-                                        onError={(e) => { e.target.src = '/placeholder-product.png'; }}
-                                    />
-                                    <h3 className="font-semibold text-lg mb-1 hover:text-green-600 line-clamp-1">
-                                        {item.product.title}
-                                    </h3>
-                                    <div className="flex justify-between items-center">
-                                        <p className="text-green-600 font-bold">${item.product.price?.toFixed(2)}</p>
-                                        {item.product.originalPrice && (
-                                            <p className="text-sm text-gray-500 line-through">${item.product.originalPrice.toFixed(2)}</p>
-                                        )}
-                                    </div>
-                                </Link>
-                            </div>
-                        ))}
+                        {wishlist
+                            .filter(item => item?.product)
+                            .map((item) => (
+                                <div key={item.product._id} className="relative group transition-all duration-200 hover:scale-[1.03]">
+                                    {/* Remove from wishlist button overlays the card */}
+                                    <button
+                                        onClick={() => handleRemoveFromWishlist(item.product._id)}
+                                        className={`absolute top-2 right-2 z-20 p-2 rounded-full transition-all ${darkMode ? 'text-red-300 hover:text-red-400 hover:bg-red-900' : 'text-red-500 hover:text-red-700 hover:bg-red-50'}`}
+                                        title="Remove from wishlist"
+                                    >
+                                        <FaTrash />
+                                    </button>
+                                    {/* Full product card */}
+                                    <ProductCard product={item.product} />
+                                </div>
+                            ))}
                     </div>
+
                 </>
             )}
 
-            {showComparisonModal && (
-                <ProductComparisonModal
-                    productIds={selectedProducts}
-                    onClose={() => setShowComparisonModal(false)}
-                />
-            )}
-        </div>
+            {/* تم حذف مودال المقارنة */}
+            </div>
     );
 };
 

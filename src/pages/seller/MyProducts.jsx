@@ -68,7 +68,7 @@ useEffect(() => {
         ...product,
         image: product.image?.startsWith('http') 
           ? product.image 
-          : `/uploads/${product.image?.split('/').pop()}` || '/placeholder-product.png'
+          : `/uploads/${product.image?.split('/').pop()}` || '/placeholder-image.webp'
       })));
       
       setTotalPages(Math.ceil(totalProducts / productsPerPage));

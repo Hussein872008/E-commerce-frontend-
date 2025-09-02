@@ -1,15 +1,16 @@
-import React, { useEffect, useState, useCallback, memo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { FiTrash2, FiPlus, FiMinus, FiShoppingCart, FiAlertCircle, FiX } from 'react-icons/fi';
-import { fetchCart, removeFromCart, updateCartItem, clearCart } from '../../redux/cart.slice';
+import { fetchCart, removeFromCart, updateCartItem, clearCart, clearCartThunk } from '../../redux/cart.slice';
 import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
 
 const ImageWithFallback = ({ src, alt, className }) => {
   const [error, setError] = useState(false);
   return (
     <img
-      src={error ? '/placeholder-product.png' : src}
+      src={error ? '/placeholder-image.webp' : src}
       alt={alt}
       className={className}
       loading="lazy"
@@ -18,39 +19,16 @@ const ImageWithFallback = ({ src, alt, className }) => {
   );
 };
 
-const ConfirmationModal = memo(({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', cancelText = 'Cancel', isLoading = false }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-desc">
-      <div className="bg-white rounded-lg max-w-md w-full shadow-xl">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 id="modal-title" className="text-lg font-bold">{title}</h3>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700" aria-label="Close modal" disabled={isLoading}>
-              <FiX size={20} />
-            </button>
-          </div>
-          <p id="modal-desc" className="text-gray-700 mb-6">{message}</p>
-          <div className="flex justify-end space-x-3">
-            <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors" disabled={isLoading}>{cancelText}</button>
-            <button onClick={onConfirm} className={`px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`} disabled={isLoading}>
-              {isLoading && <div className="mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-              {confirmText}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-});
+
+
 
 const CartPage = () => {
   const { items, loading, error } = useSelector(state => state.cart);
   const { token, user } = useSelector(state => state.auth);
+  const darkMode = useSelector(state => state.theme.darkMode);
   const dispatch = useDispatch();
 
   const [updatingItems, setUpdatingItems] = useState({});
-  const [itemToRemove, setItemToRemove] = useState(null);
   const [removingLoading, setRemovingLoading] = useState(false);
 
   useEffect(() => {
@@ -80,32 +58,53 @@ const handleUpdateQuantity = useCallback(async (itemId, newQuantity) => {
     }
 }, [dispatch, token, user?._id]);
 
-const handleRemoveItem = useCallback(async (itemId) => {
 
-
-    setRemovingLoading(true);
-    try {
-        await dispatch(removeFromCart(itemId)).unwrap();
-        toast.success('Product removed from cart successfully');
-        setItemToRemove(null);
-    } catch (err) {
-        console.error('Remove item error:', err);
-        toast.error(err.message || 'Failed to remove product from cart');
-    } finally {
-        setRemovingLoading(false);
-    }
+const handleRemoveItem = useCallback(async (itemId, productTitle) => {
+  const result = await Swal.fire({
+    title: 'Remove Product from Cart',
+    text: `Are you sure you want to remove "${productTitle}" from your cart?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, Remove',
+    cancelButtonText: 'Cancel',
+    reverseButtons: true,
+    focusCancel: true,
+    customClass: {
+      confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg',
+      cancelButton: 'bg-gray-200 text-gray-700 px-4 py-2 rounded-lg',
+    },
+  });
+  if (!result.isConfirmed) return;
+  setRemovingLoading(true);
+  try {
+    await dispatch(removeFromCart(itemId)).unwrap();
+    toast.success('Product removed from cart successfully');
+  } catch (err) {
+    console.error('Remove item error:', err);
+    toast.error(err.message || 'Failed to remove product from cart');
+  } finally {
+    setRemovingLoading(false);
+  }
 }, [dispatch, token, user?._id]);
 
   const handleClearCart = useCallback(async () => {
-    if (!token || !user?._id) {
-      toast.error('User not authenticated');
-      return;
-    }
-
-    if (!window.confirm('Are you sure you want to clear the entire cart?')) return;
-
+    const result = await Swal.fire({
+      title: 'Clear Cart',
+      text: 'Are you sure you want to clear the entire cart?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Clear',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true,
+      focusCancel: true,
+      customClass: {
+        confirmButton: 'bg-red-600 text-white px-4 py-2 rounded-lg',
+        cancelButton: 'bg-gray-200 text-gray-700 px-4 py-2 rounded-lg',
+      },
+    });
+    if (!result.isConfirmed) return;
     try {
-      await dispatch(clearCart()).unwrap();
+      await dispatch(clearCartThunk()).unwrap();
       toast.success('Cart cleared successfully');
     } catch (err) {
       toast.error('Failed to clear cart');
@@ -136,14 +135,15 @@ const handleRemoveItem = useCallback(async (itemId) => {
   );
 
   return (
-    <div className="container mx-auto p-4 max-w-6xl" aria-live="polite">
-      <h1 className="text-2xl font-bold mb-6">Shopping Cart</h1>
+    // تحسينات الثيم والتأثيرات
+    <div className={`container mx-auto p-4 max-w-6xl transition-colors duration-500 ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-blue-100' : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 text-gray-800'}`} aria-live="polite">
+      <h1 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-green-300' : 'text-green-700'}`}>Shopping Cart</h1>
 
       <div className="flex justify-end mb-4">
-        <button onClick={handleClearCart} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors" aria-label="Clear entire cart">Clear Cart</button>
+        <button onClick={handleClearCart} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-all duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-red-400" aria-label="Clear entire cart">Clear Cart</button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className={`rounded-lg shadow-md overflow-hidden transition-all duration-300 ${darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white'}` }>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Items List */}
           <div className="md:col-span-2 p-4">
@@ -152,7 +152,7 @@ const handleRemoveItem = useCallback(async (itemId) => {
                 if (!item.product) return null;
                 const productId = item.product._id || `fallback-${index}`;
                 const key = item._id || productId;
-                const productImage = item.product.image || item.product.thumbnail || (Array.isArray(item.product.images) && item.product.images.length > 0 ? item.product.images[0] : '/placeholder-product.png');
+                const productImage = item.product.image || item.product.thumbnail || (Array.isArray(item.product.images) && item.product.images.length > 0 ? item.product.images[0] : '/placeholder-image.webp');
                 const productTitle = item.product.title || 'Untitled Product';
                 const isUpdating = updatingItems[item._id];
                 const isDisabled = isUpdating || removingLoading;
@@ -166,7 +166,7 @@ const handleRemoveItem = useCallback(async (itemId) => {
                 }
 
                 return (
-                  <div key={key} className="py-4 flex items-start gap-4" aria-label={`Cart item: ${productTitle}`}>
+                  <div key={key} className="py-4 flex items-start gap-4 group transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg" aria-label={`Cart item: ${productTitle}`}>
                     <Link to={`/product/${productId}`} className="flex-shrink-0 w-20 h-20 relative">
                       <ImageWithFallback src={productImage} alt={productTitle} className="w-full h-full object-cover rounded-lg border border-gray-200" />
                       {item.product.quantity <= 0 && <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg"><span className="text-white text-xs font-bold">Out of Stock</span></div>}
@@ -180,15 +180,15 @@ const handleRemoveItem = useCallback(async (itemId) => {
 
                       {item.product.quantity <= 0 ? <p className="text-red-500 text-sm mt-1">This product is currently unavailable</p> : (
                         <div className="flex items-center mt-3">
-                          <button onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)} disabled={item.quantity <= 1 || isDisabled} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" aria-label={`Decrease quantity of ${productTitle}`} aria-disabled={item.quantity <= 1 || isDisabled}><FiMinus size={14} /></button>
+                          <button onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)} disabled={item.quantity <= 1 || isDisabled} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200" aria-label={`Decrease quantity of ${productTitle}`} aria-disabled={item.quantity <= 1 || isDisabled}><FiMinus size={14} /></button>
                           <input type="number" min={1} max={item.product.quantity} value={item.quantity} disabled={isDisabled} onChange={(e) => { const val = parseInt(e.target.value, 10); if (!isNaN(val)) handleUpdateQuantity(item._id, val); }} className="w-12 text-center border rounded px-2 py-1 mx-2" aria-label={`Quantity input for ${productTitle}`} />
-                          <button onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)} disabled={isDisabled || item.quantity >= item.product.quantity} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" aria-label={`Increase quantity of ${productTitle}`} aria-disabled={isDisabled || item.quantity >= item.product.quantity}><FiPlus size={14} /></button>
+                          <button onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)} disabled={isDisabled || item.quantity >= item.product.quantity} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200" aria-label={`Increase quantity of ${productTitle}`} aria-disabled={isDisabled || item.quantity >= item.product.quantity}><FiPlus size={14} /></button>
                           {isUpdating && <div className="ml-3 h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>}
                         </div>
                       )}
                     </div>
 
-                    <button onClick={() => setItemToRemove(item._id)} disabled={isDisabled} className="text-red-500 hover:text-red-700 p-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" aria-label={`Remove ${productTitle} from cart`}>
+                    <button onClick={() => handleRemoveItem(item._id, productTitle)} disabled={isDisabled} className="text-red-500 hover:text-red-700 p-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" aria-label={`Remove ${productTitle} from cart`}>
                       <FiTrash2 />
                     </button>
                   </div>
@@ -198,30 +198,21 @@ const handleRemoveItem = useCallback(async (itemId) => {
           </div>
 
           {/* Order Summary */}
-          <div className="bg-gray-50 p-6 rounded-lg shadow-inner">
+          <div className={`p-6 rounded-lg shadow-inner transition-all duration-300 ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50'}`}>
             <h2 className="text-lg font-bold mb-4">Order Summary</h2>
             <div className="space-y-4">
               <div className="flex justify-between"><span>Products:</span><span>{productCount}</span></div>
               <div className="flex justify-between"><span>Subtotal:</span><span>${calculatedTotal.toFixed(2)}</span></div>
               <div className="flex justify-between"><span>Shipping:</span><span className="text-green-600">Free</span></div>
               <div className="border-t border-gray-200 pt-4 flex justify-between text-lg font-bold"><span>Total:</span><span>${calculatedTotal.toFixed(2)}</span></div>
-              <Link to="/checkout" className="block w-full bg-green-600 text-white py-3 text-center rounded-lg hover:bg-green-700 transition-colors font-medium mt-6">Proceed to Checkout</Link>
+              <Link to="/checkout" className="block w-full bg-green-600 text-white py-3 text-center rounded-lg hover:bg-green-700 transition-all duration-200 font-medium mt-6 shadow-md">Proceed to Checkout</Link>
               <Link to="/store" className="block w-full mt-2 text-center text-green-600 hover:underline">Continue Shopping</Link>
             </div>
           </div>
         </div>
       </div>
 
-      <ConfirmationModal
-        isOpen={!!itemToRemove}
-        onClose={() => setItemToRemove(null)}
-        onConfirm={() => handleRemoveItem(itemToRemove)}
-        title="Remove Product from Cart"
-        message={`Are you sure you want to remove "${items.find(i => i._id === itemToRemove)?.product.title}" from your cart?`}
-        confirmText="Yes, Remove"
-        cancelText="Cancel"
-        isLoading={removingLoading}
-      />
+      {/* SweetAlert confirmation is now used for remove and clear actions */}
     </div>
   );
 };

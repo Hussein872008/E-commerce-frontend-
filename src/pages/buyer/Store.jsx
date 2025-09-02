@@ -15,6 +15,7 @@ import ProductCard from "./store/ProductCard";
 export default function Store() {
   const dispatch = useDispatch();
   const { allProducts, filteredProducts, loading, error, isFiltered } = useSelector((state) => state.products);
+  const isDarkMode = useSelector(state => state.theme.darkMode);
 
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -130,19 +131,19 @@ export default function Store() {
 
   if (error && dataLoaded) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="bg-red-50 border-l-4 border-red-500 p-4">
+      <div className={`p-6 max-w-7xl mx-auto ${isDarkMode ? 'text-gray-100' : ''}`}>
+        <div className={`${isDarkMode ? 'bg-red-900/60 border-red-400' : 'bg-red-50 border-red-500'} border-l-4 p-4`}>
           <div className="flex">
             <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+              <svg className={`h-5 w-5 ${isDarkMode ? 'text-red-300' : 'text-red-500'}`} viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
+              <p className={`text-sm ${isDarkMode ? 'text-red-200' : 'text-red-700'}`}>{error}</p>
               <button 
                 onClick={handleResetFilters} 
-                className="mt-2 text-sm text-red-600 hover:text-red-500 font-medium transition-colors"
+                className={`mt-2 text-sm font-medium transition-colors ${isDarkMode ? 'text-red-300 hover:text-red-100' : 'text-red-600 hover:text-red-500'}`}
               >
                 Reset Filters →
               </button>
@@ -154,16 +155,23 @@ export default function Store() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div
+      className={`p-6 min-h-[80vh] max-w-7xl mx-auto rounded-2xl shadow-xl transition-colors duration-500
+        ${isDarkMode
+          ? 'bg-gradient-to-br from-gray-900 via-blue-950 to-purple-950 text-gray-100'
+          : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 text-gray-800'}
+      `}
+    >
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h1 className="text-3xl font-bold text-green-700">Our Products</h1>
+        <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-green-300' : 'text-green-700'}`}>Our Products</h1>
         <div className="flex items-center w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <FiSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
             <input
               type="text"
               placeholder="Search products..."
-              className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 w-full transition-all"
+              className={`pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 w-full transition-all
+                ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100 placeholder:text-gray-400' : ''}`}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               aria-label="Search products"
@@ -171,7 +179,8 @@ export default function Store() {
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="ml-2 px-4 py-2 bg-white border rounded-lg flex items-center hover:bg-gray-50 transition-colors relative"
+            className={`ml-2 px-4 py-2 border rounded-lg flex items-center transition-colors relative
+              ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100 hover:bg-gray-800' : 'bg-white hover:bg-gray-50'}`}
             aria-label="Toggle filters"
           >
             <FiFilter className="mr-2" />
@@ -185,7 +194,7 @@ export default function Store() {
         </div>
       </div>
       {showFilters && (
-        <div className="bg-white p-4 rounded-lg shadow-md mb-6 transition-all">
+        <div className={`p-4 rounded-lg shadow-md mb-6 transition-all ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white'}` }>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <CategoryFilter 
               categories={categories} 
@@ -197,9 +206,9 @@ export default function Store() {
               onChange={(v) => handleFilterChange("minRating", v)} 
             />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+              <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Sort By</label>
               <select 
-                className="w-full border rounded-md p-2 focus:ring-2 focus:ring-green-500 transition-colors"
+                className={`w-full border rounded-md p-2 focus:ring-2 focus:ring-green-500 transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
                 value={filters.sortBy} 
                 onChange={(e) => handleFilterChange("sortBy", e.target.value)} 
                 aria-label="Sort products by"
@@ -211,22 +220,22 @@ export default function Store() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Min Price</label>
+              <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Min Price</label>
               <input
                 type="number"
                 min="0"
-                className="w-full border rounded-md p-2 focus:ring-2 focus:ring-green-500 transition-all"
+                className={`w-full border rounded-md p-2 focus:ring-2 focus:ring-green-500 transition-all ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
                 value={filters.minPrice}
                 onChange={(e) => handleFilterChange("minPrice", e.target.value)}
                 placeholder="Min price"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Max Price</label>
+              <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Max Price</label>
               <input
                 type="number"
                 min="0"
-                className="w-full border rounded-md p-2 focus:ring-2 focus:ring-green-500 transition-all"
+                className={`w-full border rounded-md p-2 focus:ring-2 focus:ring-green-500 transition-all ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
                 value={filters.maxPrice}
                 onChange={(e) => handleFilterChange("maxPrice", e.target.value)}
                 placeholder="Max price"
@@ -249,14 +258,14 @@ export default function Store() {
           </div>
         </div>
       )}
-      <div className="mb-4 text-gray-600 flex justify-between items-center">
+      <div className={`mb-4 flex justify-between items-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
         {displayedProducts.length > 0 && (
           <span>Showing {displayedProducts.length} products</span>
         )}
         {isFiltered && (
           <button 
             onClick={handleResetFilters}
-            className="text-sm text-green-600 hover:text-green-800 transition-colors"
+            className={`text-sm transition-colors ${isDarkMode ? 'text-green-300 hover:text-green-100' : 'text-green-600 hover:text-green-800'}`}
           >
             Clear all filters
           </button>
@@ -267,14 +276,14 @@ export default function Store() {
           {[...Array(12)].map((_, i) => <ProductSkeleton key={i} />)}
         </div>
       ) : displayedProducts.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow transition-all">
-          <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <FiSearch className="text-gray-400 text-3xl" />
+        <div className={`text-center py-12 rounded-lg shadow transition-all ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white'}`}>
+          <div className={`mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-4 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+            <FiSearch className={`text-3xl ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
           </div>
-          <p className="text-gray-600 mb-2">No products found matching your criteria</p>
+          <p className={`mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>No products found matching your criteria</p>
           <button 
             onClick={handleResetFilters} 
-            className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className={`mt-4 px-4 py-2 rounded-lg transition-colors ${isDarkMode ? 'bg-green-700 text-white hover:bg-green-800' : 'bg-green-600 text-white hover:bg-green-700'}`}
           >
             Reset Filters
           </button>
@@ -288,7 +297,7 @@ export default function Store() {
           </div>
           {loading && (
             <div className="flex justify-center mt-6">
-              <FiLoader className="animate-spin text-green-600 text-2xl" />
+              <FiLoader className={`animate-spin text-2xl ${isDarkMode ? 'text-green-300' : 'text-green-600'}`} />
             </div>
           )}
         </>

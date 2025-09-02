@@ -1,3 +1,26 @@
+// Clear Cart from backend
+export const clearCartThunk = createAsyncThunk(
+  'cart/clearCartThunk',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const { token } = getState().auth;
+      if (!token) return rejectWithValue('User not authenticated');
+      await axios.delete('/api/cart/clear', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // بعد المسح، جلب الكارت من جديد
+      const response = await axios.get('/api/cart', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return {
+        items: processCartItems(response.data.items),
+        total: response.data.total || 0
+      };
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to clear cart');
+    }
+  }
+);
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
@@ -21,7 +44,7 @@ const processCartItems = (items) => {
           product.thumbnail ||
           (Array.isArray(product.images) && product.images.length > 0
             ? product.images[0]
-            : '/placeholder-product.png')
+            : '/placeholder-image.webp')
       }
     };
   }) || [];
@@ -146,6 +169,21 @@ const cartSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(clearCartThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(clearCartThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.items = action.payload.items;
+        state.total = action.payload.total;
+        state.lastUpdated = new Date().toISOString();
+        state.isInCart = {};
+      })
+      .addCase(clearCartThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
       .addCase(fetchCart.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(fetchCart.fulfilled, (state, action) => {
         state.loading = false;

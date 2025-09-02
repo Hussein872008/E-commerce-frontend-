@@ -20,7 +20,8 @@ export const fetchFilteredProducts = createAsyncThunk(
   async (filters, { rejectWithValue }) => {
     try {
       const response = await axios.get('/api/products/filtered', { params: filters });
-      return Array.isArray(response.data.data) ? response.data.data : [];
+      // backend returns products in response.data.products
+      return Array.isArray(response.data.products) ? response.data.products : [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch filtered products");
     }

@@ -1,4 +1,6 @@
+// تم تحسين وضوح الصفحة في الدارك مود وإضافة تأثيرات انتقال بين التابات باستخدام framer-motion
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import axios from "axios";
@@ -701,61 +703,56 @@ export default function ProductDetails() {
         setCurrentSlide(index);
     };
 
+    const darkMode = useSelector(state => state.theme.darkMode);
     if (loading || productsLoading) {
         return (
-            <div className="container mx-auto px-4 py-8 max-w-7xl">
+            <div className={`container mx-auto px-4 py-8 max-w-7xl ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-blue-100' : ''}`}>
                 <div className="mb-6">
-                    <Skeleton height={30} width={150} />
+                    <Skeleton height={30} width={150} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                 </div>
-
-                <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div className={`rounded-xl shadow-lg overflow-hidden ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-white'}`}> 
                     <div className="flex flex-col lg:flex-row">
                         <div className="lg:w-1/2 p-6">
-                            <div className="mb-4 h-96 flex items-center justify-center bg-gray-50 rounded-lg overflow-hidden">
-                                <Skeleton height={384} width="100%" />
+                            <div className={`mb-4 h-96 flex items-center justify-center rounded-lg overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}> 
+                                <Skeleton height={384} width="100%" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                             </div>
                             <div className="grid grid-cols-4 gap-3 mt-4">
                                 {[...Array(4)].map((_, i) => (
                                     <div key={`thumb-skeleton-${i}`} className="h-24">
-                                        <Skeleton height={96} width="100%" />
+                                        <Skeleton height={96} width="100%" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                                     </div>
                                 ))}
                             </div>
                         </div>
-
                         <div className="lg:w-1/2 p-6">
                             <div className="flex justify-between mb-4">
-                                <Skeleton width={100} height={24} />
+                                <Skeleton width={100} height={24} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                                 <div className="flex space-x-2">
-                                    <Skeleton circle width={32} height={32} />
-                                    <Skeleton circle width={32} height={32} />
+                                    <Skeleton circle width={32} height={32} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                    <Skeleton circle width={32} height={32} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                                 </div>
                             </div>
-
-                            <Skeleton height={36} width="80%" className="mb-4" />
-                            <Skeleton height={24} width="40%" className="mb-4" />
-                            <Skeleton height={24} width="30%" className="mb-6" />
-
+                            <Skeleton height={36} width="80%" className="mb-4" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                            <Skeleton height={24} width="40%" className="mb-4" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                            <Skeleton height={24} width="30%" className="mb-6" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                             <div className="flex items-center mb-6 space-x-4">
-                                <Skeleton height={40} width={120} />
-                                <Skeleton height={40} width="100%" />
+                                <Skeleton height={40} width={120} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                <Skeleton height={40} width="100%" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                             </div>
-
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                                 {[...Array(4)].map((_, i) => (
-                                    <div key={`spec-skeleton-${i}`} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                                        <Skeleton circle width={24} height={24} className="mr-2" />
+                                    <div key={`spec-skeleton-${i}`} className={`flex items-center p-3 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                                        <Skeleton circle width={24} height={24} className="mr-2" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                                         <div>
-                                            <Skeleton width={80} height={16} className="mb-1" />
-                                            <Skeleton width={120} height={16} />
+                                            <Skeleton width={80} height={16} className="mb-1" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                            <Skeleton width={120} height={16} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                                         </div>
                                     </div>
                                 ))}
                             </div>
-
                             <div className="mb-6">
-                                <Skeleton height={24} width={120} className="mb-4" />
-                                <Skeleton count={4} />
+                                <Skeleton height={24} width={120} className="mb-4" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                <Skeleton count={4} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                             </div>
                         </div>
                     </div>
@@ -793,7 +790,7 @@ export default function ProductDetails() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-7xl relative">
+        <div className={`container mx-auto px-4 py-8 max-w-7xl relative ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-blue-100' : 'bg-gradient-to-br from-blue-50 via-indigo-100 to-purple-50 text-gray-800'}`}>
             {lightboxOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
                     <button
@@ -836,18 +833,19 @@ export default function ProductDetails() {
                 </div>
             )}
 
+
             <button
                 onClick={() => navigate(-1)}
-                className="flex items-center mb-6 text-green-600 hover:text-green-800 transition-colors"
+                className={`flex items-center mb-6 transition-colors font-bold ${darkMode ? 'text-blue-200 hover:text-blue-400' : 'text-blue-700 hover:text-blue-900'}`}
             >
                 <FaArrowLeft className="mr-2" /> Back to Store
             </button>
 
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-all hover:shadow-xl">
+            <div className={`rounded-xl shadow-lg overflow-hidden transition-all hover:shadow-xl ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-white'}`}> 
                 <div className="flex flex-col lg:flex-row">
                     <div className="lg:w-1/2 p-6">
                         <div
-                            className="mb-4 h-96 flex items-center justify-center bg-gray-50 rounded-lg overflow-hidden relative group cursor-zoom-in"
+                            className={`mb-4 h-96 flex items-center justify-center rounded-lg overflow-hidden relative group cursor-zoom-in transition-colors ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-black' : 'bg-gray-50'}`}
                             onClick={() => openLightbox(currentSlide)}
                         >
                             {imageLoading && (
@@ -859,9 +857,11 @@ export default function ProductDetails() {
                                 src={mainImage}
                                 alt={product.title}
                                 className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                                style={{ backgroundColor: 'transparent' }}
                                 onLoad={() => setImageLoading(false)}
                                 onError={(e) => {
-                                    e.target.src = '/placeholder-product.png';
+                                    e.target.src = '/placeholder-image.webp';
+                                    e.target.style.backgroundColor = 'transparent';
                                     setImageLoading(false);
                                 }}
                             />
@@ -873,7 +873,7 @@ export default function ProductDetails() {
                         {product.extraImages?.length > 0 && (
                             <div className="grid grid-cols-4 gap-3 mt-4">
                                 <div
-                                    className={`h-24 cursor-pointer border-2 rounded-md overflow-hidden relative transition-all ${mainImage === product.image ? 'border-green-500 scale-105' : 'border-transparent hover:border-gray-300'}`}
+                                    className={`h-24 cursor-pointer rounded-md overflow-hidden relative transition-all flex items-center justify-center ${mainImage === product.image ? (darkMode ? 'ring-2 ring-green-400 scale-105' : 'border-green-500 scale-105') : (darkMode ? 'ring-0 hover:ring-1 hover:ring-blue-700' : 'border-transparent hover:border-gray-300')}`}
                                     onClick={() => handleThumbnailClick(product.image, 0)}
                                 >
                                     {thumbnailsLoading && (
@@ -884,14 +884,15 @@ export default function ProductDetails() {
                                     <img
                                         src={product.image}
                                         alt="Main"
-                                        className={`w-full h-full object-cover ${thumbnailsLoading ? 'opacity-0' : 'opacity-100'}`}
+                                        className={`w-full h-full object-contain ${thumbnailsLoading ? 'opacity-0' : 'opacity-100'}`}
+                                        style={{ backgroundColor: 'transparent' }}
                                         onLoad={() => setThumbnailsLoading(false)}
                                     />
                                 </div>
                                 {product.extraImages.map((img, index) => (
                                     <div
                                         key={`extra-img-${index}`}
-                                        className={`h-24 cursor-pointer border-2 rounded-md overflow-hidden relative transition-all ${mainImage === img ? 'border-green-500 scale-105' : 'border-transparent hover:border-gray-300'}`}
+                                        className={`h-24 cursor-pointer rounded-md overflow-hidden relative transition-all flex items-center justify-center ${mainImage === img ? (darkMode ? 'ring-2 ring-green-400 scale-105' : 'border-green-500 scale-105') : (darkMode ? 'ring-0 hover:ring-1 hover:ring-blue-700' : 'border-transparent hover:border-gray-300')}`}
                                         onClick={() => handleThumbnailClick(img, index + 1)}
                                     >
                                         {thumbnailsLoading && (
@@ -902,7 +903,8 @@ export default function ProductDetails() {
                                         <img
                                             src={img}
                                             alt={`${product.title} ${index + 1}`}
-                                            className={`w-full h-full object-cover ${thumbnailsLoading ? 'opacity-0' : 'opacity-100'}`}
+                                            className={`w-full h-full object-contain ${thumbnailsLoading ? 'opacity-0' : 'opacity-100'}`}
+                                            style={{ backgroundColor: 'transparent' }}
                                             onLoad={() => setThumbnailsLoading(false)}
                                         />
                                     </div>
@@ -913,18 +915,34 @@ export default function ProductDetails() {
 
                     <div className="lg:w-1/2 p-6">
                         <div className="flex justify-between items-start mb-4">
-                            <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full transition-all hover:bg-green-200">
+                            <span className={`inline-block text-xs px-2 py-1 rounded-full transition-all font-bold ${darkMode ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}>
                                 {product.category}
                             </span>
                             <div className="flex space-x-2">
-                                <button
+                                <motion.button
                                     onClick={handleWishlistToggle}
-                                    className={`p-2 rounded-full transition-all ${isWishlisted ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'}`}
+                                    className={`p-2 rounded-full transition-all focus:outline-none`}
                                     title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
                                     aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                                    aria-pressed={isWishlisted}
+                                    whileTap={{ scale: 0.9 }}
+                                    animate={{ scale: isWishlisted ? 1.12 : 1 }}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+                                    style={{
+                                        background: isWishlisted ? (darkMode ? 'rgba(236,72,153,0.12)' : 'rgba(255,228,230,0.9)') : 'transparent',
+                                        color: isWishlisted ? 'rgb(236 72 153)' : (darkMode ? 'rgb(148 163 184)' : 'rgb(156 163 175)')
+                                    }}
                                 >
-                                    <FaHeart className={isWishlisted ? "fill-current" : ""} />
-                                </button>
+                                    <motion.span
+                                        initial={{ scale: 1 }}
+                                        animate={{ scale: isWishlisted ? [1, 1.25, 1] : 1 }}
+                                        transition={{ duration: 0.45, times: [0, 0.5, 1], ease: 'easeOut' }}
+                                        className="inline-flex items-center justify-center"
+                                    >
+                                        <FaHeart aria-hidden="true" />
+                                    </motion.span>
+                                </motion.button>
+
                                 <button
                                     onClick={shareProduct}
                                     className="p-2 rounded-full text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
@@ -935,10 +953,10 @@ export default function ProductDetails() {
                             </div>
                         </div>
 
-                        <h1 className="text-3xl font-bold mb-2 transition-colors hover:text-green-600">{product.title}</h1>
+                        <h1 className={`text-3xl font-bold mb-2 transition-colors ${darkMode ? 'hover:text-blue-400 text-blue-100' : 'hover:text-blue-700 text-blue-900'}`}>{product.title}</h1>
 
                         {product.sku && (
-                            <p className="text-sm text-gray-500 mb-2">SKU: {product.sku}</p>
+                            <p className={`text-sm mb-2 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>SKU: {product.sku}</p>
                         )}
 
                         <div className="flex items-center mb-4">
@@ -946,11 +964,11 @@ export default function ProductDetails() {
                                 {[...Array(5)].map((_, i) => (
                                     <FaStar
                                         key={`rating-star-${i}`}
-                                        className={`transition-colors ${i < Math.floor(averageRatingData.average) ? "fill-current" : "fill-gray-300"}`}
+                                        className={`transition-colors ${i < Math.floor(averageRatingData.average) ? "fill-current" : darkMode ? 'fill-blue-900' : 'fill-gray-300'}`}
                                     />
                                 ))}
                             </div>
-                            <span className="ml-2 text-gray-600">
+                            <span className={`ml-2 ${darkMode ? 'text-blue-200' : 'text-blue-700'}`}>
                                 {averageRatingData.average.toFixed(1)} ({averageRatingData.count} {averageRatingData.count === 1 ? 'review' : 'reviews'})
                             </span>
                         </div>
@@ -958,37 +976,37 @@ export default function ProductDetails() {
                         <div className="mb-4 flex items-center space-x-3">
                             {(product.discountPercentage && product.originalPrice) ? (
                                 <>
-                                    <span className="text-sm text-gray-500 line-through">
+                                    <span className={`text-sm line-through ${darkMode ? 'text-blue-900' : 'text-blue-400'}`}>
                                         ${product.originalPrice.toFixed(2)}
                                     </span>
-                                    <span className="text-2xl font-bold text-green-600">
+                                    <span className={`text-2xl font-bold ${darkMode ? 'text-blue-200' : 'text-blue-700'}`}>
                                         ${(
                                             product.originalPrice - (product.originalPrice * product.discountPercentage / 100)
                                         ).toFixed(2)}
                                     </span>
-                                    <span className="text-sm bg-red-100 text-red-800 px-2 py-1 rounded-full transition-all">
+                                    <span className={`text-sm px-2 py-1 rounded-full transition-all font-bold ${darkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-700'}`}>
                                         {Math.round(product.discountPercentage)}% OFF
                                     </span>
                                 </>
                             ) : product.originalPrice ? (
-                                <span className="text-2xl font-bold text-green-600">
+                                <span className={`text-2xl font-bold ${darkMode ? 'text-blue-200' : 'text-blue-700'}`}>
                                     ${product.originalPrice.toFixed(2)}
                                 </span>
                             ) : (
-                                <span className="text-2xl font-bold text-green-600">
+                                <span className={`text-2xl font-bold ${darkMode ? 'text-blue-200' : 'text-blue-700'}`}>
                                     ${product.price?.toFixed(2)}
                                 </span>
                             )}
                         </div>
 
                         {product.meta?.createdAt && (
-                            <div className="text-xs text-gray-500 mb-4">
+                            <div className={`text-xs mb-4 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
                                 Listed on: {new Date(product.meta.createdAt).toLocaleDateString()}
                             </div>
                         )}
 
                         <div className="mb-6">
-                            <p className={`font-medium ${product.quantity > 0 ? "text-green-600" : "text-red-600"}`}>
+                            <p className={`font-medium ${product.quantity > 0 ? (darkMode ? 'text-blue-200' : 'text-blue-700') : 'text-red-600'}`}>
                                 {product.quantity > 0
                                     ? `${product.quantity} available in stock`
                                     : "Out of stock"}
@@ -996,9 +1014,9 @@ export default function ProductDetails() {
                         </div>
 
                         {(product.discountPercentage > 0 || product.warrantyInformation || product.returnPolicy || product.shippingInformation) && (
-                            <div className="bg-blue-50 p-4 rounded-lg mb-6 transition-all hover:bg-blue-100">
-                                <h3 className="font-semibold text-blue-800 mb-2">Why buy this product?</h3>
-                                <ul className="list-disc list-inside text-sm text-blue-700 space-y-1">
+                            <div className={`p-4 rounded-lg mb-6 transition-all hover:bg-blue-100 ${darkMode ? 'bg-blue-900/60 hover:bg-blue-900/80' : 'bg-blue-50'}`}>
+                                <h3 className={`font-semibold mb-2 ${darkMode ? 'text-blue-200' : 'text-blue-800'}`}>Why buy this product?</h3>
+                                <ul className={`list-disc list-inside text-sm space-y-1 ${darkMode ? 'text-blue-100' : 'text-blue-700'}`}>
                                     {product.discountPercentage > 0 && (
                                         <li>Save {Math.round(product.discountPercentage)}% compared to original price</li>
                                     )}
@@ -1015,9 +1033,9 @@ export default function ProductDetails() {
                             </div>
                         )}
                         <div className="flex items-center mb-6 space-x-4">
-                            <div className="flex items-center border rounded-lg overflow-hidden transition-all hover:border-green-500">
+                            <div className={`flex items-center border rounded-lg overflow-hidden transition-all ${darkMode ? 'border-blue-900 hover:border-blue-400' : 'hover:border-blue-400 border-blue-200'}`}>
                                 <button
-                                    className="px-3 py-2 bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors flex items-center justify-center"
+                                    className={`px-3 py-2 transition-colors flex items-center justify-center ${darkMode ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
                                     onClick={() => setQuantity(prev => {
                                         const minQty = product.minimumOrderQuantity || 1;
                                         return prev > minQty ? prev - 1 : minQty;
@@ -1027,11 +1045,11 @@ export default function ProductDetails() {
                                 >
                                     <FaMinus />
                                 </button>
-                                <span className="px-6 py-2 border-x text-center w-14 font-semibold text-lg select-none">
+                                <span className={`px-6 py-2 border-x text-center w-14 font-semibold text-lg select-none ${darkMode ? 'border-blue-800' : 'border-blue-200'}`}>
                                     {quantity}
                                 </span>
                                 <button
-                                    className="px-3 py-2 bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors flex items-center justify-center"
+                                    className={`px-3 py-2 transition-colors flex items-center justify-center ${darkMode ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
                                     onClick={() => setQuantity(prev => {
                                         const maxQty = Math.min(product.quantity, 10);
                                         return prev < maxQty ? prev + 1 : maxQty;
@@ -1049,7 +1067,7 @@ export default function ProductDetails() {
                                 className={`flex-1 flex items-center justify-center space-x-2 px-6 py-3 rounded-md text-white transition-all font-semibold ${product.quantity > 0
                                         ? isAddedToCart
                                             ? 'bg-red-600 hover:bg-red-700'
-                                            : 'bg-green-600 hover:bg-green-700'
+                                            : darkMode ? 'bg-blue-700 hover:bg-blue-800' : 'bg-blue-600 hover:bg-blue-700'
                                         : 'bg-gray-400 cursor-not-allowed'
                                     }`}
                                 aria-label={isAddedToCart ? 'Remove from cart' : 'Add to cart'}
@@ -1089,444 +1107,422 @@ export default function ProductDetails() {
 
                         <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {product.brand && (
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg transition-all hover:bg-gray-100">
-                                    <FaTag className="text-green-600 mr-2" />
+                                <div className={`flex items-center p-3 rounded-lg transition-all ${darkMode ? 'bg-blue-900/40 hover:bg-blue-900/60 text-blue-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                                    <FaTag className={`${darkMode ? 'text-green-300 mr-2' : 'text-green-600 mr-2'}`} />
                                     <div>
                                         <p className="text-sm font-medium">Brand</p>
-                                        <p className="text-sm text-gray-600">{product.brand}</p>
+                                        <p className={`${darkMode ? 'text-blue-100' : 'text-gray-600'} text-sm`}>{product.brand}</p>
                                     </div>
                                 </div>
                             )}
 
                             {product.sku && (
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg transition-all hover:bg-gray-100">
-                                    <FaBox className="text-green-600 mr-2" />
+                                <div className={`flex items-center p-3 rounded-lg transition-all ${darkMode ? 'bg-blue-900/40 hover:bg-blue-900/60 text-blue-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                                    <FaBox className={`${darkMode ? 'text-green-300 mr-2' : 'text-green-600 mr-2'}`} />
                                     <div>
                                         <p className="text-sm font-medium">SKU</p>
-                                        <p className="text-sm text-gray-600">{product.sku}</p>
+                                        <p className={`${darkMode ? 'text-blue-100' : 'text-gray-600'} text-sm`}>{product.sku}</p>
                                     </div>
                                 </div>
                             )}
 
                             {product.weight && (
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg transition-all hover:bg-gray-100">
-                                    <FaBalanceScale className="text-green-600 mr-2" />
+                                <div className={`flex items-center p-3 rounded-lg transition-all ${darkMode ? 'bg-blue-900/40 hover:bg-blue-900/60 text-blue-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                                    <FaBalanceScale className={`${darkMode ? 'text-green-300 mr-2' : 'text-green-600 mr-2'}`} />
                                     <div>
                                         <p className="text-sm font-medium">Weight</p>
-                                        <p className="text-sm text-gray-600">{product.weight}g</p>
+                                        <p className={`${darkMode ? 'text-blue-100' : 'text-gray-600'} text-sm`}>{product.weight}g</p>
                                     </div>
                                 </div>
                             )}
 
                             {product.dimensions && (
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg transition-all hover:bg-gray-100">
-                                    <FaBox className="text-green-600 mr-2" />
+                                <div className={`flex items-center p-3 rounded-lg transition-all ${darkMode ? 'bg-blue-900/40 hover:bg-blue-900/60 text-blue-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                                    <FaBox className={`${darkMode ? 'text-green-300 mr-2' : 'text-green-600 mr-2'}`} />
                                     <div>
                                         <p className="text-sm font-medium">Dimensions</p>
-                                        <p className="text-sm text-gray-600">
-                                            {product.dimensions.width} × {product.dimensions.height} × {product.dimensions.depth} cm
-                                        </p>
+                                        <p className={`${darkMode ? 'text-blue-100' : 'text-gray-600'} text-sm`}>{product.dimensions.width} × {product.dimensions.height} × {product.dimensions.depth} cm</p>
                                     </div>
                                 </div>
                             )}
 
                             {product.warrantyInformation && (
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg transition-all hover:bg-gray-100">
-                                    <FaWarranty className="text-green-600 mr-2" />
+                                <div className={`flex items-center p-3 rounded-lg transition-all ${darkMode ? 'bg-blue-900/40 hover:bg-blue-900/60 text-blue-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                                    <FaWarranty className={`${darkMode ? 'text-green-300 mr-2' : 'text-green-600 mr-2'}`} />
                                     <div>
                                         <p className="text-sm font-medium">Warranty</p>
-                                        <p className="text-sm text-gray-600">{product.warrantyInformation}</p>
+                                        <p className={`${darkMode ? 'text-blue-100' : 'text-gray-600'} text-sm`}>{product.warrantyInformation}</p>
                                     </div>
                                 </div>
                             )}
 
                             {product.minimumOrderQuantity && product.minimumOrderQuantity > 1 && (
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg transition-all hover:bg-gray-100">
-                                    <FaBox className="text-green-600 mr-2" />
+                                <div className={`flex items-center p-3 rounded-lg transition-all ${darkMode ? 'bg-blue-900/40 hover:bg-blue-900/60 text-blue-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                                    <FaBox className={`${darkMode ? 'text-green-300 mr-2' : 'text-green-600 mr-2'}`} />
                                     <div>
                                         <p className="text-sm font-medium">Min Order</p>
-                                        <p className="text-sm text-gray-600">{product.minimumOrderQuantity}</p>
+                                        <p className={`${darkMode ? 'text-blue-100' : 'text-gray-600'} text-sm`}>{product.minimumOrderQuantity}</p>
                                     </div>
                                 </div>
                             )}
                         </div>
 
-                        <div className="mb-6 border-b border-gray-200">
+                        {/* تم تحسين ألوان التابات للوضوح في الدارك مود */}
+                        <div className={`mb-6 border-b ${darkMode ? 'border-blue-900' : 'border-gray-200'}`}>
                             <nav className="-mb-px flex space-x-8">
                                 <button
                                     onClick={() => handleTabChange("description")}
-                                    className={`${activeTab === "description"
-                                        ? "border-green-500 text-green-600"
-                                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                                        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                                        ${activeTab === "description"
+                                            ? darkMode ? 'border-green-400 text-green-300' : 'border-green-500 text-green-600'
+                                            : darkMode ? 'border-transparent text-blue-300 hover:text-green-200 hover:border-green-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
                                 >
                                     Description
                                 </button>
                                 <button
                                     onClick={() => handleTabChange("specifications")}
-                                    className={`${activeTab === "specifications"
-                                        ? "border-green-500 text-green-600"
-                                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                                        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                                        ${activeTab === "specifications"
+                                            ? darkMode ? 'border-green-400 text-green-300' : 'border-green-500 text-green-600'
+                                            : darkMode ? 'border-transparent text-blue-300 hover:text-green-200 hover:border-green-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
                                 >
                                     Specifications
                                 </button>
                                 <button
                                     onClick={() => handleTabChange("reviews")}
-                                    className={`${activeTab === "reviews"
-                                        ? "border-green-500 text-green-600"
-                                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                                        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                                        ${activeTab === "reviews"
+                                            ? darkMode ? 'border-green-400 text-green-300' : 'border-green-500 text-green-600'
+                                            : darkMode ? 'border-transparent text-blue-300 hover:text-green-200 hover:border-green-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
                                 >
                                     Reviews ({averageRatingData.count})
                                 </button>
                             </nav>
                         </div>
 
-                        <div className="mb-6">
-                            {activeTab === "description" && (
-                                <div>
-                                    <h3 className="font-semibold mb-2">Product Description</h3>
-                                    <p className="text-gray-700 whitespace-pre-line">{product.description}</p>
-
-                                    {product.tags?.length > 0 && (
-                                        <div className="mt-4">
-                                            <h4 className="font-medium mb-2">Tags</h4>
-                                            <div className="flex flex-wrap gap-2">
-                                                {product.tags.map(tag => (
-                                                    <span key={`tag-${tag}`} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm transition-all hover:bg-gray-200">
-                                                        {tag}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {activeTab === "specifications" && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <h3 className="font-semibold mb-2">Product Details</h3>
-                                        <ul className="space-y-2 text-sm text-gray-700">
-                                            {product.brand && <li><span className="font-medium">Brand:</span> {product.brand}</li>}
-                                            {product.sku && <li><span className="font-medium">SKU:</span> {product.sku}</li>}
-                                            {product.category && <li><span className="font-medium">Category:</span> {product.category}</li>}
-                                            {product.weight && <li><span className="font-medium">Weight:</span> {product.weight}g</li>}
-                                            {product.dimensions && (
-                                                <li>
-                                                    <span className="font-medium">Dimensions:</span> {product.dimensions.width} × {product.dimensions.height} × {product.dimensions.depth} cm
-                                                </li>
-                                            )}
-                                            {product.meta?.barcode && <li><span className="font-medium">Barcode:</span> {product.meta.barcode}</li>}
-                                            {product.meta?.qrCode && <li><span className="font-medium">QR Code:</span> {product.meta.qrCode}</li>}
-                                        </ul>
-                                    </div>
-
-                                    <div>
-                                        <h3 className="font-semibold mb-2">Shipping & Warranty</h3>
-                                        <ul className="space-y-2 text-sm text-gray-700">
-                                            {product.shippingInformation && (
-                                                <li><span className="font-medium">Shipping:</span> {product.shippingInformation}</li>
-                                            )}
-                                            {product.availabilityStatus && (
-                                                <li><span className="font-medium">Availability:</span> {product.availabilityStatus}</li>
-                                            )}
-                                            {product.warrantyInformation && (
-                                                <li><span className="font-medium">Warranty:</span> {product.warrantyInformation}</li>
-                                            )}
-                                            {product.returnPolicy && (
-                                                <li><span className="font-medium">Return Policy:</span> {product.returnPolicy}</li>
-                                            )}
-                                            {product.minimumOrderQuantity && product.minimumOrderQuantity > 1 && (
-                                                <li><span className="font-medium">Min Order Qty:</span> {product.minimumOrderQuantity}</li>
-                                            )}
-                                        </ul>
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === "reviews" && (
-                                <div>
-                                    <div className="mb-6">
-                                        <h3 className="font-semibold mb-2">Customer Reviews</h3>
-                                        <div className="flex items-center mb-4">
-                                            <div className="text-4xl font-bold mr-4">
-                                                {averageRatingData.average.toFixed(1)}/5
-                                            </div>
-                                            <div className="flex-1">
-                                                {[5, 4, 3, 2, 1].map((rating) => (
-                                                    <div key={`rating-dist-${rating}`} className="flex items-center mb-1">
-                                                        <div className="w-10 text-right mr-2">
-                                                            {rating} <FaStar className="inline text-yellow-400" />
-                                                        </div>
-                                                        <div className="flex-1 bg-gray-200 rounded-full h-2.5">
-                                                            <div
-                                                                className="bg-yellow-400 h-2.5 rounded-full transition-all duration-500"
-                                                                style={{
-                                                                    width: `${averageRatingData.count > 0 ?
-                                                                        (averageRatingData.distribution[rating] / averageRatingData.count) * 100 : 0}%`
-                                                                }}
-                                                            ></div>
-                                                        </div>
-                                                        <div className="w-10 text-left ml-2 text-sm text-gray-600">
-                                                            {averageRatingData.distribution[rating]}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {currentUser && !reviewForm.hasReviewed && (
-                                        <div className="mb-6 p-4 bg-gray-50 rounded-lg transition-all hover:bg-gray-100">
-                                            <h4 className="font-medium mb-3">Add Your Review</h4>
-                                            <div className="flex items-center mb-3">
-                                                {[1, 2, 3, 4, 5].map((star) => (
-                                                    <FaStar
-                                                        key={`rating-star-${star}`}
-                                                        size={24}
-                                                        className={`cursor-pointer mx-1 transition-transform hover:scale-110 ${star <= reviewForm.rating ?
-                                                            "text-yellow-400" : "text-gray-300"
-                                                            }`}
-                                                        onClick={() => setReviewForm(prev => ({
-                                                            ...prev,
-                                                            rating: star
-                                                        }))}
-                                                    />
-                                                ))}
-                                            </div>
-                                            <textarea
-                                                value={reviewForm.comment}
-                                                onChange={(e) => setReviewForm(prev => ({
-                                                    ...prev,
-                                                    comment: e.target.value
-                                                }))}
-                                                placeholder="Share your thoughts about this product..."
-                                                className="w-full p-3 border border-gray-300 rounded mb-3 transition-all focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                                                rows="4"
-                                            />
-                                            <button
-                                                onClick={handleReviewSubmit}
-                                                disabled={
-                                                    !reviewForm.rating ||
-                                                    reviewForm.comment.trim().length < 10 ||
-                                                    reviewForm.isSubmitting
-                                                }
-                                                className={`px-4 py-2 rounded-md text-white transition-all ${!reviewForm.rating || reviewForm.comment.trim().length < 10
-                                                    ? "bg-gray-400 cursor-not-allowed"
-                                                    : "bg-green-600 hover:bg-green-700"
-                                                    }`}
-                                            >
-                                                {reviewForm.isSubmitting ? (
-                                                    <span className="flex items-center justify-center">
-                                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                        </svg>
-                                                        Processing...
-                                                    </span>
-                                                ) : "Submit Review"}
-                                            </button>
-                                            {reviewForm.comment.length > 0 && reviewForm.comment.length < 10 && (
-                                                <p className="text-red-500 text-sm mt-1">
-                                                    Review must be at least 10 characters
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {reviewsLoading ? (
-                                        <div className="space-y-4">
-                                            {[...Array(3)].map((_, i) => (
-                                                <div key={`review-skeleton-${i}`} className="border-b pb-4 mb-4">
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <Skeleton width={150} height={20} />
-                                                        <Skeleton width={80} height={16} />
-                                                    </div>
-                                                    <div className="flex mb-2">
-                                                        <Skeleton width={80} height={16} />
-                                                    </div>
-                                                    <Skeleton count={2} />
+                        {/* تم إضافة تأثيرات انتقال بين التابات باستخدام framer-motion */}
+                        <div className="mb-6 min-h-[200px]">
+                            <AnimatePresence mode="wait">
+                                {activeTab === "description" && (
+                                    <motion.div
+                                        key="description"
+                                        initial={{ opacity: 0, x: 40 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -40 }}
+                                        transition={{ duration: 0.35, ease: "easeInOut" }}
+                                    >
+                                        <h3 className="font-semibold mb-2">Product Description</h3>
+                                        <p className={`${darkMode ? 'text-blue-100' : 'text-gray-700'} whitespace-pre-line`}>{product.description}</p>
+                                        {product.tags?.length > 0 && (
+                                            <div className="mt-4">
+                                                <h4 className="font-medium mb-2">Tags</h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {product.tags.map(tag => (
+                                                        <span key={`tag-${tag}`} className={`px-3 py-1 rounded-full text-sm transition-all hover:bg-blue-200 ${darkMode ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-gray-100 text-gray-800'}`}>{tag}</span>
+                                                    ))}
                                                 </div>
-                                            ))}
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                )}
+                                {activeTab === "specifications" && (
+                                    <motion.div
+                                        key="specifications"
+                                        initial={{ opacity: 0, x: 40 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -40 }}
+                                        transition={{ duration: 0.35, ease: "easeInOut" }}
+                                    >
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <h3 className="font-semibold mb-2">Product Details</h3>
+                                                <ul className={`${darkMode ? 'text-blue-100' : 'text-gray-700'} space-y-2 text-sm`}>
+                                                    {product.brand && <li><span className="font-medium">Brand:</span> {product.brand}</li>}
+                                                    {product.sku && <li><span className="font-medium">SKU:</span> {product.sku}</li>}
+                                                    {product.category && <li><span className="font-medium">Category:</span> {product.category}</li>}
+                                                    {product.weight && <li><span className="font-medium">Weight:</span> {product.weight}g</li>}
+                                                    {product.dimensions && (
+                                                        <li>
+                                                            <span className="font-medium">Dimensions:</span> {product.dimensions.width} × {product.dimensions.height} × {product.dimensions.depth} cm
+                                                        </li>
+                                                    )}
+                                                    {product.meta?.barcode && <li><span className="font-medium">Barcode:</span> {product.meta.barcode}</li>}
+                                                    {product.meta?.qrCode && <li><span className="font-medium">QR Code:</span> {product.meta.qrCode}</li>}
+                                                </ul>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-semibold mb-2">Shipping & Warranty</h3>
+                                                <ul className={`${darkMode ? 'text-blue-100' : 'text-gray-700'} space-y-2 text-sm`}>
+                                                    {product.shippingInformation && (
+                                                        <li><span className="font-medium">Shipping:</span> {product.shippingInformation}</li>
+                                                    )}
+                                                    {product.availabilityStatus && (
+                                                        <li><span className="font-medium">Availability:</span> {product.availabilityStatus}</li>
+                                                    )}
+                                                    {product.warrantyInformation && (
+                                                        <li><span className="font-medium">Warranty:</span> {product.warrantyInformation}</li>
+                                                    )}
+                                                    {product.returnPolicy && (
+                                                        <li><span className="font-medium">Return Policy:</span> {product.returnPolicy}</li>
+                                                    )}
+                                                    {product.minimumOrderQuantity && product.minimumOrderQuantity > 1 && (
+                                                        <li><span className="font-medium">Min Order Qty:</span> {product.minimumOrderQuantity}</li>
+                                                    )}
+                                                </ul>
+                                            </div>
                                         </div>
-                                    ) : reviews.length > 0 ? (
-                                        <div className="space-y-4">
-                                            {reviews.map((review) => {
-                                                if (!review._id) return null;
-
-                                                const isOwner = review.isOwner;
-                                                const isEditing = editingReview.isEditing && editingReview.id === review._id;
-
-                                                return (
-                                                    <div key={`review-${review._id}`} className="border-b pb-4 mb-4">
-                                                        {isEditing ? (
-                                                            <div className="mt-3 bg-gray-50 p-4 rounded-lg">
-                                                                <div className="flex items-center mb-3">
-                                                                    {[1, 2, 3, 4, 5].map((star) => (
-                                                                        <FaStar
-                                                                            key={`edit-star-${star}`}
-                                                                            size={24}
-                                                                            className={`cursor-pointer mx-1 transition-transform hover:scale-110 ${star <= editingReview.rating ? "text-yellow-400" : "text-gray-300"}`}
-                                                                            onClick={() => setEditingReview(prev => ({
-                                                                                ...prev,
-                                                                                rating: star
-                                                                            }))}
-                                                                        />
-                                                                    ))}
-                                                                </div>
-                                                                <textarea
-                                                                    value={editingReview.comment}
-                                                                    onChange={(e) => setEditingReview(prev => ({
-                                                                        ...prev,
-                                                                        comment: e.target.value
-                                                                    }))}
-                                                                    className="w-full p-3 border border-gray-300 rounded mb-3 transition-all focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                                                                    rows="4"
-                                                                />
-                                                                <div className="flex gap-2">
-                                                                    <button
-                                                                        onClick={handleSaveEdit}
-                                                                        disabled={editingReview.comment.trim().length < 10}
-                                                                        className={`px-4 py-2 rounded-md text-white transition-all ${editingReview.comment.trim().length < 10
-                                                                            ? "bg-gray-400 cursor-not-allowed"
-                                                                            : "bg-green-600 hover:bg-green-700"
-                                                                            }`}
-                                                                    >
-                                                                        Save Changes
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={handleCancelEdit}
-                                                                        className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 transition-all"
-                                                                    >
-                                                                        Cancel
-                                                                    </button>
-                                                                </div>
+                                    </motion.div>
+                                )}
+                                {activeTab === "reviews" && (
+                                    <motion.div
+                                        key="reviews"
+                                        initial={{ opacity: 0, x: 40 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -40 }}
+                                        transition={{ duration: 0.35, ease: "easeInOut" }}
+                                    >
+                                        {/* ...existing code for reviews tab... */}
+                                        {/* تم الإبقاء على نفس منطق التاب الخاص بالمراجعات */}
+                                        {/* ...existing code... */}
+                                        {(() => {
+                                            // نسخ محتوى التاب الخاص بالمراجعات كما هو
+                                            return (
+                                                <>
+                                                    <div className="mb-6">
+                                                        <h3 className="font-semibold mb-2">Customer Reviews</h3>
+                                                        <div className="flex items-center mb-4">
+                                                            <div className="text-4xl font-bold mr-4">
+                                                                {averageRatingData.average.toFixed(1)}/5
                                                             </div>
-                                                        ) : (
-                                                            <>
-                                                                <div className="flex justify-between items-start mb-2">
-                                                                    <div>
-                                                                        <h4 className="font-medium text-gray-800">
-                                                                            {review.user?.username || "Anonymous User"}
-                                                                            {isOwner && (
-                                                                                <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded transition-all">
-                                                                                    Your review
-                                                                                </span>
-                                                                            )}
-                                                                        </h4>
-                                                                        <div className="flex text-yellow-400 my-1">
-                                                                            {[...Array(5)].map((_, i) => (
-                                                                                <FaStar
-                                                                                    key={`review-star-${i}`}
-                                                                                    className={`${i < review.rating ? "fill-current" : "fill-gray-300"}`}
-                                                                                    size={14}
-                                                                                />
-                                                                            ))}
+                                                            <div className="flex-1">
+                                                                {[5, 4, 3, 2, 1].map((rating) => (
+                                                                    <div key={`rating-dist-${rating}`} className="flex items-center mb-1">
+                                                                        <div className="w-10 text-right mr-2">
+                                                                            {rating} <FaStar className="inline text-yellow-400" />
+                                                                        </div>
+                                                                        <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                                                                            <div
+                                                                                className="bg-yellow-400 h-2.5 rounded-full transition-all duration-500"
+                                                                                style={{
+                                                                                    width: `${averageRatingData.count > 0 ?
+                                                                                        (averageRatingData.distribution[rating] / averageRatingData.count) * 100 : 0}%`
+                                                                                }}
+                                                                            ></div>
+                                                                        </div>
+                                                                        <div className="w-10 text-left ml-2 text-sm text-gray-600">
+                                                                            {averageRatingData.distribution[rating]}
                                                                         </div>
                                                                     </div>
-                                                                    <span className="text-sm text-gray-500">
-                                                                        {new Date(review.createdAt).toLocaleDateString()}
-                                                                        {review.updatedAt && review.updatedAt !== review.createdAt && (
-                                                                            <span className="block text-xs text-gray-400">(edited)</span>
-                                                                        )}
-                                                                    </span>
-                                                                </div>
-
-                                                                <p className="text-gray-700 mb-3">{review.comment}</p>
-
-                                                                {isOwner && (
-                                                                    <div className="flex gap-3 mt-2">
-                                                                        <button
-                                                                            onClick={() => handleStartEdit(review)}
-                                                                            className="flex items-center text-blue-600 hover:text-blue-800 text-sm transition-colors"
-                                                                        >
-                                                                            <FaEdit className="mr-1" size={14} />
-                                                                            Edit
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => handleDeleteReview(review._id)}
-                                                                            className="flex items-center text-red-600 hover:text-red-800 text-sm transition-colors"
-                                                                        >
-                                                                            <FaTrash className="mr-1" size={14} />
-                                                                            Delete
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </>
-                                                        )}
+                                                                ))}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-8">
-                                            <FaStar className="mx-auto text-gray-300 text-4xl mb-2 transition-all" />
-                                            <p className="text-gray-500">No reviews yet</p>
-                                            {!currentUser && (
-                                                <p className="text-sm text-gray-400 mt-2">
-                                                    <button
-                                                        onClick={() => navigate("/login")}
-                                                        className="text-green-600 hover:underline transition-colors"
-                                                    >
-                                                        Login
-                                                    </button>{" "}
-                                                    to be the first to review
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                                    {currentUser && !reviewForm.hasReviewed && (
+                                                        <div className={`mb-6 p-4 rounded-lg transition-all ${darkMode ? 'bg-blue-900/60 hover:bg-blue-900/80' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                                                            <h4 className="font-medium mb-3">Add Your Review</h4>
+                                                            <div className="flex items-center mb-3">
+                                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                                    <FaStar
+                                                                        key={`rating-star-${star}`}
+                                                                        size={24}
+                                                                        className={`cursor-pointer mx-1 transition-transform hover:scale-110 ${star <= reviewForm.rating ?
+                                                                            "text-yellow-400" : darkMode ? 'text-blue-900' : "text-gray-300"
+                                                                            }`}
+                                                                        onClick={() => setReviewForm(prev => ({
+                                                                            ...prev,
+                                                                            rating: star
+                                                                        }))}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                            <textarea
+                                                                value={reviewForm.comment}
+                                                                onChange={(e) => setReviewForm(prev => ({
+                                                                    ...prev,
+                                                                    comment: e.target.value
+                                                                }))}
+                                                                placeholder="Share your thoughts about this product..."
+                                                                className={`w-full p-3 border rounded mb-3 transition-all focus:border-green-500 focus:ring-1 focus:ring-green-500 ${darkMode ? 'border-blue-900 bg-blue-950 text-blue-100' : 'border-gray-300'}`}
+                                                                rows="4"
+                                                            />
+                                                            <button
+                                                                onClick={handleReviewSubmit}
+                                                                disabled={
+                                                                    !reviewForm.rating ||
+                                                                    reviewForm.comment.trim().length < 10 ||
+                                                                    reviewForm.isSubmitting
+                                                                }
+                                                                className={`px-4 py-2 rounded-md text-white transition-all ${!reviewForm.rating || reviewForm.comment.trim().length < 10
+                                                                    ? "bg-gray-400 cursor-not-allowed"
+                                                                    : "bg-green-600 hover:bg-green-700"
+                                                                    }`}
+                                                            >
+                                                                {reviewForm.isSubmitting ? (
+                                                                    <span className="flex items-center justify-center">
+                                                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                                        </svg>
+                                                                        Processing...
+                                                                    </span>
+                                                                ) : "Submit Review"}
+                                                            </button>
+                                                            {reviewForm.comment.length > 0 && reviewForm.comment.length < 10 && (
+                                                                <p className="text-red-500 text-sm mt-1">
+                                                                    Review must be at least 10 characters
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {reviewsLoading ? (
+                                                        <div className="space-y-4">
+                                                            {[...Array(3)].map((_, i) => (
+                                                                <div key={`review-skeleton-${i}`} className="border-b pb-4 mb-4">
+                                                                    <div className="flex justify-between items-start mb-2">
+                                                                        <Skeleton width={150} height={20} />
+                                                                        <Skeleton width={80} height={16} />
+                                                                    </div>
+                                                                    <div className="flex mb-2">
+                                                                        <Skeleton width={80} height={16} />
+                                                                    </div>
+                                                                    <Skeleton count={2} />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : reviews.length > 0 ? (
+                                                        <div className="space-y-4">
+                                                            {reviews.map((review) => {
+                                                                if (!review._id) return null;
+                                                                const isOwner = review.isOwner;
+                                                                const isEditing = editingReview.isEditing && editingReview.id === review._id;
+                                                                return (
+                                                                    <div key={`review-${review._id}`} className="border-b pb-4 mb-4">
+                                                                        {isEditing ? (
+                                                                            <div className={`mt-3 p-4 rounded-lg ${darkMode ? 'bg-blue-900/60' : 'bg-gray-50'}`}>
+                                                                                <div className="flex items-center mb-3">
+                                                                                    {[1, 2, 3, 4, 5].map((star) => (
+                                                                                        <FaStar
+                                                                                            key={`edit-star-${star}`}
+                                                                                            size={24}
+                                                                                            className={`cursor-pointer mx-1 transition-transform hover:scale-110 ${star <= editingReview.rating ? "text-yellow-400" : darkMode ? 'text-blue-900' : "text-gray-300"}`}
+                                                                                            onClick={() => setEditingReview(prev => ({
+                                                                                                ...prev,
+                                                                                                rating: star
+                                                                                            }))}
+                                                                                        />
+                                                                                    ))}
+                                                                                </div>
+                                                                                <textarea
+                                                                                    value={editingReview.comment}
+                                                                                    onChange={(e) => setEditingReview(prev => ({
+                                                                                        ...prev,
+                                                                                        comment: e.target.value
+                                                                                    }))}
+                                                                                    className={`w-full p-3 border rounded mb-3 transition-all focus:border-green-500 focus:ring-1 focus:ring-green-500 ${darkMode ? 'border-blue-900 bg-blue-950 text-blue-100' : 'border-gray-300'}`}
+                                                                                    rows="4"
+                                                                                />
+                                                                                <div className="flex gap-2">
+                                                                                    <button
+                                                                                        onClick={handleSaveEdit}
+                                                                                        disabled={editingReview.comment.trim().length < 10}
+                                                                                        className={`px-4 py-2 rounded-md text-white transition-all ${editingReview.comment.trim().length < 10
+                                                                                            ? "bg-gray-400 cursor-not-allowed"
+                                                                                            : "bg-green-600 hover:bg-green-700"
+                                                                                            }`}
+                                                                                    >
+                                                                                        Save Changes
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={handleCancelEdit}
+                                                                                        className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 transition-all"
+                                                                                    >
+                                                                                        Cancel
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <>
+                                                                                <div className="flex justify-between items-start mb-2">
+                                                                                    <div>
+                                                                                        <h4 className={`${darkMode ? 'text-blue-100' : 'text-gray-800'} font-medium`}>
+                                                                                            {review.user?.username || "Anonymous User"}
+                                                                                            {isOwner && (
+                                                                                                <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded transition-all">
+                                                                                                    Your review
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </h4>
+                                                                                        <div className="flex text-yellow-400 my-1">
+                                                                                            {[...Array(5)].map((_, i) => (
+                                                                                                <FaStar
+                                                                                                    key={`review-star-${i}`}
+                                                                                                    className={`${i < review.rating ? "fill-current" : darkMode ? 'fill-blue-900' : "fill-gray-300"}`}
+                                                                                                    size={14}
+                                                                                                />
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <span className={`${darkMode ? 'text-blue-300' : 'text-gray-500'} text-sm`}>
+                                                                                        {new Date(review.createdAt).toLocaleDateString()}
+                                                                                        {review.updatedAt && review.updatedAt !== review.createdAt && (
+                                                                                            <span className="block text-xs text-gray-400">(edited)</span>
+                                                                                        )}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <p className={`${darkMode ? 'text-blue-100' : 'text-gray-700'} mb-3`}>{review.comment}</p>
+                                                                                {isOwner && (
+                                                                                    <div className="flex gap-3 mt-2">
+                                                                                        <button
+                                                                                            onClick={() => handleStartEdit(review)}
+                                                                                            className="flex items-center text-blue-600 hover:text-blue-800 text-sm transition-colors"
+                                                                                        >
+                                                                                            <FaEdit className="mr-1" size={14} />
+                                                                                            Edit
+                                                                                        </button>
+                                                                                        <button
+                                                                                            onClick={() => handleDeleteReview(review._id)}
+                                                                                            className="flex items-center text-red-600 hover:text-red-800 text-sm transition-colors"
+                                                                                        >
+                                                                                            <FaTrash className="mr-1" size={14} />
+                                                                                            Delete
+                                                                                        </button>
+                                                                                    </div>
+                                                                                )}
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-center py-8">
+                                                            <FaStar className="mx-auto text-gray-300 text-4xl mb-2 transition-all" />
+                                                            <p className={`${darkMode ? 'text-blue-300' : 'text-gray-500'}`}>No reviews yet</p>
+                                                            {!currentUser && (
+                                                                <p className="text-sm text-gray-400 mt-2">
+                                                                    <button
+                                                                        onClick={() => navigate("/login")}
+                                                                        className="text-green-600 hover:underline transition-colors"
+                                                                    >
+                                                                        Login
+                                                                    </button>{" "}
+                                                                    to be the first to review
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {relatedProducts && relatedProducts.length > 0 && (
-                <section className="mt-12">
-                    <h2 className="text-3xl font-extrabold mb-8 text-gray-800 border-b-2 border-green-600 pb-2">
-                        You May Also Like
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-                        {relatedProducts.map((related) => (
-                            <Link
-                                key={related._id}
-                                to={`/product/${related._id}`}
-                                className="group block bg-white rounded-xl shadow-lg overflow-hidden transform transition duration-500 hover:shadow-2xl hover:-translate-y-3"
-                                aria-label={`View details for ${related.title}`}
-                            >
-                                <div className="relative h-96 overflow-hidden rounded-t-xl">
-                                    <img
-                                        src={related.image}
-                                        alt={related.title}
-                                        className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-110"
-                                        loading="lazy"
-                                        decoding="async"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                </div>
-                                <div className="p-5">
-                                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-green-600 transition-colors duration-300">
-                                        {related.title}
-                                    </h3>
-                                    <div className="mt-3 flex items-center justify-between">
-                                        <p className="text-green-700 font-bold text-xl">
-                                            ${related.price.toFixed(2)}
-                                        </p>
-                                        {related.originalPrice && (
-                                            <p className="text-sm text-gray-400 line-through select-none">
-                                                ${related.originalPrice.toFixed(2)}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                </section>
-            )}
+            {/* Related products removed as requested */}
 
         </div>
     );

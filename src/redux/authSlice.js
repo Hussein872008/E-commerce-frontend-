@@ -12,6 +12,18 @@ const initialState = {
   role: JSON.parse(localStorage.getItem('user'))?.role || null
 };
 
+// Helper function to handle API errors
+const handleApiError = (error, defaultMessage) => {
+  console.error('API Error:', error);
+  
+  if (error.response?.data?.errors) {
+    const errorMessages = error.response.data.errors.map(err => err.msg).join(', ');
+    return errorMessages;
+  }
+  
+  return error.response?.data?.message || defaultMessage;
+};
+
 // ثنك لتحديث التوكن
 export const refreshToken = createAsyncThunk(
   'auth/refreshToken',
@@ -21,7 +33,7 @@ export const refreshToken = createAsyncThunk(
       localStorage.setItem('token', data.token);
       return data.token;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Token refresh failed');
+      return rejectWithValue(handleApiError(err, 'Token refresh failed'));
     }
   }
 );
@@ -49,12 +61,7 @@ export const registerUser = createAsyncThunk(
 
       return { token, user, role: user.role };
     } catch (error) {
-      console.error('Registration error:', error);
-      if (error.response?.data?.errors) {
-        const errorMessages = error.response.data.errors.map(err => err.msg).join(', ');
-        return rejectWithValue(errorMessages);
-      }
-      return rejectWithValue(error.response?.data?.message || 'Registration failed');
+      return rejectWithValue(handleApiError(error, 'Registration failed'));
     }
   }
 );
@@ -76,12 +83,7 @@ export const loginUser = createAsyncThunk(
 
       return { token, user, role: user.role };
     } catch (error) {
-      console.error('Login error:', error);
-      if (error.response?.data?.errors) {
-        const errorMessages = error.response.data.errors.map(err => err.msg).join(', ');
-        return rejectWithValue(errorMessages);
-      }
-      return rejectWithValue(error.response?.data?.message || 'Login failed');
+      return rejectWithValue(handleApiError(error, 'Login failed'));
     }
   }
 );
@@ -106,11 +108,12 @@ export const verifyToken = createAsyncThunk(
     } catch (error) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      return rejectWithValue(error.response?.data?.message || 'Session expired');
+      return rejectWithValue(handleApiError(error, 'Session expired'));
     }
   }
 );
-// Add this to your existing authSlice
+
+// Update profile
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async ({ userId, token, updates }, { rejectWithValue }) => {
@@ -150,16 +153,10 @@ export const updateProfile = createAsyncThunk(
 
       return updatedUser;
     } catch (error) {
-      if (error.response?.data?.errors) {
-        const errorMessages = error.response.data.errors.map(err => err.msg).join(', ');
-        return rejectWithValue(errorMessages);
-      }
-      return rejectWithValue(error.response?.data?.message || 'Update failed');
+      return rejectWithValue(handleApiError(error, 'Update failed'));
     }
   }
 );
-
-// Add this case to your extraReducers
 
 // Forgot Password
 export const forgotPassword = createAsyncThunk(
@@ -169,7 +166,7 @@ export const forgotPassword = createAsyncThunk(
       const res = await axios.post('/api/auth/forgot-password', { email });
       return res.data.message;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Error sending reset link');
+      return rejectWithValue(handleApiError(err, 'Error sending reset link'));
     }
   }
 );
@@ -182,7 +179,7 @@ export const resetPassword = createAsyncThunk(
       const res = await axios.patch(`/api/auth/reset-password/${token}`, { password, passwordConfirm });
       return res.data.message;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Error resetting password');
+      return rejectWithValue(handleApiError(err, 'Error resetting password'));
     }
   }
 );
@@ -207,6 +204,9 @@ const authSlice = createSlice({
     },
     clearSuccess: (state) => {
       state.success = null;
+    },
+    setLoading: (state, action) => {
+      state.isLoading = action.payload;
     }
   },
   extraReducers: (builder) => {
@@ -215,19 +215,7 @@ const authSlice = createSlice({
       .addCase(registerUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
-      })
-      .addCase(updateProfile.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(updateProfile.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.user = action.payload;
-        state.success = 'Profile updated successfully';
-      })
-      .addCase(updateProfile.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Failed to update profile';
+        state.success = null;
       })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -236,16 +224,19 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.role = action.payload.user.role;
         state.success = 'Registration successful';
+        state.error = null;
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = false;
-        state.error = action.payload || 'Registration failed';
+        state.error = action.payload;
+        state.success = null;
       })
       // login
       .addCase(loginUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
+        state.success = null;
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.isLoading = false;
@@ -254,11 +245,13 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.role = action.payload.user.role;
         state.success = 'Login successful';
+        state.error = null;
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = false;
-        state.error = action.payload || 'Login failed';
+        state.error = action.payload;
+        state.success = null;
       })
       // verify token
       .addCase(verifyToken.pending, (state) => {
@@ -270,20 +263,41 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         state.user = action.payload.user;
         state.role = action.payload.user.role;
+        state.error = null;
       })
       .addCase(verifyToken.rejected, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = false;
-        state.error = action.payload || 'Session expired';
+        state.error = action.payload;
+      })
+      // update profile
+      .addCase(updateProfile.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        state.success = null;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload;
+        state.success = 'Profile updated successfully';
+        state.error = null;
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+        state.success = null;
       })
       // refresh token
       .addCase(refreshToken.fulfilled, (state, action) => {
         state.token = action.payload;
         state.isAuthenticated = true;
+        state.error = null;
       })
       .addCase(refreshToken.rejected, (state) => {
         state.isAuthenticated = false;
         state.token = null;
+        state.user = null;
+        state.role = null;
       })
       // forgot password
       .addCase(forgotPassword.pending, (state) => {
@@ -294,10 +308,12 @@ const authSlice = createSlice({
       .addCase(forgotPassword.fulfilled, (state, action) => {
         state.isLoading = false;
         state.success = action.payload;
+        state.error = null;
       })
       .addCase(forgotPassword.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Error sending reset link';
+        state.error = action.payload;
+        state.success = null;
       })
       // reset password
       .addCase(resetPassword.pending, (state) => {
@@ -308,15 +324,15 @@ const authSlice = createSlice({
       .addCase(resetPassword.fulfilled, (state, action) => {
         state.isLoading = false;
         state.success = action.payload;
+        state.error = null;
       })
       .addCase(resetPassword.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Error resetting password';
+        state.error = action.payload;
+        state.success = null;
       });
   }
 });
 
-export const { logout, clearError, clearSuccess } = authSlice.actions;
+export const { logout, clearError, clearSuccess, setLoading } = authSlice.actions;
 export default authSlice.reducer;
-
-// Axios interceptors moved to setupAxiosInterceptors.js to avoid circular dependency
