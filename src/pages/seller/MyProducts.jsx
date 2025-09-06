@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api, { setAuthToken } from '../../utils/api';
 import { Pagination } from "@mui/material";
 
 export default function MyProducts() {
@@ -29,27 +29,18 @@ useEffect(() => {
     try {
       setLoading(true);
       
+      // set token on shared api instance and call backend
+      setAuthToken(token);
       const [productsRes, categoriesRes] = await Promise.all([
-        axios.get(`/api/products/seller/my-products`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
+        api.get(`/api/products/seller/my-products`, {
           params: {
             page: currentPage,
             limit: productsPerPage,
             search: searchTerm,
             category: selectedCategory
-          },
-          withCredentials: true
+          }
         }),
-        axios.get(`/api/products/categories`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          withCredentials: true
-        })
+        api.get(`/api/products/categories`)
       ]);
 
       const productsData = productsRes.data?.products || [];
@@ -98,13 +89,8 @@ useEffect(() => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
 
     try {
-      await axios.delete(`/api/products/${productId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        withCredentials: true
-      });
+  setAuthToken(token);
+  await api.delete(`/api/products/${productId}`);
 
       setProducts(prevProducts => prevProducts.filter(p => p._id !== productId));
     } catch (err) {

@@ -1,17 +1,18 @@
 // Clear Cart from backend
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import axios from 'axios';
+import api, { setAuthToken } from '../utils/api';
+
 export const clearCartThunk = createAsyncThunk(
   'cart/clearCartThunk',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const { token } = getState().auth;
-      if (!token) return rejectWithValue('User not authenticated');
-      await axios.delete('/api/cart/clear', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { token, user } = getState().auth;
+      if (!token || !user) return rejectWithValue('User not authenticated');
+      setAuthToken(token);
+      await api.delete('/api/cart/clear');
       // بعد المسح، جلب الكارت من جديد
-      const response = await axios.get('/api/cart', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/api/cart', { params: { userId: user._id } });
       return {
         items: processCartItems(response.data.items),
         total: response.data.total || 0
@@ -21,10 +22,6 @@ export const clearCartThunk = createAsyncThunk(
     }
   }
 );
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
-
-axios.defaults.baseURL = "https://e-commerce-backend-production-7ac6.up.railway.app";
 
 // Helper function
 const processCartItems = (items) => {
@@ -58,10 +55,8 @@ export const fetchCart = createAsyncThunk(
       const { token, user } = getState().auth;
       if (!token || !user) return { items: [], total: 0 };
 
-      const response = await axios.get('/api/cart', {
-        params: { userId: user._id },
-        headers: { Authorization: `Bearer ${token}` }
-      });
+  setAuthToken(token);
+  const response = await api.get('/api/cart', { params: { userId: user._id } });
 
       return {
         items: processCartItems(response.data.items),
@@ -83,10 +78,8 @@ export const addToCart = createAsyncThunk(
       if (!token || !user) return rejectWithValue('User not authenticated');
       if (!productId) return rejectWithValue('Product ID required');
 
-      await axios.post('/api/cart/add',
-        { productId, quantity, userId: user._id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  setAuthToken(token);
+  await api.post('/api/cart/add', { productId, quantity, userId: user._id });
 
       return { productId, quantity };
     } catch (error) {
@@ -103,10 +96,8 @@ export const removeFromCart = createAsyncThunk(
       const { token, user } = getState().auth;
       // if (!token || !user) return rejectWithValue('User not authenticated');
 
-      await axios.delete(`/api/cart/remove/${itemId}`, {
-        params: { userId: user._id },
-        headers: { Authorization: `Bearer ${token}` }
-      });
+  setAuthToken(token);
+  await api.delete(`/api/cart/remove/${itemId}`, { params: { userId: user._id } });
 
       return itemId;
     } catch (error) {
@@ -123,10 +114,8 @@ export const updateCartItem = createAsyncThunk(
       const { token, user } = getState().auth;
       // if (!token || !user) return rejectWithValue('User not authenticated');
 
-      await axios.put(`/api/cart/update/${itemId}`,
-        { quantity, userId: user._id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  setAuthToken(token);
+  await api.put(`/api/cart/update/${itemId}`, { quantity, userId: user._id });
 
       return { itemId, quantity };
     } catch (error) {

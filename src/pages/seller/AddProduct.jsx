@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import api from '../../utils/api';
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 
@@ -45,12 +46,8 @@ export default function AddProduct() {
         setCategoriesLoading(true);
         setError("");
         const [categoriesRes, countsRes] = await Promise.all([
-          axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/products/categories`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }).catch(() => ({ data: [] })),
-          axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/products/category-counts`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }).catch(() => ({}))
+          api.get('/api/products/categories', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
+          api.get('/api/products/category-counts', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({}))
         ]);
         let categoriesData = [];
         if (Array.isArray(categoriesRes.data)) {
@@ -265,16 +262,12 @@ const handleSubmit = async (e) => {
       formData.extraImages.forEach(file => formDataToSend.append('extraImages', file));
     }
 
-    const response = await axios.post(
-      `${import.meta.env.VITE_API_BASE_URL}/api/products`,
-      formDataToSend,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${token}`,
-        }
+    const response = await api.post('/api/products', formDataToSend, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
       }
-    );
+    });
 
     if (response.status === 201) {
       setSuccess("Product added successfully!");

@@ -39,11 +39,17 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 
 // ====== OrderStatusChart Component (Merged) ======
 function OrderStatusChart({ data, darkMode }) {
+  const completed = Number(data?.completed) || 0;
+  const pending = Number(data?.pending) || 0;
+  const cancelled = Number(data?.cancelled) || 0;
+
+  const total = completed + pending + cancelled;
+
   const chartData = {
     labels: ["Completed", "Processing", "Cancelled"],
     datasets: [
       {
-        data: [data.completed, data.pending, data.cancelled],
+        data: [completed, pending, cancelled],
         backgroundColor: [
           "#10B981", // green
           "#3B82F6", // blue
@@ -83,7 +89,11 @@ function OrderStatusChart({ data, darkMode }) {
 
   return (
     <div className="h-64 w-64 mx-auto">
-      <Pie data={chartData} options={options} />
+      {total === 0 ? (
+        <div className="h-64 w-64 flex items-center justify-center text-sm text-gray-500">No order data</div>
+      ) : (
+        <Pie data={chartData} options={options} />
+      )}
     </div>
   );
 }

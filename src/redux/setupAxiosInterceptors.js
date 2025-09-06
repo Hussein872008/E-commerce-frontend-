@@ -1,20 +1,13 @@
-import axios from 'axios';
+import api, { setAuthToken } from '../utils/api';
 import store from './store';
 import { refreshToken, logout } from './authSlice';
 
 export default function setupAxiosInterceptors() {
-  axios.interceptors.request.use(
-    (config) => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        config.headers['Authorization'] = `Bearer ${token}`;
-      }
-      return config;
-    },
-    (error) => Promise.reject(error)
-  );
+  // attach token from localStorage at startup if available
+  const token = localStorage.getItem('token');
+  if (token) setAuthToken(token);
 
-  axios.interceptors.response.use(
+  api.interceptors.response.use(
     (response) => response,
     async (error) => {
       const originalRequest = error.config;
@@ -22,8 +15,9 @@ export default function setupAxiosInterceptors() {
         originalRequest._retry = true;
         try {
           const newToken = await store.dispatch(refreshToken()).unwrap();
+          setAuthToken(newToken);
           originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
-          return axios(originalRequest);
+          return api(originalRequest);
         } catch (refreshError) {
           store.dispatch(logout());
           return Promise.reject(refreshError);

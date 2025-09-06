@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import api, { setAuthToken } from '../utils/api';
 
 // Helper functions
 // تعديل دالة processOrderItems لضمان معالجة البيانات بشكل صحيح
@@ -60,17 +60,16 @@ export const fetchOrders = createAsyncThunk(
                 throw new Error('No authentication token found');
             }
 
+            // attach token to shared api instance
+            setAuthToken(token);
+
             const config = {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
                 timeout: 10000 // 10 ثواني timeout
             };
 
             const [ordersRes, statsRes] = await Promise.all([
-                axios.get('/api/orders/my', config),
-                axios.get('/api/orders/my/stats', config)
+                api.get('/api/orders/my', config),
+                api.get('/api/orders/my/stats', config)
             ]);
 
             if (!ordersRes.data || !statsRes.data) {
@@ -113,9 +112,8 @@ export const createOrder = createAsyncThunk(
     async (orderData, { getState, rejectWithValue }) => {
         try {
             const { token } = getState().auth;
-            const response = await axios.post('/api/orders/create', orderData, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            setAuthToken(token);
+            const response = await api.post('/api/orders/create', orderData);
             return response.data.order;
         } catch (error) {
             return rejectWithValue(error.response?.data?.error || 'فشل في إنشاء الطلب');
@@ -130,10 +128,9 @@ export const cancelOrder = createAsyncThunk(
   async (orderId, { getState, rejectWithValue }) => {
     try {
     // ...existing code...
-      const { token } = getState().auth;
-      const response = await axios.put(`/api/orders/cancel/${orderId}`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    const { token } = getState().auth;
+    setAuthToken(token);
+    const response = await api.put(`/api/orders/cancel/${orderId}`, {}, { timeout: 10000 });
     // ...existing code...
       return orderId;
     } catch (error) {
@@ -148,9 +145,8 @@ export const fetchOrderDetails = createAsyncThunk(
     async (orderId, { getState, rejectWithValue }) => {
         try {
             const { token } = getState().auth;
-            const response = await axios.get(`/api/orders/${orderId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            setAuthToken(token);
+            const response = await api.get(`/api/orders/${orderId}`);
             return processOrderItems([response.data])[0];
         } catch (error) {
             return rejectWithValue(error.response?.data?.error || 'فشل في جلب تفاصيل الطلب');
@@ -163,9 +159,9 @@ export const searchOrders = createAsyncThunk(
     async (searchParams, { getState, rejectWithValue }) => {
         try {
             const { token } = getState().auth;
-            const response = await axios.get('/api/orders/search', {
-                params: searchParams,
-                headers: { Authorization: `Bearer ${token}` }
+            setAuthToken(token);
+            const response = await api.get('/api/orders/search', {
+                params: searchParams
             });
             return {
                 orders: processOrderItems(response.data.orders || []),

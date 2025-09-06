@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import axios from "axios";
+import api, { setAuthToken } from "../../utils/api";
 import { updateOrderStatus } from "../../redux/adminSlice";
 import { FiRefreshCw } from "react-icons/fi";
 
@@ -37,10 +37,9 @@ export default function SellerOrders() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get("/api/orders/seller", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+  const token = localStorage.getItem("token");
+  setAuthToken(token);
+  const res = await api.get("/api/orders/seller");
       setOrders(res.data.orders || []);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to fetch seller orders");

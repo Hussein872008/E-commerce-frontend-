@@ -1,7 +1,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSelector } from 'react-redux';
-import axios from 'axios';
+import api, { setAuthToken } from '../../utils/api';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaHeart, FaTrash, FaArrowLeft } from 'react-icons/fa';
 import { toast } from 'react-toastify';
@@ -22,9 +22,8 @@ const WishlistPage = () => {
         try {
             setLoading(true);
             setError(null);
-            const { data } = await axios.get(`/api/wishlist`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            setAuthToken(token);
+            const { data } = await api.get(`/api/wishlist`);
             setWishlist(data.products || []);
             // setSelectedProducts([]); // removed: no longer needed
         } catch (err) {
@@ -38,9 +37,8 @@ const WishlistPage = () => {
 
     const handleRemoveFromWishlist = async (productId) => {
         try {
-            await axios.delete(`/api/wishlist/${productId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            setAuthToken(token);
+            await api.delete(`/api/wishlist/${productId}`);
             fetchWishlist();
         } catch (err) {
             console.error('Failed to remove from wishlist:', err);
@@ -53,9 +51,7 @@ const WishlistPage = () => {
             setBulkLoading(true);
             await Promise.all(
                 selectedProducts.map(productId =>
-                    axios.delete(`/api/wishlist/${productId}`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    })
+                    (async () => { setAuthToken(token); return api.delete(`/api/wishlist/${productId}`); })()
                 )
             );
             toast.success(`${selectedProducts.length} items removed from wishlist`);
@@ -79,11 +75,7 @@ const WishlistPage = () => {
         try {
             await Promise.all(
                 selectedProducts.map(productId =>
-                    axios.post(
-                        `/api/cart`,
-                        { productId, quantity: 1 },
-                        { headers: { Authorization: `Bearer ${token}` } }
-                    )
+                    (async () => { setAuthToken(token); return api.post(`/api/cart`, { productId, quantity: 1 }); })()
                 )
             );
             toast.success(`${selectedProducts.length} items added to cart`);

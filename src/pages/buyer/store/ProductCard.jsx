@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import { FiShoppingCart, FiHeart } from "react-icons/fi";
 import { FaHeart, FaRegStar, FaStarHalfAlt, FaStar } from "react-icons/fa";
 import { toast } from 'react-toastify';
-import axios from "axios";
+import api, { setAuthToken } from "../../../utils/api";
 import { updateCartStatus, fetchCart } from "../../../redux/cart.slice";
 import { incrementWishlistCount, decrementWishlistCount, fetchWishlistCount } from "../../../redux/wishlist.slice";
 
@@ -252,9 +252,8 @@ function ProductCard({ product }) {
     
     setCheckingWishlist(true);
     try {
-      const res = await axios.get(`/api/wishlist/check/${product._id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  setAuthToken(token);
+  const res = await api.get(`/api/wishlist/check/${product._id}`);
       setIsWishlisted(Boolean(res.data?.isInWishlist));
     } catch (err) {
       console.error("Error checking wishlist:", err);
@@ -278,18 +277,13 @@ function ProductCard({ product }) {
     setIsWishlisted((prev) => !prev);
     
     try {
+      setAuthToken(token);
       if (isWishlisted) {
         dispatch(decrementWishlistCount());
-        await axios.delete(`/api/wishlist/${product._id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await api.delete(`/api/wishlist/${product._id}`);
       } else {
         dispatch(incrementWishlistCount());
-        await axios.post(
-          `/api/wishlist`,
-          { productId: product._id },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        await api.post(`/api/wishlist`, { productId: product._id });
       }
       dispatch(fetchWishlistCount());
     } catch (err) {
@@ -318,11 +312,8 @@ function ProductCard({ product }) {
     setCartLoading(true);
     try {
       dispatch(updateCartStatus({ productId: product._id, isInCart: true }));
-      const response = await axios.post(
-        `/api/cart/add`,
-        { productId: product._id, quantity: 1 },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  setAuthToken(token);
+  const response = await api.post(`/api/cart/add`, { productId: product._id, quantity: 1 });
       
       if (response.data?.success) {
         await dispatch(fetchCart());
@@ -360,9 +351,8 @@ function ProductCard({ product }) {
     setCartLoading(true);
     try {
       dispatch(updateCartStatus({ productId: product._id, isInCart: false }));
-      await axios.delete(`/api/cart/remove/${cartItemId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  setAuthToken(token);
+  await api.delete(`/api/cart/remove/${cartItemId}`);
       await dispatch(fetchCart());
     } catch (err) {
       dispatch(updateCartStatus({ productId: product._id, isInCart: true }));

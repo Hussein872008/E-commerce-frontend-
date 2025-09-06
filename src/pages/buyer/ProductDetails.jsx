@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
-import axios from "axios";
+import api, { setAuthToken } from "../../utils/api";
 import { toast } from "react-toastify";
 import Swal from 'sweetalert2';
 import { jwtDecode } from "jwt-decode";
@@ -126,11 +126,12 @@ export default function ProductDetails() {
                     return;
                 }
 
+                if (token) setAuthToken(token);
                 const [productRes, reviewsRes, averageRes, cartRes] = await Promise.all([
-                    axios.get(`/api/products/${id}`),
-                    axios.get(`/api/reviews/product/${id}`),
-                    axios.get(`/api/reviews/average/${id}`),
-                    token ? axios.get('/api/cart', { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve(null)
+                    api.get(`/api/products/${id}`),
+                    api.get(`/api/reviews/product/${id}`),
+                    api.get(`/api/reviews/average/${id}`),
+                    token ? api.get('/api/cart') : Promise.resolve(null)
                 ]);
 
                 setProduct(productRes.data);
@@ -175,10 +176,8 @@ export default function ProductDetails() {
 
     const fetchWishlistStatus = async (productId) => {
         try {
-            const wishlistRes = await axios.get(
-                `/api/wishlist/check/${productId}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            if (token) setAuthToken(token);
+            const wishlistRes = await api.get(`/api/wishlist/check/${productId}`);
             setIsWishlisted(wishlistRes.data.isInWishlist);
         } catch (error) {
             console.warn("Could not check wishlist status:", error);
@@ -197,9 +196,7 @@ export default function ProductDetails() {
 
     const fetchAverageRating = async (productId) => {
         try {
-            const response = await axios.get(
-                `/api/reviews/average/${productId}`
-            );
+            const response = await api.get(`/api/reviews/average/${productId}`);
             setAverageRatingData({
                 average: response.data.averageRating || 0,
                 count: response.data.count || 0,
@@ -214,13 +211,8 @@ export default function ProductDetails() {
     const fetchProductReviews = async (productId) => {
         setReviewsLoading(true);
         try {
-            const response = await axios.get(
-                `/api/reviews/product/${productId}`,
-                {
-                    headers: token ? { Authorization: `Bearer ${token}` } : {},
-                    withCredentials: true
-                }
-            );
+            if (token) setAuthToken(token);
+            const response = await api.get(`/api/reviews/product/${productId}`, { withCredentials: true });
 
             const reviewsFromServer = response.data.reviews || [];
             setReviews(reviewsFromServer);
@@ -248,7 +240,7 @@ export default function ProductDetails() {
             if (currentUser) {
                 fetchProductReviews(id);
             } else {
-                axios.get(`/api/reviews/product/${id}`, { withCredentials: true })
+                api.get(`/api/reviews/product/${id}`, { withCredentials: true })
                     .then(res => setReviews(res.data.reviews || []))
                     .catch(err => console.error("Error loading public reviews:", err));
             }
@@ -278,13 +270,6 @@ export default function ProductDetails() {
         try {
             setReviewForm(prev => ({ ...prev, isSubmitting: true }));
 
-            const config = {
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-            };
-
             const reviewData = {
                 productId: id,
                 rating: reviewForm.rating,
@@ -292,19 +277,17 @@ export default function ProductDetails() {
             };
 
             let response;
+            try {
+                if (token) setAuthToken(token);
+            } catch (e) {
+                console.warn('Failed to set auth token before submitting review', e);
+            }
+
             if (reviewForm.hasReviewed && reviewForm.existingReviewId) {
-                response = await axios.put(
-                    `/api/reviews/${reviewForm.existingReviewId}`,
-                    reviewData,
-                    config
-                );
+                response = await api.put(`/api/reviews/${reviewForm.existingReviewId}`, reviewData, { headers: { "Content-Type": "application/json" } });
                 toast.success("Review updated successfully!");
             } else {
-                response = await axios.post(
-                    `/api/reviews`,
-                    reviewData,
-                    config
-                );
+                response = await api.post(`/api/reviews`, reviewData, { headers: { "Content-Type": "application/json" } });
                 toast.success("Review added successfully!");
 
                 setReviewForm(prev => ({
@@ -403,7 +386,8 @@ export default function ProductDetails() {
         try {
             setReviewForm(prev => ({ ...prev, isSubmitting: true }));
 
-            const response = await axios.put(
+            if (token) setAuthToken(token);
+            const response = await api.put(
                 `/api/reviews/${editingReview.id}`,
                 {
                     rating: editingReview.rating,
@@ -411,8 +395,7 @@ export default function ProductDetails() {
                 },
                 {
                     headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`
+                        "Content-Type": "application/json"
                     }
                 }
             );
@@ -499,10 +482,8 @@ export default function ProductDetails() {
 
             if (!result.isConfirmed) return;
 
-            const response = await axios.delete(
-                `/api/reviews/${reviewId}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            if (token) setAuthToken(token);
+            const response = await api.delete(`/api/reviews/${reviewId}`);
 
             if (response.data.success) {
                 await Swal.fire(
@@ -567,10 +548,9 @@ export default function ProductDetails() {
                 quantity
             }));
 
-            const response = await axios.post(
+            const response = await api.post(
                 `/api/cart/add`,
-                { productId: product._id, quantity },
-                { headers: { Authorization: `Bearer ${token}` } }
+                { productId: product._id, quantity }
             );
 
             if (response.data.success) {
@@ -637,16 +617,11 @@ export default function ProductDetails() {
             }
 
             if (isWishlisted) {
-                await axios.delete(
-                    `/api/wishlist/${product._id}`,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
+                if (token) setAuthToken(token);
+                await api.delete(`/api/wishlist/${product._id}`);
             } else {
-                await axios.post(
-                    `/api/wishlist`,
-                    { productId: product._id },
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
+                if (token) setAuthToken(token);
+                await api.post(`/api/wishlist`, { productId: product._id });
             }
 
             dispatch(fetchWishlistCount());

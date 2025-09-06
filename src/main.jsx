@@ -9,6 +9,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { useSelector } from 'react-redux';
+import { setAuthToken } from './utils/api';
 
 function Root() {
   const darkMode = useSelector(state => state.theme.darkMode);
@@ -41,7 +42,8 @@ function Root() {
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Provider store={store}>
-      <Root />
+  {setAuthToken(localStorage.getItem('token'))}
+  <Root />
     </Provider>
   </React.StrictMode>
 );

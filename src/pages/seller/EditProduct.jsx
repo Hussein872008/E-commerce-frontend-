@@ -2,7 +2,7 @@ import Swal from "sweetalert2";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import axios from "axios";
+import api, { setAuthToken } from '../../utils/api';
 
 export default function EditProduct() {
   const { id } = useParams();
@@ -45,12 +45,7 @@ export default function EditProduct() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/products/categories`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          withCredentials: true
-        });
+  const res = await api.get('/api/products/categories', { headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
         setCategories(res.data);
       } catch (err) {
         console.error("Failed to load categories", err);
@@ -64,12 +59,7 @@ export default function EditProduct() {
     const fetchProduct = async () => {
       try {
         setProductLoading(true);
-        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/products/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          withCredentials: true
-        });
+  const res = await api.get(`/api/products/${id}`, { headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
 
         const data = res.data;
 
@@ -201,13 +191,10 @@ const handleRemoveExtraImage = async (index) => {
       }));
     } else {
       const imageUrl = product.existingExtraImages[index];
-      const imagePath = imageUrl.replace(`${import.meta.env.VITE_API_BASE_URL}/uploads/`, ""); 
 
-      const res = await axios.put(
-        `${import.meta.env.VITE_API_BASE_URL}/api/products/${id}/delete-image`,
-        { imagePath: `/uploads/${imagePath}` },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  const imagePath = imageUrl.replace(`${import.meta.env.VITE_API_BASE_URL}/uploads/`, ""); 
+  setAuthToken(token);
+  const res = await api.put(`/api/products/${id}/delete-image`, { imagePath: `/uploads/${imagePath}` });
 
       setProduct(prev => ({
         ...prev,
@@ -293,17 +280,7 @@ const handleRemoveExtraImage = async (index) => {
         formData.append("extraImages", file);
       });
 
-      const res = await axios.put(
-        `${import.meta.env.VITE_API_BASE_URL}/api/products/${id}`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${token}`,
-          },
-          withCredentials: true
-        }
-      );
+  const res = await api.put(`/api/products/${id}`, formData, { headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${token}` }, withCredentials: true });
 
       setSuccessMsg("✅ Product updated successfully");
       setTimeout(() => {

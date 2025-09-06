@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { FiSearch, FiFilter, FiLoader } from "react-icons/fi";
-import axios from "axios";
+import api from "../../utils/api";
 import { debounce } from 'lodash';
 import { fetchAllProducts, fetchFilteredProducts, resetFilters } from "../../redux/productSlice";
 import { fetchCart } from '../../redux/cart.slice';
@@ -49,7 +49,7 @@ export default function Store() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await axios.get('/api/products/categories');
+        const response = await api.get('/api/products/categories');
         setCategories(Array.isArray(response.data) ? response.data : []);
       } catch (err) {
         setCategories([]);

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import api, { setAuthToken } from '../utils/api';
 
 // الحالة الأولية
 const initialState = {
@@ -14,14 +14,26 @@ const initialState = {
 
 // Helper function to handle API errors
 const handleApiError = (error, defaultMessage) => {
-  console.error('API Error:', error);
-  
-  if (error.response?.data?.errors) {
-    const errorMessages = error.response.data.errors.map(err => err.msg).join(', ');
+  // Log generic info for debugging (avoid logging sensitive request body)
+  console.error('API Error:', error?.message || error);
+  const resp = error?.response?.data || null;
+  const status = error?.response?.status;
+
+  // Validation errors (express-validator style)
+  if (resp?.errors && Array.isArray(resp.errors)) {
+    const errorMessages = resp.errors.map(err => err.msg).join(', ');
     return errorMessages;
   }
-  
-  return error.response?.data?.message || defaultMessage;
+
+  // Prefer explicit message, then generic error/details fields
+  if (resp?.message) return resp.message;
+  if (resp?.error) return resp.error;
+  if (resp?.details) return resp.details;
+
+  // Fallback to HTTP status if present
+  if (status) return `Request failed with status ${status}`;
+
+  return defaultMessage;
 };
 
 // ثنك لتحديث التوكن
@@ -29,7 +41,7 @@ export const refreshToken = createAsyncThunk(
   'auth/refreshToken',
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await axios.post('/api/auth/refresh-token', {}, { withCredentials: true });
+  const { data } = await api.post('/api/auth/refresh-token', {}, { withCredentials: true });
       localStorage.setItem('token', data.token);
       return data.token;
     } catch (err) {
@@ -43,7 +55,7 @@ export const registerUser = createAsyncThunk(
   'auth/registerUser',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await axios.post('/api/auth/register', {
+  const response = await api.post('/api/auth/register', {
         name: userData.name,
         email: userData.email,
         password: userData.password,
@@ -71,7 +83,7 @@ export const loginUser = createAsyncThunk(
   'auth/login',
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
+  const response = await api.post('/api/auth/login', { email, password });
 
       if (!response.data.success) {
         return rejectWithValue(response.data.message || 'Login failed');
@@ -96,9 +108,8 @@ export const verifyToken = createAsyncThunk(
       const token = localStorage.getItem('token');
       if (!token) return rejectWithValue('No token found');
 
-      const response = await axios.get('/api/auth/verify-token', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+  setAuthToken(token);
+  const response = await api.get('/api/auth/verify-token');
 
       if (!response.data.user || !response.data.user.role) {
         throw new Error('Invalid user data');
@@ -134,11 +145,8 @@ export const updateProfile = createAsyncThunk(
         updateData.newPassword = updates.newPassword;
       }
 
-      const response = await axios.patch(
-        `/api/users/${userId}`,
-        updateData,
-        config
-      );
+  setAuthToken(token);
+  const response = await api.patch(`/api/users/${userId}`, updateData, config);
 
       if (!response.data.success) {
         return rejectWithValue(response.data.message || 'Update failed');
@@ -163,7 +171,7 @@ export const forgotPassword = createAsyncThunk(
   'auth/forgotPassword',
   async (email, { rejectWithValue }) => {
     try {
-      const res = await axios.post('/api/auth/forgot-password', { email });
+  const res = await api.post('/api/auth/forgot-password', { email });
       return res.data.message;
     } catch (err) {
       return rejectWithValue(handleApiError(err, 'Error sending reset link'));
@@ -176,7 +184,7 @@ export const resetPassword = createAsyncThunk(
   'auth/resetPassword',
   async ({ token, password, passwordConfirm }, { rejectWithValue }) => {
     try {
-      const res = await axios.patch(`/api/auth/reset-password/${token}`, { password, passwordConfirm });
+  const res = await api.patch(`/api/auth/reset-password/${token}`, { password, passwordConfirm });
       return res.data.message;
     } catch (err) {
       return rejectWithValue(handleApiError(err, 'Error resetting password'));
@@ -194,19 +202,9 @@ export const deleteAccount = createAsyncThunk(
         throw new Error('No authentication token found');
       }
 
-      // Temporary: during local development send requests to local backend (localhost:5000)
-      // اعمل هذا التعديل مؤقتًا للتطوير المحلي؛ عند النشر لحذف التعليق واستعادة الطلب النسبي أو استخدم المتغيرات البيئية المناسبة
-      const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
 
-      const response = await axios({
-        method: 'DELETE',
-        url: `${baseUrl}/api/users/me`,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        data: { password } // Send password in request body
-      });
+  setAuthToken(token);
+  const response = await api.delete('/api/users/me', { data: { password } });
 
       // Clear local storage on success
       localStorage.removeItem('token');

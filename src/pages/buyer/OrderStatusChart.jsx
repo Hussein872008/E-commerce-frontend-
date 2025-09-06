@@ -10,11 +10,17 @@ import {
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 export default function OrderStatusChart({ data }) {
+  const completed = Number(data?.completed) || 0;
+  const pending = Number(data?.pending) || 0;
+  const cancelled = Number(data?.cancelled) || 0;
+
+  const total = completed + pending + cancelled;
+
   const chartData = {
     labels: ["Completed", "Processing", "Cancelled"],
     datasets: [
       {
-        data: [data.completed, data.pending, data.cancelled],
+        data: [completed, pending, cancelled],
         backgroundColor: [
           "#10B981", // أخضر مكتمل
           "#3B82F6", // أزرق جاري المعالجة
@@ -44,6 +50,15 @@ export default function OrderStatusChart({ data }) {
       }
     }
   };
+
+  // If there is no data, render a stable placeholder with fixed size to avoid layout shifts
+  if (total === 0) {
+    return (
+      <div className="h-64 w-64 flex items-center justify-center text-sm text-gray-500">
+        No order data
+      </div>
+    );
+  }
 
   return <Pie data={chartData} options={options} />;
 }

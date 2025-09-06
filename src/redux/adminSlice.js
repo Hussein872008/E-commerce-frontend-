@@ -1,21 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import axios from 'axios';
+import api from '../utils/api';
 
-const adminApi = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  withCredentials: true
-});
-
-adminApi.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token'); 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+// ensure auth header is set by api instance when needed (api will read from localStorage if used with setAuthToken())
 
 export const fetchAllUsers = createAsyncThunk(
   'admin/fetchAllUsers',

@@ -1,15 +1,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import api, { setAuthToken } from '../utils/api';
 
 // جلب عدد العناصر في الويش ليست
 export const fetchWishlistCount = createAsyncThunk(
   'wishlist/fetchCount',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const { token } = getState().auth;
-      const response = await axios.get(`/api/wishlist/count`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+  const { token } = getState().auth;
+  setAuthToken(token);
+  const response = await api.get(`/api/wishlist/count`);
       return response.data.count;
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || 'Failed to fetch wishlist count');
@@ -22,11 +21,9 @@ export const checkWishlistStatus = createAsyncThunk(
   'wishlist/checkStatus',
   async (productId, { getState, rejectWithValue }) => {
     try {
-      const { token } = getState().auth;
-      const response = await axios.get(
-        `/api/wishlist/check/${productId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  const { token } = getState().auth;
+  setAuthToken(token);
+  const response = await api.get(`/api/wishlist/check/${productId}`);
       return { productId, isInWishlist: response.data.isInWishlist };
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || 'Failed to check wishlist status');

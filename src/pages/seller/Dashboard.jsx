@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import axios from "axios";
+import api, { setAuthToken } from '../../utils/api';
 import { useSelector } from "react-redux";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useNavigate } from "react-router-dom";
@@ -24,16 +24,12 @@ export default function SellerDashboard() {
     const fetchDashboardStats = async () => {
       try {
         setLoading(true);
+        // ensure shared api instance has the auth token
+        setAuthToken(token);
         const [statsRes, salesRes, popularRes] = await Promise.all([
-          axios.get("/api/products/seller/dashboard", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          axios.get("/api/products/seller/sales-data", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          axios.get("/api/products/seller/popular", {
-            headers: { Authorization: `Bearer ${token}` },
-          })
+          api.get("/api/products/seller/dashboard"),
+          api.get("/api/products/seller/sales-data"),
+          api.get("/api/products/seller/popular")
         ]);
 
 

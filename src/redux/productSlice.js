@@ -1,12 +1,12 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import api, { setAuthToken } from '../utils/api';
 
 // جلب جميع المنتجات
 export const fetchAllProducts = createAsyncThunk(
   'products/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/products');
+  const response = await api.get('/api/products');
       return Array.isArray(response.data.data) ? response.data.data : [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch products");
@@ -19,7 +19,7 @@ export const fetchFilteredProducts = createAsyncThunk(
   'products/fetchFiltered',
   async (filters, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/products/filtered', { params: filters });
+  const response = await api.get('/api/products/filtered', { params: filters });
       // backend returns products in response.data.products
       return Array.isArray(response.data.products) ? response.data.products : [];
     } catch (error) {
@@ -33,10 +33,9 @@ export const fetchMyProducts = createAsyncThunk(
   'products/fetchMyProducts',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const token = getState().auth.token;
-      const response = await axios.get('/api/products/seller/my-products', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  const token = getState().auth.token;
+  setAuthToken(token);
+  const response = await api.get('/api/products/seller/my-products');
       return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch products");
@@ -49,7 +48,7 @@ export const fetchProductDetails = createAsyncThunk(
   'products/fetchDetails',
   async (productId, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`/api/products/${productId}`);
+  const response = await api.get(`/api/products/${productId}`);
       return response.data || null;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch product details");
@@ -63,7 +62,7 @@ export const fetchRelatedProducts = createAsyncThunk(
   'products/fetchRelated',
   async ({ category, excludeId }, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/products/filtered', {
+  const response = await api.get('/api/products/filtered', {
         params: { category, limit: 4, exclude: excludeId }
       });
       // تأكد من أن الخادم يرجع products بدلاً من data
