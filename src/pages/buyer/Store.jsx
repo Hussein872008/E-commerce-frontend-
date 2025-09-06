@@ -65,6 +65,18 @@ export default function Store() {
     return () => debouncedSearch.cancel();
   }, [searchInput]);
 
+  // If the user clears the search box, immediately reset filters and fetch all products
+  useEffect(() => {
+    if (searchInput.trim() === "") {
+      // keep searchTerm in sync
+      setSearchTerm("");
+      if (dataLoaded) {
+        dispatch(resetFilters());
+        dispatch(fetchAllProducts());
+      }
+    }
+  }, [searchInput, dataLoaded, dispatch]);
+
   // تطبيق الفلاتر
   const applyFilters = useCallback(() => {
     if (!dataLoaded) return;
@@ -163,7 +175,9 @@ export default function Store() {
       `}
     >
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-green-300' : 'text-green-700'}`}>Our Products</h1>
+        <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-green-300' : 'text-green-700'}`}>
+          <span aria-hidden="true" className="hidden md:inline-block">Our Products</span>
+        </h1>
         <div className="flex items-center w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
             <FiSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />

@@ -48,15 +48,12 @@ function App() {
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
 
-      {/* محمية للجميع */}
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute allowedRoles={["buyer", "seller", "admin"]}>
-            <Profile />
-          </ProtectedRoute>
-        }
-      />
+  {/* Public store page inside BuyerLayout so navbar shows for visitors */}
+  <Route element={<BuyerLayout />}> 
+    <Route path="/store" element={<Store />} />
+  </Route>
+
+  {/* Note: /profile is now a sidebar component inside BuyerLayout; no separate route */}
 
       {/* راوتس المشتري */}
       {/* صفحات عامة للكل */}
@@ -70,7 +67,6 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/store" element={<Store />} />
         <Route path="/buyer/orders" element={<Orders />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />

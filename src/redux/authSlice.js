@@ -184,6 +184,41 @@ export const resetPassword = createAsyncThunk(
   }
 );
 
+// Delete account (self)
+export const deleteAccount = createAsyncThunk(
+  'auth/deleteAccount',
+  async ({ password }, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      // Temporary: during local development send requests to local backend (localhost:5000)
+      // اعمل هذا التعديل مؤقتًا للتطوير المحلي؛ عند النشر لحذف التعليق واستعادة الطلب النسبي أو استخدم المتغيرات البيئية المناسبة
+      const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
+
+      const response = await axios({
+        method: 'DELETE',
+        url: `${baseUrl}/api/users/me`,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        data: { password } // Send password in request body
+      });
+
+      // Clear local storage on success
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+
+      return response.data.message || 'Account deleted successfully';
+    } catch (err) {
+      return rejectWithValue(handleApiError(err, 'Failed to delete account'));
+    }
+  }
+);
+
 // Slice
 const authSlice = createSlice({
   name: 'auth',
@@ -331,6 +366,26 @@ const authSlice = createSlice({
         state.error = action.payload;
         state.success = null;
       });
+      // delete account
+      builder
+        .addCase(deleteAccount.pending, (state) => {
+          state.isLoading = true;
+          state.error = null;
+          state.success = null;
+        })
+        .addCase(deleteAccount.fulfilled, (state, action) => {
+          state.isLoading = false;
+          state.user = null;
+          state.token = null;
+          state.isAuthenticated = false;
+          state.success = action.payload;
+          state.error = null;
+        })
+        .addCase(deleteAccount.rejected, (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload;
+          state.success = null;
+        });
   }
 });
 

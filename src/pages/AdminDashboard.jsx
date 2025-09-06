@@ -33,6 +33,15 @@ import Swal from 'sweetalert2';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+// تخصيص مظهر SweetAlert2
+const swalCustomStyle = Swal.mixin({
+  customClass: {
+    confirmButton: 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200',
+    cancelButton: 'bg-gray-200 text-gray-800 py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-all duration-200 mr-3'
+  },
+  buttonsStyling: false
+});
+
 export default function AdminDashboard() {
   const dispatch = useDispatch();
   const adminState = useSelector((state) => state.admin);
@@ -66,6 +75,7 @@ export default function AdminDashboard() {
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [currentProductPage, setCurrentProductPage] = useState(1);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const itemsPerPage = 10;
 
   // Load initial data
@@ -97,14 +107,13 @@ export default function AdminDashboard() {
   }, [error, dispatch]);
 
   // Filter users based on search term
-const filteredUsers = users.filter(user => {
-  const matchesSearch = (user.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.role || "").toLowerCase().includes(searchTerm.toLowerCase());
-  const matchesRole = roleFilter ? user.role === roleFilter : true;
-  return matchesSearch && matchesRole;
-});
-
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = (user.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.role || "").toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = roleFilter ? user.role === roleFilter : true;
+    return matchesSearch && matchesRole;
+  });
 
   // Filter products based on search term
   const filteredProducts = products.filter(product => 
@@ -128,7 +137,6 @@ const filteredUsers = users.filter(user => {
   // Handle tab change with data loading
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    
     if (tab === 'users' && users.length === 0) {
       dispatch(fetchAllUsers());
     } else if (tab === 'orders' && orders.length === 0) {
@@ -138,16 +146,15 @@ const filteredUsers = users.filter(user => {
     }
   };
 
-  // Handle user deletion with SweetAlert confirmation
+  // Handle user deletion with confirmation
   const handleDeleteUser = (userId) => {
-    Swal.fire({
+    swalCustomStyle.fire({
       title: 'Are you sure?',
       text: "You won't be able to revert this!",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, delete it!'
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel'
     }).then((result) => {
       if (result.isConfirmed) {
         dispatch(deleteUser(userId))
@@ -162,16 +169,15 @@ const filteredUsers = users.filter(user => {
     });
   };
 
-  // Handle product deletion with SweetAlert confirmation
+  // Handle product deletion with confirmation
   const handleDeleteProduct = (productId) => {
-    Swal.fire({
+    swalCustomStyle.fire({
       title: 'Are you sure?',
       text: "You won't be able to revert this!",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, delete it!'
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel'
     }).then((result) => {
       if (result.isConfirmed) {
         dispatch(deleteProduct(productId))
@@ -185,8 +191,6 @@ const filteredUsers = users.filter(user => {
       }
     });
   };
-
-  // Handle role update
 
   // Handle order status update
   const handleUpdateOrderStatus = (orderId, status) => {
@@ -213,10 +217,9 @@ const filteredUsers = users.filter(user => {
     Delivered: stats.orderStatus?.Delivered || 0,
     Cancelled: stats.orderStatus?.Cancelled || 0
   })
-  .map(([name, value]) => ({ name, value }))
-  .filter(item => item.value > 0);
+    .map(([name, value]) => ({ name, value }))
+    .filter(item => item.value > 0);
 
-  // Dynamic sales data from stats
   const salesData = stats.salesData?.map(item => {
     const dateObj = new Date(item.date);
     return {
@@ -234,797 +237,745 @@ const filteredUsers = users.filter(user => {
   ];
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  const statusColors = {
+    Processing: 'bg-yellow-100 text-yellow-800',
+    Shipped: 'bg-blue-100 text-blue-800',
+    Delivered: 'bg-green-100 text-green-800',
+    Cancelled: 'bg-red-100 text-red-800'
+  };
+
+  // Helper to resolve product image with multiple possible shapes and a placeholder fallback
+  const getProductImage = (prod) => {
+    if (!prod) return '/placeholder-image.webp';
+    const first = prod.images?.[0];
+    const candidates = [
+      first?.url,
+      first?.src,
+      first,
+      prod.image,
+      prod.picture,
+      prod.thumbnail,
+      prod.imageUrl
+    ];
+    const found = candidates.find((c) => typeof c === 'string' && c.length > 0) || (first && typeof first === 'object' && (first.path || first.filename || first.src || first.url));
+    return found || '/placeholder-image.webp';
+  };
 
   return (
-  <div className="p-2 sm:p-4 md:p-6 bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen w-full">
-  <div className="max-w-7xl mx-auto w-full">
-  <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-6 sm:mb-8 flex items-center gap-2">
-          <span className="inline-block p-2 bg-gradient-to-tr from-blue-400 to-purple-400 rounded-full shadow-lg">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-          </span>
-          Admin Dashboard
-        </h1>
-        
-        {/* Loading Overlay */}
-        {loading && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-lg flex items-center space-x-2">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-              <p className="text-lg">Loading...</p>
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <header className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-gradient-to-tr from-indigo-500 to-pink-500 text-white p-3 rounded-xl shadow-lg transform-gpu hover:scale-105 transition duration-300 hover:rotate-3"> 
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h4l3 7 4-14 3 7h4" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 bg-gradient-to-r from-indigo-600 to-pink-500 bg-clip-text text-transparent">
+                Admin Dashboard
+              </h1>
+              <p className="text-sm text-slate-500">Overview, manage users, products and orders with ease</p>
             </div>
           </div>
-        )}
 
-        {/* Navigation Tabs */}
-  <div className="flex flex-row flex-nowrap overflow-x-auto border-b mb-4 sm:mb-6 sticky top-0 bg-gradient-to-br from-blue-50 via-white to-purple-50 z-30 gap-2 scrollbar-thin scrollbar-thumb-blue-200 scrollbar-track-transparent">
-          <button
-            className={`px-4 py-2 font-medium transition-all duration-300 rounded-t-lg ${activeTab === 'dashboard' ? 'border-b-2 border-blue-500 text-blue-600 bg-white shadow' : 'text-gray-600 hover:text-blue-500 hover:bg-blue-50'}`}
-            onClick={() => handleTabChange('dashboard')}
-          >
-            Dashboard
-          </button>
-          <button
-            className={`px-4 py-2 font-medium transition-all duration-300 rounded-t-lg ${activeTab === 'users' ? 'border-b-2 border-blue-500 text-blue-600 bg-white shadow' : 'text-gray-600 hover:text-blue-500 hover:bg-blue-50'}`}
-            onClick={() => handleTabChange('users')}
-          >
-            Users ({stats.totalUsers || 0})
-          </button>
-          <button
-            className={`px-4 py-2 font-medium transition-all duration-300 rounded-t-lg ${activeTab === 'products' ? 'border-b-2 border-blue-500 text-blue-600 bg-white shadow' : 'text-gray-600 hover:text-blue-500 hover:bg-blue-50'}`}
-            onClick={() => handleTabChange('products')}
-          >
-            Products ({products.length || 0})
-          </button>
-          <button
-            className={`px-4 py-2 font-medium transition-all duration-300 rounded-t-lg ${activeTab === 'orders' ? 'border-b-2 border-blue-500 text-blue-600 bg-white shadow' : 'text-gray-600 hover:text-blue-500 hover:bg-blue-50'}`}
-            onClick={() => handleTabChange('orders')}
-          >
-            Orders ({stats.totalOrders || 0})
-          </button>
-        </div>
-
-        {/* Dashboard Tab */}
-        {activeTab === 'dashboard' && (
-          <div>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-              <div className="bg-white p-6 rounded-xl shadow-lg hover:scale-105 hover:shadow-2xl transition-all duration-300">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-700">Total Users</h3>
-                    <p className="text-3xl font-bold text-blue-600">
-                      {stats?.totalUsers?.toLocaleString() || 0}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {stats?.userRoles?.buyer || 0} Buyers • {stats?.userRoles?.seller || 0} Sellers • {stats?.userRoles?.admin || 0} Admins
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white p-6 rounded-xl shadow-lg hover:scale-105 hover:shadow-2xl transition-all duration-300">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-green-100 text-green-600 mr-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-700">Total Orders</h3>
-                    <p className="text-3xl font-bold text-green-600">
-                      {stats?.totalOrders?.toLocaleString() || 0}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {stats?.orderStatus?.Delivered || 0} Delivered • {stats?.orderStatus?.Processing || 0} Processing
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white p-6 rounded-xl shadow-lg hover:scale-105 hover:shadow-2xl transition-all duration-300">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-purple-100 text-purple-600 mr-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-700">Total Sales</h3>
-                    <p className="text-3xl font-bold text-purple-600">
-                      ${(stats?.totalSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Last 30 days
-                    </p>
-                  </div>
-                </div>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-none">
+              <input
+                aria-label="Search admin"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search users, products, orders..."
+                className="w-full sm:w-80 pl-10 pr-3 py-2 rounded-lg border border-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 transition-all duration-300 focus:shadow-md"
+              />
+              <div className="absolute left-3 top-2 text-slate-400">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
               </div>
             </div>
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
-              {/* User Roles Pie Chart */}
-              <div className="bg-white p-6 rounded-xl shadow-lg hover:scale-105 hover:shadow-2xl transition-all duration-300">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4">User Distribution</h3>
-                <div className="h-64">
-                  {userRolesData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={userRolesData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {userRolesData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-gray-500">No user data available</p>
-                    </div>
-                  )}
-                </div>
+            <div className="hidden sm:flex items-center gap-3">
+              <div className="bg-white px-3 py-2 rounded-lg shadow-md text-sm text-slate-700 transition-all duration-300 hover:shadow-lg">
+                Users: <span className="font-semibold text-indigo-600">{stats.totalUsers || 0}</span>
               </div>
-
-              {/* Order Status Bar Chart */}
-              <div className="bg-white p-6 rounded-xl shadow-lg hover:scale-105 hover:shadow-2xl transition-all duration-300">
-                <h3 className="text-lg font-semibold text-gray-700 mb-4">Order Status</h3>
-                <div className="h-64">
-                  {orderStatusData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={orderStatusData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="value" fill="#8884d8" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-gray-500">No order data available</p>
-                    </div>
-                  )}
-                </div>
+              <div className="bg-white px-3 py-2 rounded-lg shadow-md text-sm text-slate-700 transition-all duration-300 hover:shadow-lg">
+                Orders: <span className="font-semibold text-emerald-600">{stats.totalOrders || 0}</span>
               </div>
-            </div>
-
-            {/* Sales Trend Line Chart */}
-            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg hover:scale-105 hover:shadow-2xl transition-all duration-300 mb-6 sm:mb-8">
-              <h3 className="text-lg font-semibold text-gray-700 mb-4">Sales Trend (Last 7 Days)</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={salesData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`$${value}`, 'Sales']} />
-                    <Legend />
-                    <Line type="monotone" dataKey="sales" stroke="#8884d8" activeDot={{ r: 8 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Recent Orders Table */}
-            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg hover:scale-105 hover:shadow-2xl transition-all duration-300">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-700 mb-2 sm:mb-4">Recent Orders</h3>
-              <div className="overflow-x-auto w-full">
-                <table className="min-w-full divide-y divide-gray-200 rounded-xl overflow-hidden text-xs sm:text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {recentOrders.length > 0 ? (
-                      recentOrders.map((order) => (
-                        <tr key={order._id} className="hover:bg-blue-50 transition-all duration-200 cursor-pointer">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-700 font-bold underline cursor-pointer" title={order._id}
-                            onClick={() => { setSelectedOrder(order); setOrderDetailsModalOpen(true); }}>
-                            #{order._id || 'N/A'}
-                          </td>
-      {/* Order Details Modal (English) */}
-      <Modal
-        isOpen={orderDetailsModalOpen}
-        onRequestClose={() => setOrderDetailsModalOpen(false)}
-        contentLabel="Order Details"
-        className="fixed inset-0 flex items-center justify-center z-50"
-        overlayClassName="fixed inset-0 bg-black bg-opacity-40 z-40"
-      >
-        <div className="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full relative">
-          <button
-            onClick={() => setOrderDetailsModalOpen(false)}
-            className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl"
-          >
-            &times;
-          </button>
-          <h2 className="text-2xl font-bold mb-4 text-gray-800 flex items-center gap-2">
-            Order Details
-          </h2>
-          {selectedOrder && (
-            <>
-              <div className="mb-2"><span className="font-semibold">Order ID:</span> {selectedOrder._id}</div>
-              <div className="mb-2"><span className="font-semibold">Customer:</span> {selectedOrder.buyer?.name || selectedOrder.buyer?.username || selectedOrder.buyer?.email || 'Unknown'}</div>
-              <div className="mb-2"><span className="font-semibold">Status:</span> {selectedOrder.status}</div>
-              <div className="mb-2"><span className="font-semibold">Created At:</span> {new Date(selectedOrder.createdAt).toLocaleDateString()}</div>
-              <div className="mb-2"><span className="font-semibold">Products:</span>
-                {Array.isArray(selectedOrder.products) && selectedOrder.products.length > 0 ? (
-                  <ul className="list-disc pl-4">
-                    {selectedOrder.products.map((prod, idx) => (
-                      <li key={idx}>{prod.title || prod.name || (prod.product && (prod.product.title || prod.product.name)) || 'Product'} × {prod.quantity || 1}</li>
-                    ))}
-                  </ul>
-                ) : Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 ? (
-                  <ul className="list-disc pl-4">
-                    {selectedOrder.items.map((item, idx) => (
-                      <li key={idx}>{item.title || item.name || (item.product && (item.product.title || item.product.name)) || 'Product'} × {item.quantity || 1}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <span className="text-gray-400 ml-2">No products in this order</span>
-                )}
-              </div>
-              <div className="mb-2"><span className="font-semibold">Amount:</span> ${selectedOrder.totalAmount?.toFixed(2)}</div>
-              <div className="mb-2"><span className="font-semibold">Payment:</span> {selectedOrder.paymentMethod || selectedOrder.paymentStatus || 'N/A'}</div>
-            </>
-          )}
-        </div>
-      </Modal>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {order.buyer?.name  || order.buyer?.email || order.buyer?.fullName || order.buyer?.userName || order.buyer?.user?.name || order.buyer?.user?.username || order.buyer?.user?.email || 'Unknown Buyer'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${order.totalAmount.toFixed(2)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                              ${order.status === 'Delivered' ? 'bg-green-100 text-green-800' : 
-                                order.status === 'Cancelled' ? 'bg-red-100 text-red-800' : 
-                                'bg-yellow-100 text-yellow-800'}`}
-                            >
-                              {order.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(order.createdAt).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
-                          No recent orders found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+              <div className="bg-white px-3 py-2 rounded-lg shadow-md text-sm text-slate-700 transition-all duration-300 hover:shadow-lg">
+                Sales: <span className="font-semibold text-pink-600">${(stats.totalSales || 0).toLocaleString()}</span>
               </div>
             </div>
           </div>
-        )}
+        </header>
 
-        {/* Users Tab */}
-        {activeTab === 'users' && (
-          <div className="bg-white p-2 sm:p-6 rounded-xl shadow-lg sm:hover:scale-105 sm:hover:shadow-2xl transition-all duration-300 w-full">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-2 sm:mb-4 gap-2">
-              <h2 className="text-xl font-semibold text-gray-800">User Management ({users.length})</h2>
-              <div className="flex flex-row gap-2 w-full sm:w-auto items-center">
-                <div className="relative w-full sm:w-56">
-                  <input
-                    type="text"
-                    placeholder="Search users..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
-                  />
-                  <div className="absolute left-3 top-2.5 text-gray-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                </div>
-                <select
-                  value={roleFilter}
-                  onChange={e => setRoleFilter(e.target.value)}
-                  className="px-2 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-500 min-w-[110px]"
+        {/* Main layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Sidebar Tabs */}
+          <aside className={`lg:col-span-1 bg-white rounded-xl p-4 shadow-md sticky top-6 h-fit transition-all duration-300 ${isSidebarCollapsed ? 'lg:w-20' : ''}`}>
+            <button 
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="hidden lg:block mb-4 ml-auto text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              {isSidebarCollapsed ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              )}
+            </button>
+            
+            <nav className="flex flex-col gap-2">
+              {['dashboard','users','products','orders'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => handleTabChange(tab)}
+                  className={`text-left w-full px-3 py-2 rounded-lg transition-all duration-300 flex items-center gap-3 group ${activeTab===tab ? 
+                    'bg-gradient-to-r from-indigo-50 to-purple-50 ring-1 ring-indigo-200 text-indigo-700 shadow-sm' : 
+                    'hover:bg-slate-50 text-slate-600 hover:shadow-sm'
+                  }`}>
+                  <span className={`w-2 h-2 rounded-full bg-gradient-to-br from-indigo-400 to-pink-400 transition-all duration-300 ${activeTab===tab ? 'w-3 h-3' : ''}`}></span>
+                  {!isSidebarCollapsed && (
+                    <>
+                      <span className="capitalize font-medium">{tab}</span>
+                      <span className="ml-auto text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                        {tab==='users'? stats.totalUsers : tab==='orders'? stats.totalOrders : tab==='products'? products.length : ''}
+                      </span>
+                    </>
+                  )}
+                </button>
+              ))}
+            </nav>
+
+            {!isSidebarCollapsed && (
+              <div className="mt-4 border-t pt-3 text-sm text-slate-500">
+                <div className="mb-2 font-medium">Quick Filters</div>
+                <select 
+                  value={roleFilter} 
+                  onChange={e => setRoleFilter(e.target.value)} 
+                  className="w-full rounded-md border px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-300 transition-all duration-200"
                 >
-                  <option value="">All Roles</option>
+                  <option value="">All roles</option>
                   <option value="buyer">Buyer</option>
                   <option value="seller">Seller</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
-            </div>
-
-            {users.length === 0 && !loading ? (
-              <div className="text-center py-8">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                <p className="mt-2 text-gray-500">No users found</p>
-              </div>
-            ) : (
-              <>
-                <div className="w-full">
-                  {/* Mobile: Card layout */}
-                  <div className="block sm:hidden">
-                    {paginatedUsers.map((user) => (
-                      <div key={user._id} className="bg-white rounded-lg shadow mb-2 p-3 flex flex-col gap-2 sm:hover:scale-105 sm:hover:shadow-2xl sm:transition-all sm:duration-300">
-                        <div className="flex justify-between items-center">
-                          <span className="font-semibold">{user.username || user.name || user.email || user._id}</span>
-                          <button
-                            className="text-blue-600 text-xs underline"
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setUserDetailsModalOpen(true);
-                            }}
-                          >Details</button>
-                        </div>
-                        <div className="text-gray-500 text-xs">{user.email}</div>
-                        <div>
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                            ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 
-                              user.role === 'seller' ? 'bg-blue-100 text-blue-800' : 
-                              'bg-green-100 text-green-800'}`}
-                          >
-                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                          </span>
-                        </div>
-                        <div className="text-gray-500 text-xs">Joined: {new Date(user.createdAt).toLocaleDateString()}</div>
-                        <div className="flex gap-2 mt-2">
-                          <button
-                            onClick={() => handleDeleteUser(user._id)}
-                            className="text-red-600 hover:text-red-900 text-xs"
-                          >Delete</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Desktop: Table layout */}
-                  <div className="hidden sm:block overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {paginatedUsers.map((user) => (
-                          <tr key={user._id} className="hover:bg-purple-50 transition-all duration-200 cursor-pointer">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
-                                <div className="ml-2">
-                                  <button
-                                    className="text-sm font-medium text-blue-600 hover:underline focus:outline-none"
-                                    onClick={() => {
-                                      setSelectedUser(user);
-                                      setUserDetailsModalOpen(true);
-                                    }}
-                                  >
-                                    {user.username || user.name || user.email || user._id}
-                                  </button>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 
-                                  user.role === 'seller' ? 'bg-blue-100 text-blue-800' : 
-                                  'bg-green-100 text-green-800'}`}
-                              >
-                                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {new Date(user.createdAt).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">
-                              <button
-                                onClick={() => handleDeleteUser(user._id)}
-                                className="text-red-600 hover:text-red-900 transition-colors duration-200"
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                {/* Pagination */}
-                <div className="flex justify-between items-center mt-4">
-                  <button
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(p => p - 1)}
-                    className={`px-4 py-2 rounded transition-colors duration-200 ${currentPage === 1 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-                  >
-                    Previous
-                  </button>
-                  <span className="text-sm text-gray-700">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage(p => p + 1)}
-                    className={`px-4 py-2 rounded transition-colors duration-200 ${currentPage >= totalPages ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-                  >
-                    Next
-                  </button>
-                </div>
-              </>
             )}
-            {/* User Details Modal */}
-            <Modal
-              isOpen={userDetailsModalOpen}
-              onRequestClose={() => setUserDetailsModalOpen(false)}
-              contentLabel="User Details"
-              className="fixed inset-0 flex items-center justify-center z-50"
-              overlayClassName="fixed inset-0 bg-black bg-opacity-40 z-40"
-            >
-              <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full relative">
-                <button
-                  onClick={() => setUserDetailsModalOpen(false)}
-                  className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl"
-                >
-                  &times;
-                </button>
-                <h2 className="text-2xl font-bold mb-4 text-gray-800">User Details</h2>
-                {selectedUser && (
-                  <>
-                    <div className="mb-2"><span className="font-semibold">Name:</span> {selectedUser.username || selectedUser.name || selectedUser.email || selectedUser._id}</div>
-                    <div className="mb-2"><span className="font-semibold">Email:</span> {selectedUser.email}</div>
-                    <div className="mb-2"><span className="font-semibold">Role:</span> {selectedUser.role}</div>
-                    <div className="mb-2"><span className="font-semibold">Joined:</span> {new Date(selectedUser.createdAt).toLocaleDateString()}</div>
-                  </>
-                )}
-              </div>
-            </Modal>
-          </div>
-        )}
+          </aside>
 
-        {/* Products Tab */}
-        {activeTab === 'products' && (
-          <div className="bg-white p-2 sm:p-6 rounded-xl shadow-lg hover:scale-105 hover:shadow-2xl transition-all duration-300 w-full">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-2 sm:mb-4 gap-2">
-              <h2 className="text-xl font-semibold text-gray-800">Product Management ({products.length})</h2>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={productSearchTerm}
-                  onChange={(e) => setProductSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-auto"
-                />
-                <div className="absolute left-3 top-2.5 text-gray-400">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+          {/* Content area */}
+          <main className="lg:col-span-3 space-y-6">
+            {/* Loading overlay */}
+            {loading && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                <div className="bg-white/90 p-4 rounded-lg shadow-lg flex items-center gap-3 animate-pulse">
+                  <div className="animate-spin h-5 w-5 border-2 border-indigo-400 rounded-full border-t-transparent" />
+                  <div className="text-slate-700">Loading dashboard...</div>
                 </div>
               </div>
-            </div>
-
-            {products.length === 0 && !loading ? (
-              <div className="text-center py-8">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-                <p className="mt-2 text-gray-500">No products found</p>
-              </div>
-            ) : (
-              <>
-                <div className="w-full">
-                  {/* Mobile: Card layout */}
-                  <div className="block sm:hidden">
-                    {paginatedProducts.map((product) => (
-                      <div key={product._id} className="bg-white rounded-lg shadow mb-2 p-3 flex flex-col gap-2 sm:hover:scale-105 sm:hover:shadow-2xl sm:transition-all sm:duration-300">
-                        <div className="flex items-center gap-2">
-                          <img className="h-10 w-10 rounded" src={product.image} alt={product.title} />
-                          <span className="font-semibold">{product.title}</span>
-                        </div>
-                        <div className="text-gray-500 text-xs">Category: {product.category}</div>
-                        <div className="text-gray-500 text-xs">Price: ${product.price.toFixed(2)}</div>
-                        <div className="text-gray-500 text-xs">Stock: {product.quantity}</div>
-                        <div className="text-gray-500 text-xs">Seller: {product.seller?.username || product.seller?.name || product.seller?.email || product.seller?.fullName || product.seller?.userName || product.seller?.user?.name || product.seller?.user?.username || product.seller?.user?.email || 'Unknown Seller'}</div>
-                        <div className="flex gap-2 mt-2">
-                          <button
-                            onClick={() => handleDeleteProduct(product._id)}
-                            className="text-red-600 hover:text-red-900 text-xs"
-                          >Delete</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Desktop: Table layout */}
-                  <div className="hidden sm:block overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seller</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {paginatedProducts.map((product) => (
-                          <tr key={product._id} className="hover:bg-green-50 transition-all duration-200 cursor-pointer">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="flex-shrink-0 h-10 w-10">
-                                  <img className="h-10 w-10 rounded" src={product.image} alt={product.title} />
-                                </div>
-                                <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">{product.title}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
-                              {product.category}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              ${product.price.toFixed(2)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {product.quantity}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {product.seller?.username || product.seller?.name || product.seller?.email || product.seller?.fullName || product.seller?.userName || product.seller?.user?.name || product.seller?.user?.username || product.seller?.user?.email || 'Unknown Seller'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <button
-                                onClick={() => handleDeleteProduct(product._id)}
-                                className="text-red-600 hover:text-red-900 transition-colors duration-200"
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Pagination */}
-                <div className="flex justify-between items-center mt-4">
-                  <button
-                    disabled={currentProductPage === 1}
-                    onClick={() => setCurrentProductPage(p => p - 1)}
-                    className={`px-4 py-2 rounded transition-colors duration-200 ${currentProductPage === 1 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-                  >
-                    Previous
-                  </button>
-                  <span className="text-sm text-gray-700">
-                    Page {currentProductPage} of {totalProductPages}
-                  </span>
-                  <button
-                    disabled={currentProductPage >= totalProductPages}
-                    onClick={() => setCurrentProductPage(p => p + 1)}
-                    className={`px-4 py-2 rounded transition-colors duration-200 ${currentProductPage >= totalProductPages ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-                  >
-                    Next
-                  </button>
-                </div>
-              </>
             )}
-          </div>
-        )}
 
-        {/* Orders Tab */}
-        {activeTab === 'orders' && (
-          <div className="bg-white p-2 sm:p-6 rounded-xl shadow-lg hover:scale-105 hover:shadow-2xl transition-all duration-300 w-full">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Order Management ({orders.length})</h2>
-            {orders.length === 0 && !loading ? (
-              <div className="text-center py-8">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <p className="mt-2 text-gray-500">No orders found</p>
-              </div>
-            ) : (
-              <div className="w-full">
-                {/* Mobile: Card layout */}
-                <div className="block sm:hidden">
-                  {orders.map((order) => (
-                    <div key={order._id} className="bg-white rounded-lg shadow mb-2 p-3 flex flex-col gap-2 border border-blue-100 sm:hover:scale-105 sm:hover:shadow-2xl sm:transition-all sm:duration-300">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-blue-700" title={order._id}>#{order._id || 'N/A'}</span>
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                          ${order.status === 'Delivered' ? 'bg-green-100 text-green-800' : 
-                            order.status === 'Cancelled' ? 'bg-red-100 text-red-800' : 
-                            'bg-yellow-100 text-yellow-800'}`}
-                        >
-                          {order.status}
-                        </span>
-                      </div>
-                      <div className="text-gray-500 text-xs">Customer: {order.buyer?.name || order.buyer?.username || order.buyer?.email || order.buyer?.fullName || order.buyer?.userName || order.buyer?.user?.name || order.buyer?.user?.username || order.buyer?.user?.email || 'Unknown Customer'}</div>
-                      <div className="text-gray-500 text-xs">Amount: ${order.totalAmount.toFixed(2)}</div>
-                      <div className="text-gray-500 text-xs">Payment: {order.paymentMethod || order.paymentStatus || 'N/A'}</div>
-                      <div className="text-gray-500 text-xs">Date: {new Date(order.createdAt).toLocaleDateString()}</div>
-                      <div className="text-gray-500 text-xs">Products:
-                        {Array.isArray(order.products) && order.products.length > 0 ? (
-                          <ul className="list-disc pl-4">
-                            {order.products.map((prod, idx) => (
-                              <li key={idx}>{prod.title || prod.name || (prod.product && (prod.product.title || prod.product.name)) || 'Product'} × {prod.quantity || 1}</li>
-                            ))}
-                          </ul>
-                        ) : Array.isArray(order.items) && order.items.length > 0 ? (
-                          <ul className="list-disc pl-4">
-                            {order.items.map((item, idx) => (
-                              <li key={idx}>{item.title || item.name || (item.product && (item.product.title || item.product.name)) || 'Product'} × {item.quantity || 1}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <span className="text-gray-400 ml-2">No products</span>
-                        )}
-                      </div>
+            {activeTab === 'dashboard' && (
+              <section className="space-y-6">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-2xl bg-white shadow-md transform hover:-translate-y-1 transition-all duration-300 group border border-transparent hover:border-indigo-100">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <select
-                          value={order.status}
-                          onChange={(e) => handleUpdateOrderStatus(order._id, e.target.value)}
-                          disabled={order.status === 'Cancelled' || order.status === 'Delivered'}
-                          className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-xs mt-2 transition-colors duration-200
-                            ${order.status === 'Delivered' ? 'bg-green-50' : 
-                              order.status === 'Cancelled' ? 'bg-red-50' : 
-                              'bg-yellow-50'} ${order.status === 'Cancelled' || order.status === 'Delivered' ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        >
-                          <option value="Processing" disabled={order.status !== 'Processing'}>Processing</option>
-                          <option value="Shipped" disabled={order.status !== 'Processing' && order.status !== 'Shipped'}>Shipped</option>
-                          <option value="Delivered" disabled={order.status !== 'Shipped'}>Delivered</option>
-                          <option value="Cancelled" disabled={order.status === 'Delivered' || order.status === 'Cancelled'}>Cancelled</option>
-                        </select>
+                        <div className="text-sm text-slate-500">Total Users</div>
+                        <div className="text-2xl font-bold text-indigo-600">{stats.totalUsers || 0}</div>
+                        <div className="text-xs text-slate-400 mt-2">{stats.userRoles?.buyer || 0} buyers • {stats.userRoles?.seller || 0} sellers</div>
+                      </div>
+                      <div className="p-3 bg-indigo-50 rounded-lg group-hover:bg-indigo-100 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
                       </div>
                     </div>
-                  ))}
+                  </div>
+                  
+                  <div className="p-4 rounded-2xl bg-white shadow-md transform hover:-translate-y-1 transition-all duration-300 group border border-transparent hover:border-emerald-100">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm text-slate-500">Total Orders</div>
+                        <div className="text-2xl font-bold text-emerald-600">{stats.totalOrders || 0}</div>
+                        <div className="text-xs text-slate-400 mt-2">Delivered: {stats.orderStatus?.Delivered || 0}</div>
+                      </div>
+                      <div className="p-3 bg-emerald-50 rounded-lg group-hover:bg-emerald-100 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 rounded-2xl bg-white shadow-md transform hover:-translate-y-1 transition-all duration-300 group border border-transparent hover:border-pink-100">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm text-slate-500">Total Sales</div>
+                        <div className="text-2xl font-bold text-pink-600">${(stats.totalSales || 0).toLocaleString()}</div>
+                        <div className="text-xs text-slate-400 mt-2">Last 30 days</div>
+                      </div>
+                      <div className="p-3 bg-pink-50 rounded-lg group-hover:bg-pink-100 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                {/* Desktop: Table layout */}
-                <div className="hidden sm:block overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 rounded-xl overflow-hidden text-xs sm:text-sm">
-                    <thead className="bg-gray-50">
+
+                {/* Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-xl p-4 shadow-md transition-all duration-300 hover:shadow-lg">
+                    <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      User Distribution
+                    </h3>
+                    <div className="h-56">
+                      {userRolesData.length>0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={userRolesData} dataKey="value" outerRadius={70} innerRadius={30} labelLine={false}>
+                              {userRolesData.map((entry, idx)=> <Cell key={idx} fill={COLORS[idx%COLORS.length]} />)}
+                            </Pie>
+                            <Tooltip formatter={(value) => [`${value} users`, '']} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : <div className="flex items-center justify-center h-full text-slate-400">No data</div>}
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl p-4 shadow-md transition-all duration-300 hover:shadow-lg">
+                    <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      Order Status
+                    </h3>
+                    <div className="h-56">
+                      {orderStatusData.length>0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={orderStatusData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis dataKey="name" />
+                            <YAxis />
+                            <Tooltip />
+                            <Bar dataKey="value" fill={COLORS[0]} radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : <div className="flex items-center justify-center h-full text-slate-400">No data</div>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sales Trend */}
+                <div className="bg-white p-4 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    Sales Trend (Last 7 days)
+                  </h3>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={salesData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="day" />
+                        <YAxis />
+                        <Tooltip formatter={(v)=>[`$${v}`,'Sales']} />
+                        <Line 
+                          type="monotone" 
+                          dataKey="sales" 
+                          stroke={COLORS[0]} 
+                          strokeWidth={2} 
+                          dot={{ r: 4, fill: COLORS[0] }} 
+                          activeDot={{ r: 6, fill: COLORS[0] }} 
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Recent Orders */}
+                <div className="bg-white p-4 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg">
+                  <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                    </svg>
+                    Recent Orders
+                  </h3>
+                  <div className="grid gap-3">
+                    {recentOrders.length>0 ? recentOrders.slice(0,6).map(o=> (
+                      <div key={o._id} className="flex items-center justify-between p-3 rounded-lg border hover:shadow-sm transition-all duration-200 group">
+                        <div>
+                          <div className="text-sm font-medium text-indigo-700 group-hover:text-indigo-800 transition-colors">#{o._id?.substring(0, 8)}...</div>
+                          <div className="text-xs text-slate-500">{o.buyer?.name || o.buyer?.email || 'Unknown'}</div>
+                        </div>
+                        <div className="text-sm font-semibold">${o.totalAmount?.toFixed(2)}</div>
+                        <div className="ml-4">
+                          <button 
+                            onClick={()=>{setSelectedOrder(o); setOrderDetailsModalOpen(true)}} 
+                            className="text-indigo-600 text-sm underline hover:text-indigo-800 transition-colors flex items-center gap-1"
+                          >
+                            Details
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )) : <div className="text-slate-400 py-4 text-center">No recent orders</div>}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {activeTab === 'users' && (
+              <section className="bg-white p-4 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+                  <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    Users ({users.length})
+                  </h2>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <input 
+                      placeholder="Search users..." 
+                      className="px-3 py-1.5 border rounded-md text-sm w-full sm:w-48 focus:outline-none focus:ring-1 focus:ring-indigo-300 transition-all duration-200" 
+                      value={searchTerm} 
+                      onChange={e=>setSearchTerm(e.target.value)} 
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border border-slate-100">
+                  <table className="w-full text-sm">
+                    <thead className="text-slate-500 text-xs uppercase bg-slate-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="py-3 px-4 text-left font-medium">Name</th>
+                        <th className="py-3 px-4 text-left font-medium">Email</th>
+                        <th className="py-3 px-4 text-center font-medium">Role</th>
+                        <th className="py-3 px-4 text-center font-medium">Joined</th>
+                        <th className="py-3 px-4 text-center font-medium">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {orders.map((order) => (
-                        <tr key={order._id} className="hover:bg-blue-50 transition-all duration-200 cursor-pointer">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-700 font-bold underline cursor-pointer" title={order._id}
-                            onClick={() => { setSelectedOrder(order); setOrderDetailsModalOpen(true); }}>
-                            #{order._id || 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {order.buyer?.name || order.buyer?.username || order.buyer?.email || order.buyer?.fullName || order.buyer?.userName || order.buyer?.user?.name || order.buyer?.user?.username || order.buyer?.user?.email || 'Unknown Customer'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${order.totalAmount.toFixed(2)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {Array.isArray(order.products) && order.products.length > 0 ? (
-                              <ul className="list-disc pl-4 text-xs">
-                                {order.products.map((prod, idx) => (
-                                  <li key={idx}>{prod.title || prod.name || (prod.product && (prod.product.title || prod.product.name)) || 'Product'} × {prod.quantity || 1}</li>
-                                ))}
-                              </ul>
-                            ) : Array.isArray(order.items) && order.items.length > 0 ? (
-                              <ul className="list-disc pl-4 text-xs">
-                                {order.items.map((item, idx) => (
-                                  <li key={idx}>{item.title || item.name || (item.product && (item.product.title || item.product.name)) || 'Product'} × {item.quantity || 1}</li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <span className="text-gray-400">No products</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                              ${order.paymentStatus === 'Completed' ? 'bg-green-100 text-green-800' : 
-                                'bg-yellow-100 text-yellow-800'}`}
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedUsers.map(u=> (
+                        <tr key={u._id} className="hover:bg-slate-50 transition-colors group">
+                          <td className="py-3 px-4"> 
+                            <button 
+                              className="text-indigo-600 hover:text-indigo-800 transition-colors font-medium text-left flex items-center gap-2 group-hover:underline" 
+                              onClick={()=>{setSelectedUser(u); setUserDetailsModalOpen(true)}}
                             >
-                              {order.paymentMethod || order.paymentStatus || 'N/A'}
+                              {u.username || u.name || u.email}
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 text-slate-600">{u.email}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role==='admin'?'bg-purple-100 text-purple-700':u.role==='seller'?'bg-blue-100 text-blue-700':'bg-emerald-100 text-emerald-700'}`}>
+                              {u.role}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <select
-                              value={order.status}
-                              onChange={(e) => handleUpdateOrderStatus(order._id, e.target.value)}
-                              disabled={order.status === 'Cancelled' || order.status === 'Delivered'}
-                              className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-colors duration-200
-                                ${order.status === 'Delivered' ? 'bg-green-50' : 
-                                  order.status === 'Cancelled' ? 'bg-red-50' : 
-                                  'bg-yellow-50'} ${order.status === 'Cancelled' || order.status === 'Delivered' ? 'opacity-60 cursor-not-allowed' : ''}`}
-                            >
-                              <option value="Processing" disabled={order.status !== 'Processing'}>Processing</option>
-                              <option value="Shipped" disabled={order.status !== 'Processing' && order.status !== 'Shipped'}>Shipped</option>
-                              <option value="Delivered" disabled={order.status !== 'Shipped'}>Delivered</option>
-                              <option value="Cancelled" disabled={order.status === 'Delivered' || order.status === 'Cancelled'}>Cancelled</option>
-                            </select>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(order.createdAt).toLocaleDateString()}
+                          <td className="py-3 px-4 text-slate-500 text-center">{new Date(u.createdAt).toLocaleDateString()}</td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex gap-2 justify-center">
+                              <button 
+                                onClick={()=>handleDeleteUser(u._id)} 
+                                className="text-red-600 hover:text-red-800 transition-colors flex items-center gap-1 text-xs font-medium"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </div>
+
+                <div className="flex items-center justify-between mt-4">
+                  <button 
+                    disabled={currentPage===1} 
+                    onClick={() => setCurrentPage(p => p - 1)} 
+                    className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-all ${currentPage===1 ?
+                      'bg-slate-100 text-slate-400 cursor-not-allowed' :
+                      'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 shadow-sm'}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Previous
+                  </button>
+                  <div className="text-sm text-slate-600">Page {currentPage} of {totalPages}</div>
+                  <button 
+                    disabled={currentPage===totalPages} 
+                    onClick={()=>setCurrentPage(p=>p+1)} 
+                    className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-all ${currentPage===totalPages?
+                      'bg-slate-100 text-slate-400 cursor-not-allowed' :
+                      'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 shadow-sm'}`}
+                  >
+                    Next
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </section>
             )}
-            {/* Order Details Modal (English) */}
-            <Modal
-              isOpen={orderDetailsModalOpen}
-              onRequestClose={() => setOrderDetailsModalOpen(false)}
-              contentLabel="Order Details"
-              className="fixed inset-0 flex items-center justify-center z-50"
-              overlayClassName="fixed inset-0 bg-black bg-opacity-40 z-40"
-            >
-              <div className="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full relative">
-                <button
-                  onClick={() => setOrderDetailsModalOpen(false)}
-                  className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl"
-                >
-                  &times;
-                </button>
-                <h2 className="text-2xl font-bold mb-4 text-gray-800 flex items-center gap-2">
-                  Order Details
-                </h2>
-                {selectedOrder && (
-                  <>
-                    <div className="mb-2"><span className="font-semibold">Order ID:</span> {selectedOrder._id}</div>
-                    <div className="mb-2"><span className="font-semibold">Customer:</span> {selectedOrder.buyer?.name || selectedOrder.buyer?.username || selectedOrder.buyer?.email || 'Unknown'}</div>
-                    <div className="mb-2"><span className="font-semibold">Status:</span> {selectedOrder.status}</div>
-                    <div className="mb-2"><span className="font-semibold">Created At:</span> {new Date(selectedOrder.createdAt).toLocaleDateString()}</div>
-                    <div className="mb-2"><span className="font-semibold">Products:</span>
-                      {Array.isArray(selectedOrder.products) && selectedOrder.products.length > 0 ? (
-                        <ul className="list-disc pl-4">
-                          {selectedOrder.products.map((prod, idx) => (
-                            <li key={idx}>{prod.title || prod.name || 'Product'} × {prod.quantity || 1}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span className="text-gray-400 ml-2">No products in this order</span>
-                      )}
-                    </div>
-                    <div className="mb-2"><span className="font-semibold">Amount:</span> ${selectedOrder.totalAmount?.toFixed(2)}</div>
-                    <div className="mb-2"><span className="font-semibold">Payment:</span> {selectedOrder.paymentMethod || selectedOrder.paymentStatus || 'N/A'}</div>
-                  </>
-                )}
+
+            {activeTab === 'products' && (
+              <section className="bg-white p-4 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+                  <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                    Products ({products.length})
+                  </h2>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <input 
+                      placeholder="Search products..." 
+                      className="px-3 py-1.5 border rounded-md text-sm w-full sm:w-48 focus:outline-none focus:ring-1 focus:ring-emerald-300 transition-all duration-200" 
+                      value={productSearchTerm} 
+                      onChange={e=>setProductSearchTerm(e.target.value)} 
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border border-slate-100">
+                  <table className="w-full text-sm">
+                    <thead className="text-slate-500 text-xs uppercase bg-slate-50">
+                      <tr>
+                        <th className="py-3 px-4 text-left font-medium">Product</th>
+                        <th className="py-3 px-4 text-left font-medium">Category</th>
+                        <th className="py-3 px-4 text-center font-medium">Price</th>
+                        <th className="py-3 px-4 text-center font-medium">Stock</th>
+                        <th className="py-3 px-4 text-center font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedProducts.map(p=> (
+                        <tr key={p._id} className="hover:bg-slate-50 transition-colors group">
+                          <td className="py-3 px-4"> 
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden">
+                                {p.images?.[0] ? (
+                                  <img src={p.images[0]} alt={p.title} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <div className="font-medium text-slate-800 group-hover:text-indigo-700 transition-colors">{p.title}</div>
+                                <div className="text-xs text-slate-500">{p.description?.substring(0, 30)}...</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-slate-600 capitalize">{p.category}</td>
+                          <td className="py-3 px-4 text-center font-medium text-emerald-600">${p.price?.toFixed(2)}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${p.stock>10?'bg-emerald-100 text-emerald-700':p.stock>0?'bg-yellow-100 text-yellow-700':'bg-red-100 text-red-700'}`}>
+                              {p.stock || 0} in stock
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex gap-2 justify-center">
+                              <button 
+                                onClick={()=>handleDeleteProduct(p._id)} 
+                                className="text-red-600 hover:text-red-800 transition-colors flex items-center gap-1 text-xs font-medium"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex items-center justify-between mt-4">
+                  <button 
+                    disabled={currentProductPage===1} 
+                    onClick={()=>setCurrentProductPage(p=>p-1)} 
+                    className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-all ${currentProductPage===1?
+                      'bg-slate-100 text-slate-400 cursor-not-allowed' :
+                      'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 shadow-sm'}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Previous
+                  </button>
+                  <div className="text-sm text-slate-600">Page {currentProductPage} of {totalProductPages}</div>
+                  <button 
+                    disabled={currentProductPage===totalProductPages} 
+                    onClick={()=>setCurrentProductPage(p=>p+1)} 
+                    className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-all ${currentProductPage===totalProductPages?
+                      'bg-slate-100 text-slate-400 cursor-not-allowed' :
+                      'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 shadow-sm'}`}
+                  >
+                    Next
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {activeTab === 'orders' && (
+              <section className="bg-white p-4 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+                  <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    Orders ({orders.length})
+                  </h2>
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border border-slate-100">
+                  <table className="w-full text-sm">
+                    <thead className="text-slate-500 text-xs uppercase bg-slate-50">
+                      <tr>
+                        <th className="py-3 px-4 text-left font-medium">Order ID</th>
+                        <th className="py-3 px-4 text-left font-medium">Customer</th>
+                        <th className="py-3 px-4 text-center font-medium">Amount</th>
+                        <th className="py-3 px-4 text-center font-medium">Status</th>
+                        <th className="py-3 px-4 text-center font-medium">Date</th>
+                        <th className="py-3 px-4 text-center font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {orders.map(o=> (
+                        <tr key={o._id} className="hover:bg-slate-50 transition-colors group">
+                          <td className="py-3 px-4"> 
+                            <div className="text-indigo-600 font-medium">#{o._id?.substring(0, 8)}...</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="text-slate-800">{o.buyer?.name || o.buyer?.email || 'Unknown'}</div>
+                          </td>
+                          <td className="py-3 px-4 text-center font-medium text-emerald-600">${o.totalAmount?.toFixed(2)}</td>
+                          <td className="py-3 px-4 text-center">
+                            <select 
+                              value={o.status} 
+                              onChange={e=>handleUpdateOrderStatus(o._id, e.target.value)} 
+                              className={`px-2 py-1 rounded-full text-xs font-medium border-0 focus:ring-1 focus:ring-indigo-300 ${statusColors[o.status] || 'bg-gray-100 text-gray-800'}`}
+                            >
+                              <option value="Processing" className="bg-yellow-100 text-yellow-800">Processing</option>
+                              <option value="Shipped" className="bg-blue-100 text-blue-800">Shipped</option>
+                              <option value="Delivered" className="bg-green-100 text-green-800">Delivered</option>
+                              <option value="Cancelled" className="bg-red-100 text-red-800">Cancelled</option>
+                            </select>
+                          </td>
+                          <td className="py-3 px-4 text-slate-500 text-center">{new Date(o.createdAt).toLocaleDateString()}</td>
+                          <td className="py-3 px-4 text-center">
+                            <button 
+                              onClick={()=>{setSelectedOrder(o); setOrderDetailsModalOpen(true)}} 
+                              className="text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 text-xs font-medium"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              Details
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+          </main>
+        </div>
+      </div>
+
+      {/* User Details Modal */}
+      <Modal
+        isOpen={userDetailsModalOpen}
+        onRequestClose={() => setUserDetailsModalOpen(false)}
+        className="bg-white p-6 rounded-xl shadow-xl max-w-lg mx-auto mt-20 outline-none"
+        overlayClassName="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+      >
+        {selectedUser && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-800">User Details</h3>
+              <button onClick={() => setUserDetailsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-300 to-purple-400 flex items-center justify-center text-white text-xl font-bold">
+                  {(selectedUser.name || selectedUser.email || 'U')[0].toUpperCase()}
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-800">{selectedUser.name || selectedUser.username || 'No name'}</div>
+                  <div className="text-sm text-slate-500">{selectedUser.email}</div>
+                  <div className="text-xs mt-1">
+                    <span className={`px-2 py-0.5 rounded-full ${selectedUser.role==='admin'?'bg-purple-100 text-purple-700':selectedUser.role==='seller'?'bg-blue-100 text-blue-700':'bg-emerald-100 text-emerald-700'}`}>
+                      {selectedUser.role}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </Modal>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="text-slate-500">User ID</div>
+                  <div className="text-slate-800 font-mono text-xs">{selectedUser._id}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Joined</div>
+                  <div className="text-slate-800">{new Date(selectedUser.createdAt).toLocaleDateString()}</div>
+                </div>
+              </div>
+              
+              <div className="pt-4 border-t">
+                <div className="text-sm font-medium text-slate-700 mb-2">Update Role</div>
+                <div className="flex gap-2">
+                  <select 
+                    value={roleUpdate} 
+                    onChange={e => setRoleUpdate(e.target.value)} 
+                    className="px-3 py-1.5 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-indigo-300 transition-all duration-200"
+                  >
+                    <option value="buyer">Buyer</option>
+                    <option value="seller">Seller</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                  <button 
+                    onClick={() => {
+                      dispatch(updateUserRole({ userId: selectedUser._id, role: roleUpdate }))
+                        .unwrap()
+                        .then(() => {
+                          toast.success('User role updated successfully');
+                          setUserDetailsModalOpen(false);
+                        })
+                        .catch(err => {
+                          toast.error(`Failed to update role: ${err.message}`);
+                        });
+                    }} 
+                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 transition-colors"
+                  >
+                    Update
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
-        </div>
-  </div>
+      </Modal>
+
+      {/* Order Details Modal */}
+      <Modal
+        isOpen={orderDetailsModalOpen}
+        onRequestClose={() => setOrderDetailsModalOpen(false)}
+        className="bg-white p-6 rounded-xl shadow-xl max-w-2xl mx-auto mt-20 outline-none max-h-[80vh] overflow-y-auto"
+        overlayClassName="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+      >
+        {selectedOrder && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-800">Order Details</h3>
+              <button onClick={() => setOrderDetailsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="text-slate-500">Order ID</div>
+                  <div className="text-slate-800 font-mono">{selectedOrder._id}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Order Date</div>
+                  <div className="text-slate-800">{new Date(selectedOrder.createdAt).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Customer</div>
+                  <div className="text-slate-800">{selectedOrder.buyer?.name || selectedOrder.buyer?.email || 'Unknown'}</div>
+                </div>
+                <div>
+                  <div className="text-slate-500">Status</div>
+                  <div className="text-slate-800">
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[selectedOrder.status] || 'bg-gray-100 text-gray-800'}`}>
+                      {selectedOrder.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="pt-4 border-t">
+                <h4 className="font-medium text-slate-700 mb-2">Order Items</h4>
+                <div className="space-y-2">
+                  {selectedOrder.items?.map(item => (
+                    <div key={item._id} className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-md bg-slate-200 overflow-hidden">
+                          {item.product?.images?.[0] ? (
+                            <img src={item.product.images[0]} alt={item.product.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-400">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-slate-800">{item.product?.title || 'Unknown Product'}</div>
+                          <div className="text-xs text-slate-500">Qty: {item.quantity}</div>
+                        </div>
+                      </div>
+                      <div className="text-sm font-medium text-emerald-600">${item.price?.toFixed(2)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="pt-4 border-t">
+                <div className="flex justify-between items-center">
+                  <div className="text-sm text-slate-500">Total Amount</div>
+                  <div className="text-lg font-bold text-emerald-600">${selectedOrder.totalAmount?.toFixed(2)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
   );
 }

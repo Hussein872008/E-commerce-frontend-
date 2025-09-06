@@ -111,7 +111,37 @@ const handleRemoveItem = useCallback(async (itemId, productTitle) => {
     }
   }, [dispatch, token, user?._id]);
 
-  if (loading && items.length === 0) return <div className="flex justify-center items-center h-64" aria-live="polite"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div></div>;
+  if (loading && items.length === 0) return (
+    <div className={`container mx-auto p-4 max-w-6xl`} aria-live="polite">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 space-y-4">
+          {[1,2,3].map(i => (
+            <div key={i} className={`flex items-center gap-4 p-4 rounded-lg transition-colors duration-200 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <div className={`w-20 h-20 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`}></div>
+              <div className="flex-1">
+                <div className={`h-4 w-3/4 mb-3 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`}></div>
+                <div className={`h-3 w-1/3 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`}></div>
+                <div className="mt-3 flex items-center gap-2">
+                  <div className={`h-8 w-24 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`}></div>
+                  <div className={`h-8 w-10 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`}></div>
+                </div>
+              </div>
+              <div className={`h-6 w-6 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`}></div>
+            </div>
+          ))}
+        </div>
+
+        <div className={`p-6 rounded-lg ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50'}`}>
+          <div className={`h-6 w-1/2 mb-4 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`}></div>
+          <div className="space-y-3">
+            <div className={`h-4 w-full rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`}></div>
+            <div className={`h-4 w-3/4 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`}></div>
+            <div className={`h-10 w-full mt-4 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} animate-pulse`}></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   if (error) return (
     <div className="container mx-auto p-4 text-center" role="alert">
@@ -127,10 +157,28 @@ const handleRemoveItem = useCallback(async (itemId, productTitle) => {
   const productCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   if (items.length === 0) return (
-    <div className="container mx-auto p-8 text-center h-full flex flex-col items-center justify-center">
-      <FiShoppingCart size={48} className="mx-auto text-gray-300 mb-4" />
-      <p className="text-gray-500 mb-6">Your cart is empty</p>
-      <Link to="/store" className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">Browse Store</Link>
+    <div className="container mx-auto p-8 flex items-center justify-center min-h-screen">
+      <div className={`w-full max-w-3xl rounded-2xl p-10 md:p-16 text-center transition-colors duration-300 shadow-xl ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-800 text-blue-50' : 'bg-white'} `} role="region" aria-label="Empty cart">
+        <div className="flex flex-col items-center gap-6">
+          <div className={`flex items-center justify-center rounded-full p-6 ${darkMode ? 'bg-gradient-to-br from-indigo-700 to-blue-700' : 'bg-green-50'}`}>
+            <FiShoppingCart size={72} className={`${darkMode ? 'text-white' : 'text-green-600'}`} />
+          </div>
+
+          <h2 className={`text-2xl md:text-3xl font-extrabold ${darkMode ? 'text-white' : 'text-slate-900'}`}>Your cart is empty</h2>
+
+          <p className={`max-w-xl text-sm md:text-base ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+            Looks like you haven't added any products yet. Browse our store to find great deals and add items to your cart.
+          </p>
+
+          <div className="mt-4">
+            <Link to="/store" className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md font-medium">Browse Store</Link>
+          </div>
+
+          <div className={`mt-6 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            Tip: Add items from the <Link to="/store" className={`underline ${darkMode ? 'text-blue-200' : 'text-green-600'}`}>store</Link> to start your order.
+          </div>
+        </div>
+      </div>
     </div>
   );
 

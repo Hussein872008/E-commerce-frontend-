@@ -318,7 +318,7 @@ const handleCancelOrder = async (orderId) => {
   if (loading) {
     // Skeleton loading for orders page
     return (
-      <div className={`p-6 max-w-6xl mx-auto ${darkMode ? 'bg-gray-900' : ''}`}>
+      <div className={`p-6 w-full ${darkMode ? 'bg-gray-900' : ''}`}>
         <div className="space-y-6">
           {[...Array(4)].map((_, i) => (
             <div key={i} className={`rounded-lg shadow-lg overflow-hidden border animate-pulse ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
@@ -346,7 +346,7 @@ const handleCancelOrder = async (orderId) => {
 
   if (error) {
     return (
-      <div className={`p-6 max-w-6xl mx-auto ${darkMode ? 'bg-gray-900' : ''}`}>
+      <div className={`p-6 w-full ${darkMode ? 'bg-gray-900' : ''}`}>
         <div className={`${darkMode ? 'bg-red-900/50 border-red-500' : 'bg-red-50 border-red-500'} border-l-4 p-4 rounded`}>
           <div className="flex items-start">
             <FiAlertCircle className="text-red-500 text-xl mt-1 mr-2" />
@@ -377,7 +377,7 @@ const handleCancelOrder = async (orderId) => {
   }
 
   return (
-    <div className={`p-6 max-w-6xl mx-auto min-h-screen ${darkMode ? 'bg-gray-900 text-gray-200' : 'bg-gray-50'}`}>
+    <div className={`p-6 w-full min-h-screen ${darkMode ? 'bg-gray-900 text-gray-200' : 'bg-gray-50'}`}>
       {showModal && (
         <OrderDetailsModal
           order={selectedOrder}
@@ -391,58 +391,62 @@ const handleCancelOrder = async (orderId) => {
         My Orders
       </motion.h1>
 
-      {/* Filter */}
-      <div className={`p-4 rounded-lg shadow mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-        <h2 className={`text-lg font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Filter Orders</h2>
-        <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <select
-            value={searchParams.status}
-            onChange={(e) => setSearchParams({ ...searchParams, status: e.target.value })}
-            className={`p-2 border rounded ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`}
-          >
-            <option value="">All statuses</option>
-            <option value="Processing">Processing</option>
-            <option value="Shipped">Shipped</option>
-            <option value="Delivered">Delivered</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
-          <input type="date" value={searchParams.dateFrom} onChange={(e) => setSearchParams({ ...searchParams, dateFrom: e.target.value })} className={`p-2 border rounded ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`} />
-          <input type="date" value={searchParams.dateTo} onChange={(e) => setSearchParams({ ...searchParams, dateTo: e.target.value })} className={`p-2 border rounded ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`} />
-          <div className="flex items-center">
-            <button type="submit" className="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700">Search</button>
-            <button
-              type="button"
-              onClick={() => { setSearchParams({ status: "", dateFrom: "", dateTo: "", page: 1, limit: 10 }); dispatch(fetchOrders()); }}
-              className={`ml-2 px-4 py-2 border rounded ${darkMode ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300'}`}
-            >Clear</button>
+      {(orders.length !== 0 || (stats.total || 0) !== 0) && (
+        <>
+          {/* Filter */}
+          <div className={`p-4 rounded-lg shadow mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <h2 className={`text-lg font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Filter Orders</h2>
+            <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <select
+                value={searchParams.status}
+                onChange={(e) => setSearchParams({ ...searchParams, status: e.target.value })}
+                className={`p-2 border rounded ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`}
+              >
+                <option value="">All statuses</option>
+                <option value="Processing">Processing</option>
+                <option value="Shipped">Shipped</option>
+                <option value="Delivered">Delivered</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+              <input type="date" value={searchParams.dateFrom} onChange={(e) => setSearchParams({ ...searchParams, dateFrom: e.target.value })} className={`p-2 border rounded ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`} />
+              <input type="date" value={searchParams.dateTo} onChange={(e) => setSearchParams({ ...searchParams, dateTo: e.target.value })} className={`p-2 border rounded ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`} />
+              <div className="flex items-center">
+                <button type="submit" className="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700">Search</button>
+                <button
+                  type="button"
+                  onClick={() => { setSearchParams({ status: "", dateFrom: "", dateTo: "", page: 1, limit: 10 }); dispatch(fetchOrders()); }}
+                  className={`ml-2 px-4 py-2 border rounded ${darkMode ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300'}`}
+                >Clear</button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
 
-      {/* Stats + Chart */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className={`p-4 rounded-lg shadow border-l-4 border-green-500 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-          <h3 className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Orders</h3>
-          <p className="text-2xl font-bold">{stats.total || 0}</p>
-        </div>
-        <div className={`p-4 rounded-lg shadow border-l-4 border-blue-500 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-          <h3 className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Processing</h3>
-          <p className="text-2xl font-bold">{stats.pending || 0}</p>
-        </div>
-        <div className={`p-4 rounded-lg shadow border-l-4 border-green-500 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-          <h3 className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Completed</h3>
-          <p className="text-2xl font-bold">{stats.completed || 0}</p>
-        </div>
-        <div className={`p-4 rounded-lg shadow border-l-4 border-red-500 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-          <h3 className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Cancelled</h3>
-          <p className="text-2xl font-bold">{stats.cancelled || 0}</p>
-        </div>
-      </motion.div>
+          {/* Stats + Chart */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div className={`p-4 rounded-lg shadow border-l-4 border-green-500 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h3 className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Orders</h3>
+              <p className="text-2xl font-bold">{stats.total || 0}</p>
+            </div>
+            <div className={`p-4 rounded-lg shadow border-l-4 border-blue-500 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h3 className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Processing</h3>
+              <p className="text-2xl font-bold">{stats.pending || 0}</p>
+            </div>
+            <div className={`p-4 rounded-lg shadow border-l-4 border-green-500 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h3 className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Completed</h3>
+              <p className="text-2xl font-bold">{stats.completed || 0}</p>
+            </div>
+            <div className={`p-4 rounded-lg shadow border-l-4 border-red-500 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h3 className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Cancelled</h3>
+              <p className="text-2xl font-bold">{stats.cancelled || 0}</p>
+            </div>
+          </motion.div>
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className={`p-6 rounded-lg shadow mb-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-        <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Order Status</h2>
-        <OrderStatusChart data={stats} darkMode={darkMode} />
-      </motion.div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className={`p-6 rounded-lg shadow mb-8 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}`}>Order Status</h2>
+            <OrderStatusChart data={stats} darkMode={darkMode} />
+          </motion.div>
+        </>
+      )}
 
       {/* Orders list & notices */}
       {orders.length === 0 && (stats.total || 0) === 0 ? (
@@ -450,14 +454,16 @@ const handleCancelOrder = async (orderId) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className={`text-center py-12 rounded-lg shadow ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+          className={`text-center rounded-lg shadow min-h-screen flex items-center justify-center px-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
         >
-          <FiPackage className="mx-auto text-4xl text-gray-400 mb-4" />
-          <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-4 text-lg`}>No orders yet</p>
-          <Link to="/store" className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center w-48 mx-auto">
-            Browse store
-            <FiShoppingBag className="mr-2" />
-          </Link>
+          <div className="w-full">
+            <FiPackage className="mx-auto text-6xl text-gray-400 mb-6" />
+            <p className={`${darkMode ? 'text-gray-300' : 'text-gray-600'} mb-6 text-lg`}>No orders yet</p>
+            <Link to="/store" className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 inline-flex items-center justify-center">
+              Browse store
+              <FiShoppingBag className="ml-2" />
+            </Link>
+          </div>
         </motion.div>
       ) : orders.length === 0 && (stats.total || 0) > 0 ? (
         <div className={`${darkMode ? 'bg-yellow-900/50 border-yellow-500' : 'bg-yellow-50 border-yellow-400'} border-l-4 p-4 mb-6`}>
@@ -560,23 +566,25 @@ const handleCancelOrder = async (orderId) => {
         </motion.div>
       )}
 
-      <div className="flex justify-between items-center mt-6">
-        <button
-          onClick={() => setSearchParams({ ...searchParams, page: Math.max(1, (searchParams.page || 1) - 1) })}
-          disabled={(pagination.currentPage || 1) === 1}
-          className={`px-4 py-2 border rounded disabled:opacity-50 ${darkMode ? 'border-gray-600 hover:bg-gray-700 disabled:hover:bg-gray-800' : 'border-gray-300'}`}
-        >
-          Previous
-        </button>
-        <span>Page {pagination.currentPage || 1} of {pagination.pages || 1}</span>
-        <button
-          onClick={() => setSearchParams({ ...searchParams, page: Math.min((pagination.pages || 1), (searchParams.page || 1) + 1) })}
-          disabled={(pagination.currentPage || 1) >= (pagination.pages || 1)}
-          className={`px-4 py-2 border rounded disabled:opacity-50 ${darkMode ? 'border-gray-600 hover:bg-gray-700 disabled:hover:bg-gray-800' : 'border-gray-300'}`}
-        >
-          Next
-        </button>
-      </div>
+      {(orders.length !== 0 || (stats.total || 0) !== 0) && (
+        <div className="flex justify-between items-center mt-6">
+          <button
+            onClick={() => setSearchParams({ ...searchParams, page: Math.max(1, (searchParams.page || 1) - 1) })}
+            disabled={(pagination.currentPage || 1) === 1}
+            className={`px-4 py-2 border rounded disabled:opacity-50 ${darkMode ? 'border-gray-600 hover:bg-gray-700 disabled:hover:bg-gray-800' : 'border-gray-300'}`}
+          >
+            Previous
+          </button>
+          <span>Page {pagination.currentPage || 1} of {pagination.pages || 1}</span>
+          <button
+            onClick={() => setSearchParams({ ...searchParams, page: Math.min((pagination.pages || 1), (searchParams.page || 1) + 1) })}
+            disabled={(pagination.currentPage || 1) >= (pagination.pages || 1)}
+            className={`px-4 py-2 border rounded disabled:opacity-50 ${darkMode ? 'border-gray-600 hover:bg-gray-700 disabled:hover:bg-gray-800' : 'border-gray-300'}`}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

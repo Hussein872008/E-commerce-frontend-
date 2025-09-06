@@ -2,6 +2,8 @@ import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { toggleDarkMode } from "../redux/themeSlice";
 import { Outlet, NavLink, Link } from "react-router-dom";
+import ScrollToTop from "../components/ScrollToTop";
+import Profile from "../pages/Profile";
 import { fetchWishlistCount } from "../redux/wishlist.slice";
 import { fetchCart } from "../redux/cart.slice";
 import { motion } from "framer-motion";
@@ -54,6 +56,7 @@ export default function BuyerLayout() {
 
   const { user, token } = useSelector(state => state.auth);
   const dispatch = useDispatch();
+  const [profileOpen, setProfileOpen] = React.useState(false);
 
   useEffect(() => {
     if (user && token) {
@@ -107,12 +110,11 @@ export default function BuyerLayout() {
   return (
   <div className={`min-h-screen flex flex-col transition-colors duration-500 ${isDarkMode ? 'bg-gradient-to-br from-gray-900 via-blue-950 to-purple-950 text-gray-100' : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 text-gray-800'}`}>
       {/* HEADER */}
-      {isBuyer && (
         <motion.header
           initial={{ y: -60, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5, type: "spring" }}
-          className={`p-4 sticky top-0 z-50 backdrop-blur-lg transition-all duration-300 ${scrolled ? 'py-3 shadow-2xl' : 'py-4 shadow-lg'} ${
+          className={`p-4 py-3 sticky top-0 z-50 backdrop-blur-lg transition-shadow duration-300 ${scrolled ? 'shadow-2xl' : 'shadow-lg'} ${
             isDarkMode 
               ? 'bg-gradient-to-r from-gray-900/95 via-blue-950/95 to-purple-950/95 border-b border-gray-700/30' 
               : 'bg-gradient-to-r from-blue-600/95 via-indigo-600/95 to-purple-600/95 border-b border-white/20'
@@ -133,9 +135,16 @@ export default function BuyerLayout() {
                 >
                   <FaStore className="text-2xl" />
                 </motion.div>
-                <span className={`font-extrabold bg-clip-text text-transparent ${isDarkMode ? 'bg-gradient-to-r from-blue-300 to-purple-300' : 'bg-gradient-to-r from-white to-blue-100'}`}>
-                  Our Store
-                </span>
+                <span
+  className={`hidden md:inline font-extrabold bg-clip-text text-transparent ${
+    isDarkMode
+      ? 'bg-gradient-to-r from-blue-300 to-purple-300'
+      : 'bg-gradient-to-r from-white to-blue-100'
+  }`}
+>
+  Our Store
+</span>
+
               </Link>
             </motion.div>
 
@@ -143,132 +152,62 @@ export default function BuyerLayout() {
             <nav className="flex gap-3 items-center">
               {/* Dark mode toggle */}
               <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
+                whileHover={{ scale: 1.07 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => dispatch(toggleDarkMode())}
-                className={`p-2.5 rounded-xl transition-all duration-300 ${isDarkMode ? 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30' : 'bg-gray-800/20 text-gray-700 hover:bg-gray-800/30'}`}
+                className={`p-2.5 rounded-xl transform transition duration-150 ease-out active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 ${isDarkMode ? 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 ring-yellow-400/20' : 'bg-gray-800/20 text-gray-700 hover:bg-gray-800/30 ring-gray-200/20'}`}
                 title="Toggle dark mode"
               >
                 {isDarkMode ? <FaSun size={18} /> : <FaMoon size={18} />}
               </motion.button>
 
-              {/* Orders */}
-              <NavLink
-                to="/buyer/orders"
-                className={({ isActive }) =>
-                  `relative p-2.5 rounded-xl flex items-center justify-center transition-all duration-300 group ${
-                    isActive 
-                      ? isDarkMode 
-                        ? "bg-blue-500/30 text-blue-300 shadow-lg scale-110" 
-                        : "bg-white text-blue-700 shadow-lg scale-110"
-                      : isDarkMode
-                        ? "text-blue-200 hover:bg-blue-700/50 hover:scale-110"
-                        : "text-white hover:bg-white/20 hover:scale-110"
-                  }`
-                }
-              >
-                <FaClipboardList size={20} />
-              </NavLink>
+              {user ? (
+                <>
+                  {/* Orders */}
+                  <NavLink to="/buyer/orders" className={({ isActive }) => `relative p-2.5 rounded-xl flex items-center justify-center transform transition duration-150 ease-out active:scale-95 hover:scale-105 group ${isActive ? (isDarkMode ? 'bg-blue-500/30 text-blue-300 shadow-lg scale-110' : 'bg-white text-blue-700 shadow-lg scale-110') : (isDarkMode ? 'text-blue-200 hover:bg-blue-700/50' : 'text-white hover:bg-white/20')}`}>
+                    <FaClipboardList size={20} />
+                  </NavLink>
 
-              {/* Cart */}
-              <NavLink
-                to="/cart"
-                className={({ isActive }) =>
-                  `relative p-2.5 rounded-xl flex items-center justify-center transition-all duration-300 group ${
-                    isActive 
-                      ? isDarkMode 
-                        ? "bg-blue-500/30 text-blue-300 shadow-lg scale-110" 
-                        : "bg-white text-blue-700 shadow-lg scale-110"
-                      : isDarkMode
-                        ? "text-blue-200 hover:bg-blue-700/50 hover:scale-110"
-                        : "text-white hover:bg-white/20 hover:scale-110"
-                  }`
-                }
-              >
-                <FaShoppingCart size={20} />
-                {items.length > 0 && (
-                  <motion.span
-                    initial={{ scale: 0.7, opacity: 0.7 }}
-                    animate={cartBadgeAnim ? { scale: 1.2, opacity: 1 } : { scale: 1, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                    className={`absolute -top-2 -right-2 text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg border-2 ${
-                      isDarkMode ? 'border-gray-800 bg-gradient-to-r from-blue-500 to-indigo-600' : 'border-white bg-gradient-to-r from-blue-500 to-indigo-600'
-                    }`}
-                  >
-                    {items.length > 99 ? "99+" : items.length}
-                  </motion.span>
-                )}
-              </NavLink>
-
-              {/* Wishlist */}
-              <NavLink
-                to="/wishlist"
-                className={({ isActive }) =>
-                  `relative p-2.5 rounded-xl flex items-center justify-center transition-all duration-300 group ${
-                    isActive 
-                      ? isDarkMode 
-                        ? "bg-rose-500/30 text-rose-300 shadow-lg scale-110" 
-                        : "bg-white text-rose-600 shadow-lg scale-110"
-                      : isDarkMode
-                        ? "text-rose-200 hover:bg-rose-700/50 hover:scale-110"
-                        : "text-white hover:bg-white/20 hover:scale-110"
-                  }`
-                }
-              >
-                <FaHeart size={20} />
-                {count > 0 && (
-                  // نستخدم NavLink render prop لنحصل على isActive هنا
-                  <NavLink to="/wishlist">
-                    {({ isActive }) => (
-                      <motion.span
-                        initial={{ scale: 0.7, opacity: 0.7 }}
-                        animate={wishlistBadgeAnim ? { scale: 1.2, opacity: 1 } : { scale: 1, opacity: 1 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                        className={`absolute -top-2 -right-2 text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg border-2
-                          ${isDarkMode || !isActive ? 'text-white' : 'text-gray-900'}
-                          ${isDarkMode ? 'border-gray-800 bg-gradient-to-r from-rose-500 to-pink-600' : 'border-white bg-gradient-to-r from-rose-500 to-pink-600'}
-                        `}
-                        style={{ pointerEvents: 'none' }}
-                      >
-                        {count > 99 ? "99+" : count}
-                      </motion.span>
+                  {/* Cart */}
+                  <NavLink to="/cart" className={({ isActive }) => `relative p-2.5 rounded-xl flex items-center justify-center transform transition duration-150 ease-out active:scale-95 hover:scale-105 group ${isActive ? (isDarkMode ? 'bg-blue-500/30 text-blue-300 shadow-lg scale-110' : 'bg-white text-blue-700 shadow-lg scale-110') : (isDarkMode ? 'text-blue-200 hover:bg-blue-700/50' : 'text-white hover:bg-white/20')}`}>
+                    <FaShoppingCart size={20} />
+                    {items.length > 0 && (
+                      <motion.span initial={{ scale: 0.7, opacity: 0.7 }} animate={cartBadgeAnim ? { scale: 1.2, opacity: 1 } : { scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }} className={`absolute -top-2 -right-2 text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg border-2 ${isDarkMode ? 'border-gray-800 bg-gradient-to-r from-blue-500 to-indigo-600' : 'border-white bg-gradient-to-r from-blue-500 to-indigo-600'}`}>{items.length > 99 ? '99+' : items.length}</motion.span>
                     )}
                   </NavLink>
-                )}
 
-              </NavLink>
+                  {/* Wishlist */}
+                  <NavLink to="/wishlist" className={({ isActive }) => `relative p-2.5 rounded-xl flex items-center justify-center transform transition duration-150 ease-out active:scale-95 hover:scale-105 group ${isActive ? (isDarkMode ? 'bg-rose-500/30 text-rose-300 shadow-lg scale-110' : 'bg-white text-rose-600 shadow-lg scale-110') : (isDarkMode ? 'text-rose-200 hover:bg-rose-700/50' : 'text-white hover:bg-white/20')}`}>
+                    <FaHeart size={20} />
+                    {count > 0 && (
+                      <motion.span initial={{ scale: 0.7, opacity: 0.7 }} animate={wishlistBadgeAnim ? { scale: 1.2, opacity: 1 } : { scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }} className={`absolute -top-2 -right-2 text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg border-2 ${isDarkMode ? 'text-white border-gray-800 bg-gradient-to-r from-rose-500 to-pink-600' : 'text-white border-white bg-gradient-to-r from-rose-500 to-pink-600'}`} style={{ pointerEvents: 'none' }}>{count > 99 ? '99+' : count}</motion.span>
+                    )}
+                  </NavLink>
 
-              {/* Profile */}
-              <NavLink
-                to="/profile"
-                className={({ isActive }) =>
-                  `relative p-2.5 rounded-xl flex items-center justify-center transition-all duration-300 group ${
-                    isActive 
-                      ? isDarkMode 
-                        ? "bg-blue-500/30 text-blue-300 shadow-lg scale-110" 
-                        : "bg-white text-blue-700 shadow-lg scale-110"
-                      : isDarkMode
-                        ? "text-blue-200 hover:bg-blue-700/50 hover:scale-110"
-                        : "text-white hover:bg-white/20 hover:scale-110"
-                  }`
-                }
-              >
-                <FaUserCircle size={20} />
-              </NavLink>
+                  {/* Profile (opens sidebar) */}
+                  <button onClick={() => setProfileOpen(true)} className={`relative p-2.5 rounded-xl flex items-center justify-center transform transition duration-150 ease-out active:scale-95 hover:scale-105 group ${isDarkMode ? 'text-blue-200 hover:bg-blue-700/50' : 'text-white hover:bg-white/20'}`} title="Open profile">
+                    <FaUserCircle size={20} />
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link to="/register" className={`px-4 py-2 rounded-md font-semibold transform transition duration-150 hover:scale-105 active:scale-95 shadow-sm focus:outline-none focus:ring-2 ${isDarkMode ? 'bg-white/5 text-white hover:bg-white/10 ring-white/10' : 'bg-white text-blue-700 hover:bg-blue-50 ring-blue-200'}`}>Register</Link>
+                  <Link to="/login" className={`px-4 py-2 rounded-md font-semibold border transform transition duration-150 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 ${isDarkMode ? 'border-white/10 text-white hover:bg-white/5 ring-white/10' : 'border-white/20 text-white hover:bg-white/10 ring-blue-200'}`}>Login</Link>
+                </div>
+              )}
             </nav>
           </div>
-        </motion.header>
-      )}
+  </motion.header>
 
       {/* MAIN */}
       <main className={`flex-1 p-4 transition-colors duration-500 ${isDarkMode ? 'bg-gradient-to-br from-gray-900/70 to-blue-900/70' : 'bg-gradient-to-br from-blue-50/70 to-indigo-50/70'}`}>
         <div className="container mx-auto">
+          <ScrollToTop />
           <Outlet />
         </div>
       </main>
 
       {/* FOOTER */}
-      {isBuyer && (
         <footer className={`mt-auto transition-colors duration-500 ${isDarkMode ? 'bg-gray-900 text-gray-200' : 'bg-gray-800 text-white'}`}>
           {/* Features Section */}
           <div className={`py-8 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-700'}`}>
@@ -309,7 +248,7 @@ export default function BuyerLayout() {
                   <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-blue-600/30 text-blue-300' : 'bg-blue-500/20 text-blue-400'}`}>
                     <FaStore className="text-2xl" />
                   </div>
-                  <span className="text-xl font-bold">Our Store</span>
+                  <span aria-hidden="true" className="text-xl font-bold hidden md:inline-block">Our Store</span>
                 </div>
                 <p className="mb-4 opacity-80">
                   Your one-stop shop for quality products. We offer the best prices and customer service.
@@ -335,15 +274,15 @@ export default function BuyerLayout() {
                   <h4 className="font-semibold mb-3">Follow Us</h4>
                   <div className="flex gap-3">
                     {socialLinks.map((social, index) => (
-                      <motion.a
-                        key={index}
-                        href={social.url}
-                        whileHover={{ y: -3, scale: 1.1 }}
-                        className={`p-2 rounded-full bg-gray-700 text-gray-300 transition-colors ${social.color}`}
-                      >
-                        {social.icon}
-                      </motion.a>
-                    ))}
+                          <motion.a
+                            key={index}
+                            href={social.url || '#'}
+                            whileHover={{ y: -3, scale: 1.1 }}
+                            className={`p-2 rounded-full bg-gray-700 text-gray-300 transition-colors ${social.color}`}
+                          >
+                            {social.icon}
+                          </motion.a>
+                        ))}
                   </div>
                 </div>
               </motion.div>
@@ -359,20 +298,21 @@ export default function BuyerLayout() {
                 >
                   <h3 className="font-semibold text-lg mb-4 pb-2 border-b border-gray-600">{title}</h3>
                   <ul className="space-y-2">
-                    {links.map((link, index) => (
+                        {links.map((link, index) => (
                       <motion.li 
                         key={index}
                         whileHover={{ x: 5 }}
                         transition={{ duration: 0.2 }}
                       >
                         {link.path ? (
-                          <Link 
-                            to={link.path} 
+                          // During development replace navigable paths with '#'
+                          <a
+                            href="#"
                             className="opacity-80 hover:opacity-100 hover:text-blue-300 transition-colors flex items-center"
                           >
                             {link.icon && <span className="mr-2">{link.icon}</span>}
                             {link.name || link.text}
-                          </Link>
+                          </a>
                         ) : (
                           <div className="opacity-80 flex items-center">
                             {link.icon}
@@ -402,26 +342,28 @@ export default function BuyerLayout() {
                     <span>{currentTime.toLocaleDateString()}</span>
                   </div>
                 </div>
-                
 
               </div>
             </div>
           </div>
 
           {/* Back to Top Button */}
-          <motion.button
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            whileHover={{ scale: 1.1 }}
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className={`fixed bottom-6 right-6 p-3 rounded-full shadow-lg z-40 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-            </svg>
-          </motion.button>
+          {scrolled && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              whileHover={{ scale: 1.1 }}
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className={`fixed bottom-6 right-6 p-3 rounded-full shadow-lg z-40 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+            </motion.button>
+          )}
         </footer>
-      )}
+  {/* Profile sidebar instance (renders above the page) */}
+  <Profile open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   );
 }

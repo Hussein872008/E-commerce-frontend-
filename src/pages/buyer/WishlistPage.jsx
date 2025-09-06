@@ -104,8 +104,16 @@ const WishlistPage = () => {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-64">
-                <div className={`animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 ${darkMode ? 'border-blue-300' : 'border-green-600'}`}></div>
+            <div className={`container mx-auto p-4 min-h-screen`}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {Array.from({length:8}).map((_,i)=>(
+                        <div key={i} className={`p-4 rounded-lg transition-colors duration-200 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                            <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-200'} w-full h-48 rounded-md animate-pulse mb-4`} />
+                            <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-200'} h-4 w-3/4 rounded animate-pulse mb-2`} />
+                            <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-200'} h-3 w-1/2 rounded animate-pulse`} />
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     }
@@ -133,7 +141,7 @@ const WishlistPage = () => {
             </div>
 
             {wishlist.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 px-4 text-center min-h-[60vh]">
+                <div className="flex flex-col items-center justify-center py-20 px-4 text-center min-h-screen">
                     <div className={`flex flex-col items-center justify-center`}>
                         <div className={`mb-6 p-6 rounded-full flex items-center justify-center ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
                             <FaHeart className={`text-6xl ${darkMode ? 'text-blue-400' : 'text-gray-400'}`} />
