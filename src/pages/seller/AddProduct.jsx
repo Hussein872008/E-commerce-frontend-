@@ -45,6 +45,9 @@ export default function AddProduct() {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [showNewCategoryField, setShowNewCategoryField] = useState(false);
   const [newCategory, setNewCategory] = useState("");
+  const [createdCategory, setCreatedCategory] = useState(null);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editCategoryName, setEditCategoryName] = useState("");
   const [activeSection, setActiveSection] = useState("basic");
   const navigate = useNavigate();
   const { token } = useSelector((state) => state.auth);
@@ -220,12 +223,49 @@ export default function AddProduct() {
   };
 
   const addNewCategory = () => {
-    if (newCategory.trim() && !categories.includes(newCategory)) {
-      setCategories([...categories, newCategory]);
-      setFormData(prev => ({ ...prev, category: newCategory }));
-      setNewCategory("");
-      setShowNewCategoryField(false);
+    const trimmed = (newCategory || "").trim();
+    if (!trimmed) return;
+    let nextCategories = [...categories];
+    if (createdCategory) {
+      nextCategories = nextCategories.filter(c => c !== createdCategory);
     }
+    if (!nextCategories.includes(trimmed)) {
+      nextCategories.push(trimmed);
+    }
+    setCategories(nextCategories);
+    setFormData(prev => ({ ...prev, category: trimmed }));
+    setCreatedCategory(trimmed);
+    setNewCategory("");
+    setShowNewCategoryField(false);
+  };
+
+  const handleDeleteCategory = (cat) => {
+    setCategories(prev => prev.filter(c => c !== cat));
+    setCreatedCategory(prev => (prev === cat ? null : prev));
+    setFormData(prev => ({ ...prev, category: prev.category === cat ? "" : prev.category }));
+  };
+
+  const startEditCategory = (cat) => {
+    setEditingCategory(cat);
+    setEditCategoryName(cat);
+    setShowNewCategoryField(false);
+  };
+
+  const saveEditCategory = () => {
+    const trimmed = (editCategoryName || "").trim();
+    if (!trimmed) return;
+    setCategories(prev => prev.map(c => (c === editingCategory ? trimmed : c)));
+    if (formData.category === editingCategory) {
+      setFormData(prev => ({ ...prev, category: trimmed }));
+    }
+    if (createdCategory === editingCategory) setCreatedCategory(trimmed);
+    setEditingCategory(null);
+    setEditCategoryName("");
+  };
+
+  const cancelEdit = () => {
+    setEditingCategory(null);
+    setEditCategoryName("");
   };
 
   const validateSection = (section) => {
@@ -697,9 +737,51 @@ export default function AddProduct() {
                         </svg>
                       </div>
                     </div>
-                    <span className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Choose a category for your product
-                    </span>
+                    <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Choose a category for your product</span>
+                        {createdCategory && (
+                          <div className="inline-flex items-center gap-2 ml-2 px-3 py-1 rounded-full bg-green-100/60 text-sm shadow-sm transition-all duration-200 ">
+                            <span className="font-medium">{createdCategory}</span>
+                            <button type="button" onClick={() => startEditCategory(createdCategory)} className="text-xs text-blue-600 hover:text-blue-800">Edit</button>
+                            <button type="button" onClick={() => handleDeleteCategory(createdCategory)} className="text-xs text-red-600 hover:text-red-800">Delete</button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {!showNewCategoryField && !editingCategory && (
+                          <button
+                            type="button"
+                            onClick={() => { setShowNewCategoryField(true); setEditingCategory(null); }}
+                            className={`text-sm font-medium transition-all px-3 py-1 rounded-lg ${isDarkMode ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-blue-600 text-white hover:bg-blue-500'}`}>
+                            + Add new category
+                          </button>
+                        )}
+
+                        {showNewCategoryField && (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={newCategory}
+                              onChange={(e) => setNewCategory(e.target.value)}
+                              placeholder="New category"
+                              className={`p-2 rounded-lg text-sm border ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-800'}`}
+                            />
+                            <button type="button" onClick={addNewCategory} className="px-3 py-1 rounded-lg bg-green-600 text-white text-sm">Add</button>
+                            <button type="button" onClick={() => { setShowNewCategoryField(false); setNewCategory(''); }} className="px-3 py-1 rounded-lg bg-gray-100 text-sm">Cancel</button>
+                          </div>
+                        )}
+
+                        {editingCategory && (
+                          <div className="flex items-center gap-2">
+                            <input value={editCategoryName} onChange={(e) => setEditCategoryName(e.target.value)} className="p-2 rounded-lg text-sm border" />
+                            <button type="button" onClick={saveEditCategory} className="px-3 py-1 rounded-lg bg-blue-600 text-white text-sm">Save</button>
+                            <button type="button" onClick={cancelEdit} className="px-3 py-1 rounded-lg bg-gray-100 text-sm">Cancel</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
