@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api, { setAuthToken } from '../utils/api';
 
-// جلب جميع المنتجات
 export const fetchAllProducts = createAsyncThunk(
   'products/fetchAll',
   async (_, { rejectWithValue }) => {
@@ -14,13 +13,11 @@ export const fetchAllProducts = createAsyncThunk(
   }
 );
 
-// جلب المنتجات المفلترة
 export const fetchFilteredProducts = createAsyncThunk(
   'products/fetchFiltered',
   async (filters, { rejectWithValue }) => {
     try {
   const response = await api.get('/api/products/filtered', { params: filters });
-      // backend returns products in response.data.products
       return Array.isArray(response.data.products) ? response.data.products : [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch filtered products");
@@ -28,7 +25,6 @@ export const fetchFilteredProducts = createAsyncThunk(
   }
 );
 
-// جلب المنتجات الخاصة بالبائع الحالي
 export const fetchMyProducts = createAsyncThunk(
   'products/fetchMyProducts',
   async (_, { getState, rejectWithValue }) => {
@@ -43,7 +39,6 @@ export const fetchMyProducts = createAsyncThunk(
   }
 );
 
-// جلب تفاصيل منتج معين
 export const fetchProductDetails = createAsyncThunk(
   'products/fetchDetails',
   async (productId, { rejectWithValue }) => {
@@ -56,8 +51,6 @@ export const fetchProductDetails = createAsyncThunk(
   }
 );
 
-// جلب المنتجات المتشابهة
-// في fetchRelatedProducts داخل productSlice.js
 export const fetchRelatedProducts = createAsyncThunk(
   'products/fetchRelated',
   async ({ category, excludeId }, { rejectWithValue }) => {
@@ -65,10 +58,51 @@ export const fetchRelatedProducts = createAsyncThunk(
   const response = await api.get('/api/products/filtered', {
         params: { category, limit: 4, exclude: excludeId }
       });
-      // تأكد من أن الخادم يرجع products بدلاً من data
       return Array.isArray(response.data.products) ? response.data.products : [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch related products");
+    }
+  }
+);
+
+export const fetchSellerDashboardStats = createAsyncThunk(
+  'products/fetchSellerDashboardStats',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      setAuthToken(token);
+      const response = await api.get('/api/products/seller/dashboard');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch dashboard stats");
+    }
+  }
+);
+
+export const fetchSellerSalesData = createAsyncThunk(
+  'products/fetchSellerSalesData',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      setAuthToken(token);
+      const response = await api.get('/api/products/seller/sales-data');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch sales data");
+    }
+  }
+);
+
+export const fetchSellerPopularProducts = createAsyncThunk(
+  'products/fetchSellerPopularProducts',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      setAuthToken(token);
+      const response = await api.get('/api/products/seller/popular');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch popular products");
     }
   }
 );
@@ -84,7 +118,24 @@ const productSlice = createSlice({
     loading: false,
     error: null,
     filters: {},
-    isFiltered: false
+    isFiltered: false,
+    sellerDashboardStats: {
+      productsCount: 0,
+      ordersCount: 0,
+      totalSales: 0,
+      recentOrders: [],
+      popularProducts: [],
+      stockAlerts: [],
+      monthlySales: [],
+      categoryStats: [],
+      orderStatusStats: [],
+      revenueGrowth: 0,
+      orderGrowth: 0,
+      productViews: 0,
+      conversionRate: 0
+    },
+    sellerSalesData: [],
+    sellerPopularProducts: []
   },
   reducers: {
     clearProductError: (state) => {
@@ -98,7 +149,6 @@ const productSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // جلب جميع المنتجات
       .addCase(fetchAllProducts.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -112,7 +162,6 @@ const productSlice = createSlice({
         state.error = action.payload;
       })
 
-      // جلب المنتجات المفلترة
       .addCase(fetchFilteredProducts.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -128,7 +177,6 @@ const productSlice = createSlice({
         state.error = action.payload;
       })
 
-      // جلب منتجات البائع
       .addCase(fetchMyProducts.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -142,7 +190,6 @@ const productSlice = createSlice({
         state.error = action.payload;
       })
 
-      // جلب تفاصيل المنتج
       .addCase(fetchProductDetails.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -156,7 +203,6 @@ const productSlice = createSlice({
         state.error = action.payload;
       })
 
-      // جلب المنتجات المتشابهة
       .addCase(fetchRelatedProducts.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -168,6 +214,48 @@ const productSlice = createSlice({
   );
 })
       .addCase(fetchRelatedProducts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      .addCase(fetchSellerDashboardStats.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchSellerDashboardStats.fulfilled, (state, action) => {
+        state.loading = false;
+        state.sellerDashboardStats = {
+          ...state.sellerDashboardStats,
+          ...action.payload
+        };
+      })
+      .addCase(fetchSellerDashboardStats.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      .addCase(fetchSellerSalesData.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchSellerSalesData.fulfilled, (state, action) => {
+        state.loading = false;
+        state.sellerSalesData = action.payload;
+      })
+      .addCase(fetchSellerSalesData.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      .addCase(fetchSellerPopularProducts.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchSellerPopularProducts.fulfilled, (state, action) => {
+        state.loading = false;
+        state.sellerPopularProducts = action.payload;
+      })
+      .addCase(fetchSellerPopularProducts.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

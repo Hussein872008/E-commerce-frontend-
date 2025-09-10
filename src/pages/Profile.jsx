@@ -8,7 +8,6 @@ import { toast } from "react-toastify";
 import { deleteAccount } from "../redux/authSlice";
 import Swal from 'sweetalert2';
 
-// Converted: Profile is now a prop-driven sidebar component.
 export default function Profile({ open = false, onClose = () => {} }) {
   const { user: currentUser, token } = useSelector((state) => state.auth);
   const darkMode = useSelector(state => state.theme.darkMode);
@@ -32,7 +31,6 @@ export default function Profile({ open = false, onClose = () => {} }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // Safe accessors to avoid runtime errors when user is null during render
   const userName = user?.name || '';
   const userEmail = user?.email || '';
   const userRole = user?.role || '';
@@ -53,7 +51,6 @@ export default function Profile({ open = false, onClose = () => {} }) {
     }
   }, [currentUser]);
 
-  // Close on Escape
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -82,7 +79,6 @@ export default function Profile({ open = false, onClose = () => {} }) {
     
     setValidations(checks);
     
-    // Calculate strength
     const strength = Object.values(checks).filter(Boolean).length;
     setPasswordStrength(strength);
     
@@ -94,19 +90,15 @@ export default function Profile({ open = false, onClose = () => {} }) {
     setFormData(prev => {
       const newData = { ...prev, [name]: value };
       
-      // Real-time password validation
       if (name === 'newPassword') {
         validatePassword(value);
-        // Also check match if confirm password exists
         if (prev.confirmPassword) {
           setPasswordMatch(value === prev.confirmPassword);
         }
       }
       
-      // Real-time confirm password validation
       if (name === 'confirmPassword') {
         setPasswordMatch(value === prev.newPassword);
-        // Show success animation when passwords match
         if (value === prev.newPassword && value !== '') {
           const button = document.querySelector('#saveButton');
           if (button) {
@@ -206,10 +198,8 @@ export default function Profile({ open = false, onClose = () => {} }) {
       setLoading(true);
       setError('');
 
-      // Make the API call
       await dispatch(deleteAccount({ password })).unwrap();
 
-  // Show success animation and a confirmation message, then logout and reload
   const modal = document.querySelector('#deleteModal');
   if (modal) {
     modal.classList.add('scale-0', 'opacity-0');
@@ -225,24 +215,20 @@ export default function Profile({ open = false, onClose = () => {} }) {
     color: darkMode ? '#e5e7eb' : '#1f2937'
   });
 
-  // Cleanup and reload to fully reset app state
   dispatch(logout());
   onClose();
-  // reload page to avoid any blank/locked routes after account removal
   window.location.reload();
 
     } catch (err) {
       console.error('Delete error:', err);
       setLoading(false);
       
-      // Show error message in the modal
       setError(
         err?.response?.data?.message === 'Invalid password'
           ? 'The password you entered is incorrect'
           : err?.response?.data?.message || 'Failed to delete account. Please try again.'
       );
       
-      // Shake animation on error
       const modal = document.querySelector('#deleteModal');
       if (modal) {
         modal.classList.add('animate-shake');

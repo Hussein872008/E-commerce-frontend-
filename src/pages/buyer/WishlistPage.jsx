@@ -13,7 +13,6 @@ const WishlistPage = () => {
     const darkMode = useSelector(state => state.theme.darkMode);
     const [wishlist, setWishlist] = useState([]);
     const [loading, setLoading] = useState(true);
-    // مقارنة المنتجات لم تعد مدعومة
     const [bulkLoading, setBulkLoading] = useState(false);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
@@ -25,7 +24,6 @@ const WishlistPage = () => {
             setAuthToken(token);
             const { data } = await api.get(`/api/wishlist`);
             setWishlist(data.products || []);
-            // setSelectedProducts([]); // removed: no longer needed
         } catch (err) {
             console.error('Failed to load wishlist:', err);
             setError(err.response?.data?.error || 'Failed to load wishlist');
@@ -88,7 +86,6 @@ const WishlistPage = () => {
         }
     };
 
-    // اختيار المنتجات لم يعد مدعوماً
 
     useEffect(() => {
         if (user) fetchWishlist();

@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api, { setAuthToken } from '../utils/api';
 
-// الحالة الأولية
 const initialState = {
   user: JSON.parse(localStorage.getItem('user')) || null,
   token: localStorage.getItem('token') || null,
@@ -12,31 +11,25 @@ const initialState = {
   role: JSON.parse(localStorage.getItem('user'))?.role || null
 };
 
-// Helper function to handle API errors
 const handleApiError = (error, defaultMessage) => {
-  // Log generic info for debugging (avoid logging sensitive request body)
   console.error('API Error:', error?.message || error);
   const resp = error?.response?.data || null;
   const status = error?.response?.status;
 
-  // Validation errors (express-validator style)
   if (resp?.errors && Array.isArray(resp.errors)) {
     const errorMessages = resp.errors.map(err => err.msg).join(', ');
     return errorMessages;
   }
 
-  // Prefer explicit message, then generic error/details fields
   if (resp?.message) return resp.message;
   if (resp?.error) return resp.error;
   if (resp?.details) return resp.details;
 
-  // Fallback to HTTP status if present
   if (status) return `Request failed with status ${status}`;
 
   return defaultMessage;
 };
 
-// ثنك لتحديث التوكن
 export const refreshToken = createAsyncThunk(
   'auth/refreshToken',
   async (_, { rejectWithValue }) => {
@@ -50,7 +43,6 @@ export const refreshToken = createAsyncThunk(
   }
 );
 
-// تسجيل مستخدم جديد
 export const registerUser = createAsyncThunk(
   'auth/registerUser',
   async (userData, { rejectWithValue }) => {
@@ -78,7 +70,6 @@ export const registerUser = createAsyncThunk(
   }
 );
 
-// تسجيل الدخول
 export const loginUser = createAsyncThunk(
   'auth/login',
   async ({ email, password }, { rejectWithValue }) => {
@@ -100,7 +91,6 @@ export const loginUser = createAsyncThunk(
   }
 );
 
-// التحقق من صحة التوكن
 export const verifyToken = createAsyncThunk(
   'auth/verifyToken',
   async (_, { rejectWithValue }) => {
@@ -124,7 +114,6 @@ export const verifyToken = createAsyncThunk(
   }
 );
 
-// Update profile
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async ({ userId, token, updates }, { rejectWithValue }) => {
@@ -135,7 +124,6 @@ export const updateProfile = createAsyncThunk(
         },
       };
 
-      // Only send password fields if they're provided
       const updateData = {
         name: updates.name,
       };
@@ -152,7 +140,6 @@ export const updateProfile = createAsyncThunk(
         return rejectWithValue(response.data.message || 'Update failed');
       }
 
-      // Update local storage
       const updatedUser = {
         ...JSON.parse(localStorage.getItem('user')),
         name: updates.name,
@@ -166,7 +153,6 @@ export const updateProfile = createAsyncThunk(
   }
 );
 
-// Forgot Password
 export const forgotPassword = createAsyncThunk(
   'auth/forgotPassword',
   async (email, { rejectWithValue }) => {
@@ -179,7 +165,6 @@ export const forgotPassword = createAsyncThunk(
   }
 );
 
-// Reset Password
 export const resetPassword = createAsyncThunk(
   'auth/resetPassword',
   async ({ token, password, passwordConfirm }, { rejectWithValue }) => {
@@ -192,7 +177,6 @@ export const resetPassword = createAsyncThunk(
   }
 );
 
-// Delete account (self)
 export const deleteAccount = createAsyncThunk(
   'auth/deleteAccount',
   async ({ password }, { rejectWithValue }) => {
@@ -206,7 +190,6 @@ export const deleteAccount = createAsyncThunk(
   setAuthToken(token);
   const response = await api.delete('/api/users/me', { data: { password } });
 
-      // Clear local storage on success
       localStorage.removeItem('token');
       localStorage.removeItem('user');
 
@@ -217,7 +200,6 @@ export const deleteAccount = createAsyncThunk(
   }
 );
 
-// Slice
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -244,7 +226,6 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // register
       .addCase(registerUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -265,7 +246,6 @@ const authSlice = createSlice({
         state.error = action.payload;
         state.success = null;
       })
-      // login
       .addCase(loginUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -286,7 +266,6 @@ const authSlice = createSlice({
         state.error = action.payload;
         state.success = null;
       })
-      // verify token
       .addCase(verifyToken.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -303,7 +282,6 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.error = action.payload;
       })
-      // update profile
       .addCase(updateProfile.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -320,7 +298,6 @@ const authSlice = createSlice({
         state.error = action.payload;
         state.success = null;
       })
-      // refresh token
       .addCase(refreshToken.fulfilled, (state, action) => {
         state.token = action.payload;
         state.isAuthenticated = true;
@@ -332,7 +309,6 @@ const authSlice = createSlice({
         state.user = null;
         state.role = null;
       })
-      // forgot password
       .addCase(forgotPassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -348,7 +324,6 @@ const authSlice = createSlice({
         state.error = action.payload;
         state.success = null;
       })
-      // reset password
       .addCase(resetPassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -364,7 +339,6 @@ const authSlice = createSlice({
         state.error = action.payload;
         state.success = null;
       });
-      // delete account
       builder
         .addCase(deleteAccount.pending, (state) => {
           state.isLoading = true;

@@ -1,6 +1,3 @@
-// تم التعديل: الآن يتم استخدام averageRating و reviewsCount مباشرة من الباكند بدلاً من حسابهم من المصفوفة
-// هذا يضمن أن التقييم وعدد المراجعات دائماً محدثين بعد إضافة أي مراجعة جديدة
-// Copilot: تم التعديل بناءً على طلبك لاستخدام الحقول الجديدة من الباكند
 import React, { useState, useEffect, useCallback, memo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
@@ -11,7 +8,6 @@ import api, { setAuthToken } from "../../../utils/api";
 import { updateCartStatus, fetchCart } from "../../../redux/cart.slice";
 import { incrementWishlistCount, decrementWishlistCount, fetchWishlistCount } from "../../../redux/wishlist.slice";
 
-// مكون داخلي للصورة للمساعدة في إدارة حالة التحميل والأخطاء
 const ProductImage = memo(({ product, hovered, onLoad, onError }) => {
   const [imageError, setImageError] = useState(false);
   
@@ -41,7 +37,6 @@ const ProductImage = memo(({ product, hovered, onLoad, onError }) => {
         onLoad={handleLoad}
         onError={handleError}
       />
-      {/* تأثير طبقة تدرج لوني عند التمرير */}
       <div className={`absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 transition-opacity duration-500 ${
         hovered ? "opacity-100" : ""
       }`}></div>
@@ -49,18 +44,15 @@ const ProductImage = memo(({ product, hovered, onLoad, onError }) => {
   );
 });
 
-// مكون داخلي للعلامات والشارات
 const ProductBadges = memo(({ product }) => {
   return (
     <>
-      {/* Discount badge */}
       {product.discountPercentage > 0 && (
         <span className="absolute top-3 left-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-10 transform-gpu transition-all duration-300 hover:scale-105">
           {product.discountPercentage}% OFF
         </span>
       )}
       
-      {/* Out of stock badge */}
       {product.quantity <= 0 && (
         <span className="absolute bottom-3 left-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-10">
           Out of Stock
@@ -88,7 +80,6 @@ const ProductBadges = memo(({ product }) => {
   );
 });
 
-// مكون داخلي لعرض النجوم
 const RatingStars = memo(({ rating }) => {
   const stars = [];
   const fullStars = Math.floor(rating);
@@ -107,7 +98,6 @@ const RatingStars = memo(({ rating }) => {
   return <>{stars}</>;
 });
 
-// مكون داخلي للسعر
 const ProductPrice = memo(({ product }) => {
   const darkMode = useSelector(state => state.theme.darkMode);
   const discountPrice = product.discountPercentage > 0 && product.originalPrice
@@ -145,7 +135,6 @@ const ProductPrice = memo(({ product }) => {
   );
 });
 
-// مكون داخلي لأزرار الإجراءات
 const ProductActions = memo(({ 
   isAddedToCart, 
   showRemoveOption, 
@@ -227,7 +216,6 @@ const ProductActions = memo(({
   );
 });
 
-// المكون الرئيسي
 function ProductCard({ product }) {
   const { user, token } = useSelector((state) => state.auth);
   const darkMode = useSelector(state => state.theme.darkMode);
@@ -311,15 +299,17 @@ function ProductCard({ product }) {
     
     setCartLoading(true);
     try {
-      dispatch(updateCartStatus({ productId: product._id, isInCart: true }));
+  const qtyToAdd = product.minimumOrderQuantity && product.minimumOrderQuantity > 0 ? product.minimumOrderQuantity : 1;
+  dispatch(updateCartStatus({ productId: product._id, isInCart: true }));
+  dispatch({ type: 'cart/addItemOptimistically', payload: { ...product, quantity: qtyToAdd } });
   setAuthToken(token);
-  const response = await api.post(`/api/cart/add`, { productId: product._id, quantity: 1 });
+  const response = await api.post(`/api/cart/add`, { productId: product._id, quantity: qtyToAdd });
       
       if (response.data?.success) {
         await dispatch(fetchCart());
       }
     } catch (err) {
-      dispatch(updateCartStatus({ productId: product._id, isInCart: false }));
+  dispatch(updateCartStatus({ productId: product._id, isInCart: false }));
       console.error("Error adding to cart:", err);
       const errorMsg = err.response?.data?.error || "Failed to add to cart";
       
@@ -367,7 +357,6 @@ function ProductCard({ product }) {
     checkWishlistStatus();
   }, [checkWishlistStatus]);
 
-  // نستخدم القيم القادمة من الباكند مباشرة
   const averageRating = product.averageRating || 0;
   const reviewCount = product.reviewsCount || 0;
 
@@ -381,7 +370,6 @@ function ProductCard({ product }) {
     setImageLoaded(false);
   }, []);
 
-  // تأثير اهتزاز البطاقة عند التمرير عليها
   useEffect(() => {
     if (hovered) {
       setCardElevated(true);
@@ -405,9 +393,7 @@ function ProductCard({ product }) {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{ minHeight: 430 }}
-        // منع فتح التفاصيل عند الضغط على الأزرار الداخلية
             onClick={e => {
-              // إذا كان الضغط على زر أو عنصر له دور button فقط، لا تذهب للرابط
               if (
                 e.target.closest("button") ||
                 e.target.closest('[role="button"]')
@@ -416,7 +402,6 @@ function ProductCard({ product }) {
               }
             }}
       >
-        {/* تأثير إشعاع خفيف عند التمرير */}
   <div className={`absolute inset-0 transition-opacity duration-500 ${hovered ? (darkMode ? 'bg-gradient-to-br from-gray-800/40 to-blue-900/40 opacity-100' : 'bg-gradient-to-br from-blue-50/30 to-purple-50/30 opacity-100') : 'opacity-0'}`}></div>
         
         {/* صورة المنتج + badges */}
@@ -486,12 +471,10 @@ function ProductCard({ product }) {
             )}
           </div>
           
-          {/* الوصف */}
           <p className={`text-xs mb-3 line-clamp-2 leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             {product.description}
           </p>
           
-          {/* أزرار الإجراءات */}
           <ProductActions
             isAddedToCart={isAddedToCart}
             showRemoveOption={showRemoveOption}
@@ -505,7 +488,6 @@ function ProductCard({ product }) {
           />
         </div>
         
-        {/* تأثير حدود متحركة */}
         <div className={`absolute inset-0 rounded-2xl border-2 border-transparent bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-padding transition-all duration-700 ${
           hovered ? "opacity-30" : "opacity-0"
         }`} style={{ 

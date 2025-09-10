@@ -33,7 +33,6 @@ import Swal from 'sweetalert2';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// تخصيص مظهر SweetAlert2
 const swalCustomStyle = Swal.mixin({
   customClass: {
     confirmButton: 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200',
@@ -46,7 +45,6 @@ export default function AdminDashboard() {
   const dispatch = useDispatch();
   const adminState = useSelector((state) => state.admin);
   
-  // Safeguard against undefined values with comprehensive fallbacks
   const users = adminState.users || [];
   const orders = adminState.orders || [];
   const products = adminState.products || [];
@@ -62,7 +60,6 @@ export default function AdminDashboard() {
   const loading = adminState.loading || false;
   const error = adminState.error || null;
 
-  // UI state
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedUser, setSelectedUser] = useState(null);
   const [userDetailsModalOpen, setUserDetailsModalOpen] = useState(false);
@@ -78,7 +75,6 @@ export default function AdminDashboard() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const itemsPerPage = 10;
 
-  // Load initial data
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -98,7 +94,6 @@ export default function AdminDashboard() {
     loadData();
   }, [dispatch]);
 
-  // Handle errors
   useEffect(() => {
     if (error) {
       toast.error(error);
@@ -106,7 +101,6 @@ export default function AdminDashboard() {
     }
   }, [error, dispatch]);
 
-  // Filter users based on search term
   const filteredUsers = users.filter(user => {
     const matchesSearch = (user.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -115,13 +109,11 @@ export default function AdminDashboard() {
     return matchesSearch && matchesRole;
   });
 
-  // Filter products based on search term
   const filteredProducts = products.filter(product => 
     product.title.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
     product.category.toLowerCase().includes(productSearchTerm.toLowerCase())
   );
 
-  // Pagination calculations
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const paginatedUsers = filteredUsers.slice(
     (currentPage - 1) * itemsPerPage,
@@ -134,7 +126,6 @@ export default function AdminDashboard() {
     currentProductPage * itemsPerPage
   );
 
-  // Handle tab change with data loading
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     if (tab === 'users' && users.length === 0) {
@@ -146,7 +137,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Handle user deletion with confirmation
   const handleDeleteUser = (userId) => {
     swalCustomStyle.fire({
       title: 'Are you sure?',
@@ -169,7 +159,6 @@ export default function AdminDashboard() {
     });
   };
 
-  // Handle product deletion with confirmation
   const handleDeleteProduct = (productId) => {
     swalCustomStyle.fire({
       title: 'Are you sure?',
@@ -192,7 +181,6 @@ export default function AdminDashboard() {
     });
   };
 
-  // Handle order status update
   const handleUpdateOrderStatus = (orderId, status) => {
     dispatch(updateOrderStatus({ orderId, status }))
       .unwrap()
@@ -204,7 +192,6 @@ export default function AdminDashboard() {
       });
   };
 
-  // Prepare chart data with fallbacks
   const userRolesData = [
     { name: 'Buyers', value: stats.userRoles?.buyer || 0 },
     { name: 'Sellers', value: stats.userRoles?.seller || 0 },
@@ -244,7 +231,6 @@ export default function AdminDashboard() {
     Cancelled: 'bg-red-100 text-red-800'
   };
 
-  // Helper to resolve product image with multiple possible shapes and a placeholder fallback
   const getProductImage = (prod) => {
     if (!prod) return '/placeholder-image.webp';
     const first = prod.images?.[0];

@@ -1,4 +1,3 @@
-// تم تحسين وضوح الصفحة في الدارك مود وإضافة تأثيرات انتقال بين التابات باستخدام framer-motion
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useParams, useNavigate, Link } from "react-router-dom";
@@ -65,6 +64,12 @@ export default function ProductDetails() {
     const [currentSlide, setCurrentSlide] = useState(0);
     const [cartLoading, setCartLoading] = useState(false);
     const [showRemoveOption, setShowRemoveOption] = useState(false);
+    const [qtyWarning, setQtyWarning] = useState("");
+
+
+    useEffect(() => {
+        setQtyWarning("");
+    }, [product]);
     const [reviews, setReviews] = useState([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [averageRatingData, setAverageRatingData] = useState({
@@ -87,7 +92,6 @@ export default function ProductDetails() {
     });
     const [imageLoading, setImageLoading] = useState(true);
     const [thumbnailsLoading, setThumbnailsLoading] = useState(true);
-    // Removed baseUrl, use backend URLs as-is
 
     const isAddedToCart = product ? isInCart[product._id] : false;
 
@@ -136,6 +140,7 @@ export default function ProductDetails() {
 
                 setProduct(productRes.data);
                 setMainImage(productRes.data.image);
+                setQuantity(productRes.data.minimumOrderQuantity && productRes.data.minimumOrderQuantity > 0 ? productRes.data.minimumOrderQuantity : 1);
                 setReviews(reviewsRes.data?.reviews || []);
                 setAverageRatingData({
                     average: averageRes.data.averageRating || 0,
@@ -1011,29 +1016,76 @@ export default function ProductDetails() {
                             <div className={`flex items-center border rounded-lg overflow-hidden transition-all ${darkMode ? 'border-blue-900 hover:border-blue-400' : 'hover:border-blue-400 border-blue-200'}`}>
                                 <button
                                     className={`px-3 py-2 transition-colors flex items-center justify-center ${darkMode ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                                    onClick={() => setQuantity(prev => {
+                                    onClick={() => {
                                         const minQty = product.minimumOrderQuantity || 1;
-                                        return prev > minQty ? prev - 1 : minQty;
-                                    })}
-                                    disabled={quantity <= (product.minimumOrderQuantity || 1)}
+                                        const maxQty = Math.min(product.quantity, 10);
+                                        if (quantity <= minQty) {
+                                            setQtyWarning(`Minimum order quantity for this product is ${minQty}`);
+                                            return;
+                                        }
+                                        setQtyWarning("");
+                                        setQuantity(prev => prev - 1);
+                                    }}
+                                    disabled={quantity <= (product.minimumOrderQuantity || 1) || isAddedToCart}
                                     aria-label="Decrease quantity"
                                 >
                                     <FaMinus />
                                 </button>
-                                <span className={`px-6 py-2 border-x text-center w-14 font-semibold text-lg select-none ${darkMode ? 'border-blue-800' : 'border-blue-200'}`}>
-                                    {quantity}
-                                </span>
+                                <input
+                                    type="number"
+                                    min={product.minimumOrderQuantity || 1}
+                                    max={Math.min(product.quantity, 10)}
+                                    value={quantity}
+                                    disabled={isAddedToCart}
+                                    onChange={e => {
+                                        const val = parseInt(e.target.value, 10);
+                                        const minQty = product.minimumOrderQuantity || 1;
+                                        const maxQty = Math.min(product.quantity, 10);
+                                        if (isNaN(val)) return;
+                                        if (val < minQty) {
+                                            setQtyWarning(`Minimum order quantity for this product is ${minQty}`);
+                                            setQuantity(val);
+                                            return;
+                                        }
+                                        if (val > maxQty) {
+                                            if (product.quantity < 10) {
+                                                setQtyWarning(`Maximum available quantity for this product is ${product.quantity}`);
+                                            } else {
+                                                setQtyWarning('Maximum per order is 10');
+                                            }
+                                            setQuantity(val);
+                                            return;
+                                        }
+                                        setQtyWarning("");
+                                        setQuantity(val);
+                                    }}
+                                    className={`px-2 py-1 border-x text-center w-24 font-semibold text-lg select-none ${darkMode ? 'border-blue-800' : 'border-blue-200'} ${darkMode ? 'text-blue-100 bg-blue-950' : 'text-gray-900 bg-white'}`}
+                                    aria-label="Quantity input"
+                                />
                                 <button
                                     className={`px-3 py-2 transition-colors flex items-center justify-center ${darkMode ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                                    onClick={() => setQuantity(prev => {
+                                    onClick={() => {
                                         const maxQty = Math.min(product.quantity, 10);
-                                        return prev < maxQty ? prev + 1 : maxQty;
-                                    })}
-                                    disabled={quantity >= Math.min(product.quantity, 10)}
+                                        if (quantity >= maxQty) {
+                                            if (product.quantity < 10) {
+                                                setQtyWarning(`Maximum available quantity for this product is ${product.quantity}`);
+                                            } else {
+                                                setQtyWarning('Maximum per order is 10');
+                                            }
+                                            return;
+                                        }
+                                        setQtyWarning("");
+                                        setQuantity(prev => prev + 1);
+                                    }}
+                                    disabled={quantity >= Math.min(product.quantity, 10) || isAddedToCart}
                                     aria-label="Increase quantity"
                                 >
                                     <FaPlus />
                                 </button>
+                                {/* Inline warning message below quantity controls */}
+                                <div className={`w-full min-h-[1.5em] mt-2 text-sm text-center transition-all duration-200 ${qtyWarning ? 'text-red-600' : 'text-transparent'}`} role="alert">
+                                    {qtyWarning ? qtyWarning : '.'}
+                                </div>
                             </div>
 
                             <button
@@ -1256,11 +1308,8 @@ export default function ProductDetails() {
                                         exit={{ opacity: 0, x: -40 }}
                                         transition={{ duration: 0.35, ease: "easeInOut" }}
                                     >
-                                        {/* ...existing code for reviews tab... */}
-                                        {/* تم الإبقاء على نفس منطق التاب الخاص بالمراجعات */}
-                                        {/* ...existing code... */}
+                                       
                                         {(() => {
-                                            // نسخ محتوى التاب الخاص بالمراجعات كما هو
                                             return (
                                                 <>
                                                     <div className="mb-6">

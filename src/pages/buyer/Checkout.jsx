@@ -42,7 +42,6 @@ const Checkout = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setShippingInfo((prev) => ({ ...prev, [name]: value }));
-    // التحقق الفوري
     let error = '';
     if (name === 'address' && !value) error = 'Address is required';
     if (name === 'city' && !value) error = 'City is required';
@@ -55,7 +54,6 @@ const Checkout = () => {
   const handleCardInputChange = (e) => {
     const { name, value } = e.target;
     setCardInfo((prev) => ({ ...prev, [name]: value }));
-    // التحقق الفوري
     let error = '';
     if (name === 'cardNumber' && value && !/^[0-9]{13,19}$/.test(value)) error = 'Card number must be 13-19 digits';
     setPaymentErrors(prev => ({ ...prev, [name]: error }));
@@ -92,7 +90,6 @@ const Checkout = () => {
   };
 
   const handlePlaceOrder = async () => {
-    // التحقق من جميع البيانات قبل إنشاء الطلب
     const errors = [];
     if (!shippingInfo.address) errors.push('Address is required');
     if (!shippingInfo.city) errors.push('City is required');
@@ -113,13 +110,20 @@ const Checkout = () => {
         product: item.product._id,
         quantity: item.quantity,
       }));
+      const cardLast4 = cardInfo.cardNumber ? cardInfo.cardNumber.toString().slice(-4) : undefined;
+      const cardBrandGuess = cardInfo.cardNumber ? (cardInfo.cardNumber.startsWith('4') ? 'Visa' : (cardInfo.cardNumber.startsWith('5') ? 'Mastercard' : undefined)) : undefined;
+
       const orderResult = await dispatch(
         createOrder({
           items: orderItems,
           shippingAddress: shippingInfo,
           totalAmount: total,
           paymentMethod: paymentMethod === 'card' ? 'Credit Card' : 'Cash on Delivery',
-          cardNumber: paymentMethod === 'card' ? cardInfo.cardNumber : undefined,
+          cardNumber: undefined,
+          cardExpiry: cardInfo.expiryDate || undefined,
+          cardBrand: cardBrandGuess || undefined,
+          paymentProviderId: undefined,
+          cardLast4: cardLast4
         })
       );
       if (createOrder.fulfilled.match(orderResult)) {
@@ -136,7 +140,6 @@ const Checkout = () => {
     }
   };
 
-  // تأثيرات الحركة للخطوات
   const stepVariants = {
     hidden: { opacity: 0, x: -50 },
     visible: { opacity: 1, x: 0, transition: { duration: 0.4 } },

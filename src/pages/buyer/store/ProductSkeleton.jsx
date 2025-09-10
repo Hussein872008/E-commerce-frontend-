@@ -4,8 +4,7 @@ import { useSelector } from "react-redux";
 
 export default function ProductSkeleton() {
   const darkMode = useSelector((state) => state.theme.darkMode);
-  // Tailwind يدعم dark: تلقائياً، لكن لو عاوز ديناميكياً:
-  // ألوان متناسقة مع الثيم العام (بنفسجي/أزرق)
+
   const bgCard = darkMode ? "bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900" : "bg-gradient-to-br from-indigo-100 via-purple-100 to-blue-100";
   const bgSkeleton = darkMode ? "bg-indigo-800/60" : "bg-indigo-200/60";
   return (

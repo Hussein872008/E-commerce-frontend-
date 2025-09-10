@@ -13,12 +13,10 @@ import Unauthorized from "./pages/Unauthorized";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-// المشتري
 import BuyerLayout from "./layouts/BuyerLayout";
 import Store from "./pages/buyer/Store";
 import Orders from "./pages/buyer/Orders";      
 
-// البائع
 import SellerLayout from "./layouts/SellerLayout";
 import SellerDashboard from "./pages/seller/Dashboard";
 import AddProduct from "./pages/seller/AddProduct";

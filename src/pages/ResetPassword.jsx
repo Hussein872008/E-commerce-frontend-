@@ -16,7 +16,6 @@ export default function ResetPassword() {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
-  // إذا لم يوجد توكن في الرابط، أظهر رسالة ودية فقط
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -65,7 +64,6 @@ export default function ResetPassword() {
       const error = validateField('password', value);
       setFieldErrors(prev => ({ ...prev, password: error }));
       
-      // Also validate confirmation if it's already set
       if (passwordConfirm) {
         const confirmError = validateField('passwordConfirm', passwordConfirm);
         setFieldErrors(prev => ({ ...prev, passwordConfirm: confirmError }));
@@ -84,7 +82,6 @@ export default function ResetPassword() {
     dispatch(clearError());
     dispatch(clearSuccess());
     
-    // Validate both fields
     const passwordError = validateField('password', password);
     const confirmError = validateField('passwordConfirm', passwordConfirm);
     

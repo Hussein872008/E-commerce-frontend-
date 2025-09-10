@@ -3,7 +3,6 @@ import store from './store';
 import { refreshToken, logout } from './authSlice';
 
 export default function setupAxiosInterceptors() {
-  // attach token from localStorage at startup if available
   const token = localStorage.getItem('token');
   if (token) setAuthToken(token);
 

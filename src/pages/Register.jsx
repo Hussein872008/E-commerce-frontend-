@@ -23,7 +23,6 @@ export default function Register() {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [touchedFields, setTouchedFields] = useState({});
 
-  // Clear errors and success messages on component mount
   useEffect(() => {
     dispatch(clearError());
     dispatch(clearSuccess());
@@ -39,7 +38,6 @@ export default function Register() {
     }
   }, [success, navigate]);
 
-  // التحقق عند الخروج من الحقل أو عند التغيير
   const validateField = (name, value) => {
     let message = "";
 
@@ -77,7 +75,6 @@ export default function Register() {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
     
-    // التحقق الفوري إذا كان الحقل قد تم لمسه من قبل
     if (touchedFields[name]) {
       const message = validateField(name, value);
       setFieldErrors((prev) => ({ ...prev, [name]: message }));
@@ -89,17 +86,15 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // وضع جميع الحقول كملموسة لعرض الأخطاء
     const allTouched = {};
     Object.keys(formData).forEach(key => {
       allTouched[key] = true;
     });
     setTouchedFields(allTouched);
 
-    // التحقق من جميع الحقول
     const errors = {};
     Object.keys(formData).forEach(key => {
-      if (key !== "role") { // تخطي حقل الدور في التحقق الإلزامي
+      if (key !== "role") { 
         const message = validateField(key, formData[key]);
         if (message) errors[key] = message;
       }

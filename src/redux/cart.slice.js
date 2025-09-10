@@ -1,4 +1,3 @@
-// Clear Cart from backend
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import api, { setAuthToken } from '../utils/api';
@@ -11,7 +10,6 @@ export const clearCartThunk = createAsyncThunk(
       if (!token || !user) return rejectWithValue('User not authenticated');
       setAuthToken(token);
       await api.delete('/api/cart/clear');
-      // بعد المسح، جلب الكارت من جديد
       const response = await api.get('/api/cart', { params: { userId: user._id } });
       return {
         items: processCartItems(response.data.items),
@@ -23,7 +21,6 @@ export const clearCartThunk = createAsyncThunk(
   }
 );
 
-// Helper function
 const processCartItems = (items) => {
   return items?.map((item, idx) => {
     const product = item.product || {};
@@ -35,7 +32,8 @@ const processCartItems = (items) => {
         _id: product._id || `fallback-product-${idx}`,
         title: product.title || 'Product not available',
         price: product.price || item.price || 0,
-        quantity: product.quantity ?? item.quantity ?? 1,
+        quantity: typeof product.quantity === 'number' ? product.quantity : (typeof item.quantity === 'number' ? item.quantity : 0),
+        minimumOrderQuantity: (product.minimumOrderQuantity && product.minimumOrderQuantity > 0) ? product.minimumOrderQuantity : (item.minimumOrderQuantity && item.minimumOrderQuantity > 0 ? item.minimumOrderQuantity : 1),
         image:
           product.image ||
           product.thumbnail ||
@@ -47,7 +45,6 @@ const processCartItems = (items) => {
   }) || [];
 };
 
-// Fetch Cart
 export const fetchCart = createAsyncThunk(
   'cart/fetchCart',
   async (_, { getState, rejectWithValue }) => {
@@ -69,7 +66,6 @@ export const fetchCart = createAsyncThunk(
   }
 );
 
-// Add to Cart
 export const addToCart = createAsyncThunk(
   'cart/addToCart',
   async ({ productId, quantity = 1 }, { getState, rejectWithValue }) => {
@@ -88,13 +84,11 @@ export const addToCart = createAsyncThunk(
   }
 );
 
-// Remove from Cart
 export const removeFromCart = createAsyncThunk(
   'cart/removeFromCart',
   async (itemId, { getState, rejectWithValue }) => {
     try {
       const { token, user } = getState().auth;
-      // if (!token || !user) return rejectWithValue('User not authenticated');
 
   setAuthToken(token);
   await api.delete(`/api/cart/remove/${itemId}`, { params: { userId: user._id } });
@@ -106,15 +100,26 @@ export const removeFromCart = createAsyncThunk(
   }
 );
 
-// Update Cart Item
 export const updateCartItem = createAsyncThunk(
   'cart/updateCartItem',
   async ({ itemId, quantity }, { getState, rejectWithValue }) => {
     try {
       const { token, user } = getState().auth;
-      // if (!token || !user) return rejectWithValue('User not authenticated');
 
   setAuthToken(token);
+  const state = getState();
+  const cartItem = state.cart.items.find(i => i._id === itemId || i.product._id === itemId);
+  if (!cartItem) return rejectWithValue('Cart item not found');
+
+  const minQty = cartItem.product?.minimumOrderQuantity && cartItem.product.minimumOrderQuantity > 0 ? cartItem.product.minimumOrderQuantity : 1;
+  const stock = typeof cartItem.product?.quantity === 'number' ? cartItem.product.quantity : 0;
+  const appMax = 10;
+  const maxAllowed = Math.min(stock > 0 ? stock : appMax, appMax);
+
+  if (stock <= 0) return rejectWithValue('Product is out of stock');
+  if (quantity < minQty) return rejectWithValue(`Minimum order quantity is ${minQty}`);
+  if (quantity > maxAllowed) return rejectWithValue(`Maximum available quantity is ${maxAllowed}`);
+
   await api.put(`/api/cart/update/${itemId}`, { quantity, userId: user._id });
 
       return { itemId, quantity };

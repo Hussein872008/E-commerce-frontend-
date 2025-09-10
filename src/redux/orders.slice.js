@@ -1,12 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api, { setAuthToken } from '../utils/api';
 
-// Helper functions
-// تعديل دالة processOrderItems لضمان معالجة البيانات بشكل صحيح
 const processOrderItems = (items) => {
     if (!items) return [];
 
-    // Handle different response structures
     if (items.orders) {
         items = items.orders;
     }
@@ -19,11 +16,22 @@ const processOrderItems = (items) => {
         }
     }
 
+    const normalizeStatus = (raw) => {
+        if (!raw && raw !== "") return 'Processing';
+        const s = String(raw).trim().toLowerCase();
+        if (s === 'processing' || s === 'pending' || s === 'in_progress') return 'Processing';
+        if (s === 'shipped' || s === 'in-transit' || s === 'in transit') return 'Shipped';
+        if (s === 'delivered' || s === 'completed' || s === 'done') return 'Delivered';
+        if (s === 'cancelled' || s === 'canceled' || s === 'cancel') return 'Cancelled';
+        return raw;
+    };
+
     return items
-        .filter(item => !!item._id) // تجاهل أي طلب ليس له _id
+        .filter(item => !!item._id) 
         .map(item => ({
             ...item,
-            _id: item._id, // فقط من الباكيند
+            _id: item._id,
+            status: normalizeStatus(item.status || item.state || item.statusText || ''),
             trackingNumber: item.trackingNumber || 'Unknown',
             buyer: item.buyer && typeof item.buyer === 'object' ? {
                 name: item.buyer.name ? item.buyer.name : 'Unknown',
@@ -49,7 +57,43 @@ const processOrderItems = (items) => {
         }));
 };
 
-// Async Thunks
+const normalizeStats = (raw = {}) => {
+    if (raw && typeof raw === 'object' && ('total' in raw || 'completed' in raw || 'pending' in raw || 'cancelled' in raw)) {
+        return {
+            total: Number(raw.total) || 0,
+            completed: Number(raw.completed) || 0,
+            pending: Number(raw.pending) || 0,
+            cancelled: Number(raw.cancelled) || 0
+        };
+    }
+
+    if (raw.orderStatus && typeof raw.orderStatus === 'object') {
+        const os = raw.orderStatus;
+        const shippedCount = Number(os.Shipped || os.shipped || os.ShippedCount || 0) || 0;
+        const completedCount = Number(os.Delivered || os.delivered || os.completed || os.Completed || 0) || 0;
+        const pendingCount = (Number(os.Processing || os.processing || os.pending || 0) || 0) + shippedCount;
+        const cancelledCount = Number(os.Cancelled || os.cancelled || os.Canceled || 0) || 0;
+        const totalCount = Number(raw.total) || completedCount + pendingCount + cancelledCount;
+        return {
+            total: totalCount || 0,
+            completed: completedCount || 0,
+            pending: pendingCount || 0,
+            cancelled: cancelledCount || 0
+        };
+    }
+
+    const shipped = Number(raw.shipped || raw.Shipped || 0) || 0;
+    const completed = Number(raw.delivered || raw.completed || raw.Delivered || 0) || 0;
+    const pending = (Number(raw.processing || raw.pending || 0) || 0) + shipped;
+    const cancelled = Number(raw.cancelled || raw.canceled || 0) || 0;
+    return {
+        total: Number(raw.total) || completed + pending + cancelled,
+        completed,
+        pending,
+        cancelled
+    };
+};
+
 export const fetchOrders = createAsyncThunk(
     'orders/fetchOrders',
     async (_, { getState, rejectWithValue }) => {
@@ -60,30 +104,35 @@ export const fetchOrders = createAsyncThunk(
                 throw new Error('No authentication token found');
             }
 
-            // attach token to shared api instance
             setAuthToken(token);
 
             const config = {
-                timeout: 10000 // 10 ثواني timeout
+                timeout: 10000 
+            };
+
+            const statsConfig = {
+                ...config,
+                params: { _ts: Date.now() },
+                headers: {
+                    ...(config.headers || {}),
+                    'Cache-Control': 'no-cache',
+                    Pragma: 'no-cache'
+                }
             };
 
             const [ordersRes, statsRes] = await Promise.all([
                 api.get('/api/orders/my', config),
-                api.get('/api/orders/my/stats', config)
+                api.get('/api/orders/my/stats', statsConfig)
             ]);
 
             if (!ordersRes.data || !statsRes.data) {
                 throw new Error('Invalid response structure');
             }
 
+
             return {
                 orders: processOrderItems(ordersRes.data.orders || ordersRes.data),
-                stats: statsRes.data.stats || statsRes.data || {
-                    total: 0,
-                    completed: 0,
-                    pending: 0,
-                    cancelled: 0
-                }
+                stats: normalizeStats(statsRes.data.stats || statsRes.data)
             };
 
         } catch (error) {
@@ -127,14 +176,12 @@ export const cancelOrder = createAsyncThunk(
   'orders/cancelOrder',
   async (orderId, { getState, rejectWithValue }) => {
     try {
-    // ...existing code...
     const { token } = getState().auth;
     setAuthToken(token);
     const response = await api.put(`/api/orders/cancel/${orderId}`, {}, { timeout: 10000 });
-    // ...existing code...
       return orderId;
     } catch (error) {
-      console.error('Cancel error:', error.response?.data); // إضافة للتحقق
+      console.error('Cancel error:', error.response?.data); 
       return rejectWithValue(error.response?.data?.error || 'Failed to cancel order');
     }
   }

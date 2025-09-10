@@ -11,7 +11,6 @@ import ProductSkeleton from "./store/ProductSkeleton";
 import ProductCard from "./store/ProductCard";
 
 
-// ----------------- Main Store component -----------------
 export default function Store() {
   const dispatch = useDispatch();
   const { allProducts, filteredProducts, loading, error, isFiltered } = useSelector((state) => state.products);
@@ -30,14 +29,12 @@ export default function Store() {
   const [showFilters, setShowFilters] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
 
-  // initial load
   useEffect(() => {
     const loadInitialData = async () => {
       try {
         await dispatch(fetchAllProducts());
         await dispatch(fetchCart());
       } catch (err) {
-        // handle error if needed
       }
       setDataLoaded(true);
     };
@@ -45,7 +42,6 @@ export default function Store() {
   }, [dispatch]);
 
 
-  // جلب التصنيفات
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -58,17 +54,14 @@ export default function Store() {
     fetchCategories();
   }, []);
 
-  // البحث المؤجل
   useEffect(() => {
     const debouncedSearch = debounce(() => setSearchTerm(searchInput.trim()), 500);
     debouncedSearch();
     return () => debouncedSearch.cancel();
   }, [searchInput]);
 
-  // If the user clears the search box, immediately reset filters and fetch all products
   useEffect(() => {
     if (searchInput.trim() === "") {
-      // keep searchTerm in sync
       setSearchTerm("");
       if (dataLoaded) {
         dispatch(resetFilters());
@@ -77,7 +70,6 @@ export default function Store() {
     }
   }, [searchInput, dataLoaded, dispatch]);
 
-  // تطبيق الفلاتر
   const applyFilters = useCallback(() => {
     if (!dataLoaded) return;
     const hasActiveFilters = Boolean(

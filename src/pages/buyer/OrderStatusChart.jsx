@@ -6,7 +6,6 @@ import {
   Legend,
 } from "chart.js";
 
-// تسجيل العناصر المطلوبة
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 export default function OrderStatusChart({ data }) {
@@ -22,9 +21,9 @@ export default function OrderStatusChart({ data }) {
       {
         data: [completed, pending, cancelled],
         backgroundColor: [
-          "#10B981", // أخضر مكتمل
-          "#3B82F6", // أزرق جاري المعالجة
-          "#EF4444"  // أحمر ملغي
+          "#10B981",
+          "#3B82F6",
+          "#EF4444"  
         ],
         borderWidth: 0
       }
@@ -51,7 +50,6 @@ export default function OrderStatusChart({ data }) {
     }
   };
 
-  // If there is no data, render a stable placeholder with fixed size to avoid layout shifts
   if (total === 0) {
     return (
       <div className="h-64 w-64 flex items-center justify-center text-sm text-gray-500">

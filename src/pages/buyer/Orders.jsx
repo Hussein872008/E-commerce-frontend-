@@ -26,8 +26,8 @@ import {
   selectOrdersError,
   selectOrdersStats
 } from "../../redux/orders.slice";
+import "../../styles/highlight.css";
 
-// chart.js
 import { Pie } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -37,7 +37,6 @@ import {
 } from "chart.js";
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-// ====== OrderStatusChart Component (Merged) ======
 function OrderStatusChart({ data, darkMode }) {
   const completed = Number(data?.completed) || 0;
   const pending = Number(data?.pending) || 0;
@@ -51,9 +50,9 @@ function OrderStatusChart({ data, darkMode }) {
       {
         data: [completed, pending, cancelled],
         backgroundColor: [
-          "#10B981", // green
-          "#3B82F6", // blue
-          "#EF4444"  // red
+          "#10B981", 
+          "#3B82F6", 
+          "#EF4444"  
         ],
         borderWidth: 0
       }
@@ -98,7 +97,6 @@ function OrderStatusChart({ data, darkMode }) {
   );
 }
 
-// ====== Orders Page ======
 const getStatusIcon = (status) => {
   switch (status) {
     case "Delivered":
@@ -146,8 +144,6 @@ const formatDate = (dateString) => {
   }
 };
 
-// 🔹 دالة موحدة لتنسيق رابط الصورة
-// في ملف Orders.jsx - استبدال دالة formatImageUrl الحالية بهذه الدالة
 const formatImageUrl = (image) => {
   if (!image || typeof image !== 'string' || image.includes('undefined')) {
     return image;
@@ -163,7 +159,6 @@ const formatImageUrl = (image) => {
   return finalUrl;
 };
 
-// Order Details Modal Component
 const OrderDetailsModal = ({ order, onClose, onCancel, darkMode }) => {
   if (!order) return null;
 
@@ -171,7 +166,7 @@ const OrderDetailsModal = ({ order, onClose, onCancel, darkMode }) => {
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
       <div className={`rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white'}`}>
         <div className={`flex justify-between items-center border-b p-4 sticky top-0 z-10 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}>
-          <h2 className="text-xl font-semibold">Order Details #{order?._id ? order._id.slice(-6).toUpperCase() : "N/A"}</h2>
+          <h2 className="text-xl font-semibold">Order Details #{order?._id || "N/A"}</h2>
           <button onClick={onClose} className={`${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}>
             <FiX size={24} />
           </button>
@@ -279,6 +274,20 @@ export default function Orders() {
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [highlightedOrderId, setHighlightedOrderId] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('highlight');
+    if (orderId) {
+      setHighlightedOrderId(orderId);
+      setTimeout(() => setHighlightedOrderId(null), 2000);
+    }
+  }, []);
+
+  useEffect(() => {
+    dispatch(fetchOrders());
+  }, [dispatch]);
 
   const toggleOrderExpand = (orderId) => {
     setExpandedOrder(expandedOrder === orderId ? null : orderId);
@@ -290,7 +299,6 @@ export default function Orders() {
   };
 
   useEffect(() => {
-    // This effect will run whenever searchParams changes
     dispatch(searchOrders(searchParams));
   }, [searchParams, dispatch]);
 
@@ -326,7 +334,6 @@ const handleCancelOrder = async (orderId) => {
 };
 
   if (loading) {
-    // Skeleton loading for orders page
     return (
       <div className={`p-6 w-full ${darkMode ? 'bg-gray-900' : ''}`}>
         <div className="space-y-6">
@@ -502,14 +509,14 @@ const handleCancelOrder = async (orderId) => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className={`rounded-lg shadow-lg overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'}`}
+              className={`rounded-lg shadow-lg overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'} ${order._id === highlightedOrderId ? 'highlight-animation' : ''}`}
             >
               <div className={`p-5 border-b cursor-pointer transition-colors ${darkMode ? 'border-gray-700 hover:bg-gray-700' : 'hover:bg-gray-50'}`} onClick={() => toggleOrderExpand(order?._id)}>
                 <div className="flex justify-between items-start">
                   <div className="flex items-center">
                     {getStatusIcon(order?.status)}
                     <div className="mr-3">
-                      <h2 className="font-semibold text-lg">Order #{order?._id ? order._id.slice(-6).toUpperCase() : "N/A"}</h2>
+                      <h2 className="font-semibold text-lg">Order #{order?._id || "N/A"}</h2>
                       <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Order date: {formatDate(order?.createdAt)}</p>
                     </div>
                   </div>

@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api, { setAuthToken } from '../utils/api';
 
-// جلب عدد العناصر في الويش ليست
 export const fetchWishlistCount = createAsyncThunk(
   'wishlist/fetchCount',
   async (_, { getState, rejectWithValue }) => {
@@ -16,7 +15,6 @@ export const fetchWishlistCount = createAsyncThunk(
   }
 );
 
-// التحقق إذا المنتج موجود في الويش ليست
 export const checkWishlistStatus = createAsyncThunk(
   'wishlist/checkStatus',
   async (productId, { getState, rejectWithValue }) => {
@@ -35,7 +33,7 @@ const wishlistSlice = createSlice({
   name: 'wishlist',
   initialState: {
     count: 0,
-    wishlistItems: {}, // { productId: true/false }
+    wishlistItems: {},
     loading: false,
     error: null
   },
@@ -58,7 +56,6 @@ const wishlistSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // fetchWishlistCount
       .addCase(fetchWishlistCount.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -72,7 +69,6 @@ const wishlistSlice = createSlice({
         state.error = action.payload;
       })
 
-      // checkWishlistStatus
       .addCase(checkWishlistStatus.pending, (state) => {
         state.loading = true;
         state.error = null;

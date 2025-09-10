@@ -30,6 +30,21 @@ const CartPage = () => {
 
   const [updatingItems, setUpdatingItems] = useState({});
   const [removingLoading, setRemovingLoading] = useState(false);
+  const [alerts, setAlerts] = useState({}); 
+  const alertTimers = React.useRef({});
+
+  const showInlineAlert = (itemId, text, type = 'warning', timeout = 2000) => {
+    setAlerts(prev => ({ ...prev, [itemId]: { text, type } }));
+    if (alertTimers.current[itemId]) clearTimeout(alertTimers.current[itemId]);
+    alertTimers.current[itemId] = setTimeout(() => {
+      setAlerts(prev => {
+        const copy = { ...prev };
+        delete copy[itemId];
+        return copy;
+      });
+      delete alertTimers.current[itemId];
+    }, timeout);
+  };
 
   useEffect(() => {
     if (token && user?._id) {
@@ -40,23 +55,43 @@ const CartPage = () => {
 
 
 const handleUpdateQuantity = useCallback(async (itemId, newQuantity) => {
+  const item = items.find(i => i._id === itemId);
+  if (!item || !item.product) {
+    toast.error('Cart item not found');
+    return;
+  }
 
+  const minQty = item.product.minimumOrderQuantity && item.product.minimumOrderQuantity > 0 ? item.product.minimumOrderQuantity : 1;
+  const stock = typeof item.product.quantity === 'number' ? item.product.quantity : 0;
+  const appMax = 10; 
+  const maxAllowed = Math.min(stock > 0 ? stock : appMax, appMax);
 
-    if (newQuantity < 1 || newQuantity > 10) {
-        toast.warning('Quantity must be between 1 and 10');
-        return;
-    }
+  if (stock <= 0) {
+    toast.error(`Product "${item.product.title || 'Item'}" is out of stock`);
+    return;
+  }
 
-    setUpdatingItems(prev => ({ ...prev, [itemId]: true }));
-    try {
-        await dispatch(updateCartItem({ itemId, quantity: newQuantity })).unwrap();
-    } catch (err) {
-        console.error('Update quantity error:', err);
-        toast.error(err.response?.data?.error || 'Failed to update quantity');
-    } finally {
-        setUpdatingItems(prev => ({ ...prev, [itemId]: false }));
-    }
-}, [dispatch, token, user?._id]);
+  if (newQuantity < minQty) {
+    toast.warning(`Minimum order quantity for "${item.product.title || 'Item'}" is ${minQty}`);
+    return;
+  }
+
+  if (newQuantity > maxAllowed) {
+    toast.warning(`Maximum available quantity for "${item.product.title || 'Item'}" is ${maxAllowed}`);
+    return;
+  }
+
+  setUpdatingItems(prev => ({ ...prev, [itemId]: true }));
+  try {
+    await dispatch(updateCartItem({ itemId, quantity: newQuantity })).unwrap();
+  } catch (err) {
+    console.error('Update quantity error:', err);
+  const msg = typeof err === 'string' ? err : (err?.response?.data?.error || err?.message || 'Failed to update quantity');
+  toast.error(msg);
+  } finally {
+    setUpdatingItems(prev => ({ ...prev, [itemId]: false }));
+  }
+}, [dispatch, token, user?._id, items]);
 
 
 const handleRemoveItem = useCallback(async (itemId, productTitle) => {
@@ -152,7 +187,6 @@ const handleRemoveItem = useCallback(async (itemId, productTitle) => {
     </div>
   );
 
-  // Calculate total directly from items for accuracy
   const calculatedTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const productCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -183,7 +217,6 @@ const handleRemoveItem = useCallback(async (itemId, productTitle) => {
   );
 
   return (
-    // تحسينات الثيم والتأثيرات
     <div className={`container mx-auto p-4 max-w-6xl transition-colors duration-500 ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-blue-100' : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 text-gray-800'}`} aria-live="polite">
       <h1 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-green-300' : 'text-green-700'}`}>Shopping Cart</h1>
 
@@ -193,7 +226,6 @@ const handleRemoveItem = useCallback(async (itemId, productTitle) => {
 
       <div className={`rounded-lg shadow-md overflow-hidden transition-all duration-300 ${darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white'}` }>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Items List */}
           <div className="md:col-span-2 p-4">
             <div className="divide-y divide-gray-200">
               {items.map((item, index) => {
@@ -205,19 +237,20 @@ const handleRemoveItem = useCallback(async (itemId, productTitle) => {
                 const isUpdating = updatingItems[item._id];
                 const isDisabled = isUpdating || removingLoading;
 
-                // Instant feedback for out of stock or over quantity
-                if (item.product.quantity <= 0) {
-                  toast.error(`Product "${productTitle}" is out of stock!`);
-                }
-                if (item.quantity > item.product.quantity) {
-                  toast.warning(`Quantity for "${productTitle}" exceeds available stock!`);
-                }
+                const minQty = item.product.minimumOrderQuantity && item.product.minimumOrderQuantity > 0 ? item.product.minimumOrderQuantity : 1;
+                const stock = typeof item.product.quantity === 'number' ? item.product.quantity : 0;
+              const appMax = 10;
+              const maxAllowed = Math.min(stock > 0 ? stock : appMax, appMax);
 
                 return (
-                  <div key={key} className="py-4 flex items-start gap-4 group transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg" aria-label={`Cart item: ${productTitle}`}>
-                    <Link to={`/product/${productId}`} className="flex-shrink-0 w-20 h-20 relative">
-                      <ImageWithFallback src={productImage} alt={productTitle} className="w-full h-full object-cover rounded-lg border border-gray-200" />
-                      {item.product.quantity <= 0 && <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg"><span className="text-white text-xs font-bold">Out of Stock</span></div>}
+                  <div key={key} className="py-4 flex items-start gap-4 group transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg" aria-label={`Cart item: ${productTitle}`}>
+                    <Link to={`/product/${productId}`} className="flex-shrink-0 w-20 h-20 relative p-1">
+                      <ImageWithFallback src={productImage} alt={productTitle} className="w-full h-full object-contain rounded-lg border border-gray-200 bg-white/5 p-1" />
+                      {item.product.quantity <= 0 && (
+                        <div className={`absolute inset-0 flex items-center justify-center rounded-lg ${darkMode ? 'bg-white bg-opacity-10' : 'bg-black bg-opacity-10'}`}>
+                          <span className={`${darkMode ? 'text-gray-900' : 'text-white'} text-xs font-bold`}>Out of Stock</span>
+                        </div>
+                      )}
                     </Link>
 
                     <div className="flex-1 min-w-0">
@@ -226,12 +259,102 @@ const handleRemoveItem = useCallback(async (itemId, productTitle) => {
                         <p className="font-bold text-green-600 ml-2 whitespace-nowrap">${(item.price * item.quantity).toFixed(2)}</p>
                       </div>
 
-                      {item.product.quantity <= 0 ? <p className="text-red-500 text-sm mt-1">This product is currently unavailable</p> : (
+                      {stock <= 0 ? (
+                        <p className="text-red-500 text-sm mt-1">This product is currently unavailable</p>
+                      ) : (
                         <div className="flex items-center mt-3">
-                          <button onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)} disabled={item.quantity <= 1 || isDisabled} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200" aria-label={`Decrease quantity of ${productTitle}`} aria-disabled={item.quantity <= 1 || isDisabled}><FiMinus size={14} /></button>
-                          <input type="number" min={1} max={item.product.quantity} value={item.quantity} disabled={isDisabled} onChange={(e) => { const val = parseInt(e.target.value, 10); if (!isNaN(val)) handleUpdateQuantity(item._id, val); }} className="w-12 text-center border rounded px-2 py-1 mx-2" aria-label={`Quantity input for ${productTitle}`} />
-                          <button onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)} disabled={isDisabled || item.quantity >= item.product.quantity} className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200" aria-label={`Increase quantity of ${productTitle}`} aria-disabled={isDisabled || item.quantity >= item.product.quantity}><FiPlus size={14} /></button>
+                          <button
+                            onClick={() => {
+                              const newQ = item.quantity - 1;
+                              if (stock <= 0) {
+                                showInlineAlert(item._id, `Product out of stock`, 'error');
+                                return;
+                              }
+                              if (newQ < minQty) {
+                                showInlineAlert(item._id, `Minimum is ${minQty}`);
+                                return;
+                              }
+                              if (newQ > maxAllowed) {
+                                if (stock > 0 && stock < appMax) showInlineAlert(item._id, `Maximum available is ${stock}`);
+                                else showInlineAlert(item._id, `Maximum per order is ${appMax}`);
+                                return;
+                              }
+                              handleUpdateQuantity(item._id, newQ);
+                            }}
+                            className={`p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all duration-200 ${item.quantity <= minQty || isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            aria-label={`Decrease quantity of ${productTitle}`}
+                            aria-disabled={item.quantity <= minQty || isDisabled}
+                          ><FiMinus size={14} /></button>
+
+                          <div className="flex items-center">
+                          <input
+                            type="number"
+                            min={minQty}
+                            max={maxAllowed}
+                            value={item.quantity}
+                            disabled={isDisabled}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              if (isNaN(val)) return;
+                              if (stock <= 0) {
+                                showInlineAlert(item._id, `Product out of stock`, 'error');
+                                return;
+                              }
+                              if (val < minQty) {
+            showInlineAlert(item._id, `Minimum is ${minQty}`);
+                                return;
+                              }
+                              if (val > maxAllowed) {
+                                if (stock > 0 && stock < appMax) showInlineAlert(item._id, `Maximum available is ${stock}`);
+                                else showInlineAlert(item._id, `Maximum per order is ${appMax}`);
+                                return;
+                              }
+                              handleUpdateQuantity(item._id, val);
+                            }}
+                            className="w-12 text-center border rounded px-2 py-1 mx-2"
+                            aria-label={`Quantity input for ${productTitle}`}
+                          />
+                          {minQty > 1 && (
+                            <span className="text-xs ml-2 px-2 py-1 rounded-md bg-yellow-100 text-yellow-800">Min: {minQty}</span>
+                          )}
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              const newQ = item.quantity + 1;
+                              if (stock <= 0) {
+                                showInlineAlert(item._id, `Product out of stock`, 'error');
+                                return;
+                              }
+                              if (newQ < minQty) {
+                                showInlineAlert(item._id, `Minimum is ${minQty}`);
+                                return;
+                              }
+                              if (newQ > maxAllowed) {
+                                if (stock > 0 && stock < appMax) showInlineAlert(item._id, `Maximum available is ${stock}`);
+                                else showInlineAlert(item._id, `Maximum per order is ${appMax}`);
+                                return;
+                              }
+                              handleUpdateQuantity(item._id, newQ);
+                            }}
+                            className={`p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-all duration-200 ${isDisabled || item.quantity >= maxAllowed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            aria-label={`Increase quantity of ${productTitle}`}
+                            aria-disabled={isDisabled || item.quantity >= maxAllowed}
+                          ><FiPlus size={14} /></button>
+
                           {isUpdating && <div className="ml-3 h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>}
+                        </div>
+                      )}
+
+                      {/* Inline warnings instead of render-time toasts */}
+                      {stock > 0 && item.quantity > stock && (
+                        <p className="text-yellow-600 text-sm mt-1">Requested quantity exceeds available stock ({stock})</p>
+                      )}
+
+                      {/* inline transient alert */}
+                      {alerts[item._id] && (
+                        <div className={`mt-2 text-sm ${alerts[item._id].type === 'error' ? 'text-red-500' : 'text-yellow-600'}`} role="status">
+                          {alerts[item._id].text}
                         </div>
                       )}
                     </div>

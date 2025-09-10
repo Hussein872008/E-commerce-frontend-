@@ -23,7 +23,6 @@ export default function BuyerLayout() {
   const [scrolled, setScrolled] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState(new Date());
 
-  // Animate badge when items/count change
   React.useEffect(() => {
     setCartBadgeAnim(true);
     const timer = setTimeout(() => setCartBadgeAnim(false), 400);
@@ -36,7 +35,6 @@ export default function BuyerLayout() {
     return () => clearTimeout(timer);
   }, [count]);
 
-  // Scroll effect for header
   React.useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
@@ -45,11 +43,10 @@ export default function BuyerLayout() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Update current time
   React.useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000); // Update every minute
+    }, 60000);
     
     return () => clearInterval(timer);
   }, []);
@@ -67,7 +64,6 @@ export default function BuyerLayout() {
 
   const isBuyer = user && (user.role === "buyer" || user.role === "admin");
 
-  // Footer features data
   const footerFeatures = [
     { icon: <FaTruck className="text-xl" />, title: "Free Shipping", desc: "On orders over $50" },
     { icon: <FaCreditCard className="text-xl" />, title: "Secure Payment", desc: "100% secure payment" },
@@ -75,7 +71,6 @@ export default function BuyerLayout() {
     { icon: <FaHeadset className="text-xl" />, title: "24/7 Support", desc: "Dedicated support" }
   ];
 
-  // Footer links data
   const footerLinks = {
     "Company": [
       { name: "About Us", path: "/about" },
@@ -98,7 +93,6 @@ export default function BuyerLayout() {
     ]
   };
 
-  // Social media links
   const socialLinks = [
     { icon: <FaFacebook />, url: "#", color: "hover:text-blue-400" },
     { icon: <FaTwitter />, url: "#", color: "hover:text-blue-300" },
@@ -109,7 +103,6 @@ export default function BuyerLayout() {
 
   return (
   <div className={`min-h-screen flex flex-col transition-colors duration-500 ${isDarkMode ? 'bg-gradient-to-br from-gray-900 via-blue-950 to-purple-950 text-gray-100' : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 text-gray-800'}`}>
-      {/* HEADER */}
         <motion.header
           initial={{ y: -60, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -305,7 +298,6 @@ export default function BuyerLayout() {
                         transition={{ duration: 0.2 }}
                       >
                         {link.path ? (
-                          // During development replace navigable paths with '#'
                           <a
                             href="#"
                             className="opacity-80 hover:opacity-100 hover:text-blue-300 transition-colors flex items-center"
