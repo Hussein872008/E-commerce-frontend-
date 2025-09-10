@@ -63,8 +63,10 @@ export default function EditProduct() {
       returnPolicy: p.returnPolicy || "",
       minimumOrderQuantity: p.minimumOrderQuantity || 1,
       tags: Array.isArray(p.tags) ? p.tags : [] ,
-      existingImage: p.existingImage || "",
-      existingExtraImages: Array.isArray(p.existingExtraImages) ? p.existingExtraImages : []
+  existingImage: p.existingImage || "",
+  existingExtraImages: Array.isArray(p.existingExtraImages) ? p.existingExtraImages : [],
+  hasNewMainImage: Boolean(p.image),
+  newExtraImagesCount: Array.isArray(p.extraImages) ? p.extraImages.length : 0
     });
   };
 
@@ -261,10 +263,8 @@ const handleRemoveExtraImage = async (index) => {
       }));
     } else {
       const imageUrl = product.existingExtraImages[index];
-      const filename = imageUrl.split('/').pop();
-      const imagePath = `/uploads/${filename}`;
       setAuthToken(token);
-      await api.put(`/api/products/${id}/delete-image`, { imagePath });
+      await api.put(`/api/products/${id}/delete-image`, { imagePath: imageUrl });
 
       setProduct(prev => ({
         ...prev,

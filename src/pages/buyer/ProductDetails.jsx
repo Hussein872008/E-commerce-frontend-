@@ -93,6 +93,40 @@ export default function ProductDetails() {
     const [imageLoading, setImageLoading] = useState(true);
     const [thumbnailsLoading, setThumbnailsLoading] = useState(true);
 
+    const hasValue = (v) => v !== undefined && v !== null && String(v).trim() !== "";
+    const hasPositiveNumber = (v) => {
+        if (v === undefined || v === null) return false;
+        const n = Number(v);
+        return !Number.isNaN(n) && n > 0;
+    };
+    const hasDimensions = (p) => {
+        if (!p || !p.dimensions) return false;
+        return hasValue(p.dimensions.width) || hasValue(p.dimensions.height) || hasValue(p.dimensions.depth);
+    };
+    const hasSpecs = (p) => {
+        if (!p) return false;
+        return (
+            hasValue(p.brand) ||
+            hasValue(p.sku) ||
+            hasValue(p.category) ||
+            hasPositiveNumber(p.weight) ||
+            hasDimensions(p) ||
+            hasValue(p.meta?.barcode) ||
+            hasValue(p.meta?.qrCode)
+        );
+    };
+
+    const hasShipping = (p) => {
+        if (!p) return false;
+        return (
+            hasValue(p.shippingInformation) ||
+            hasValue(p.availabilityStatus) ||
+            hasValue(p.warrantyInformation) ||
+            hasValue(p.returnPolicy) ||
+            (p.minimumOrderQuantity && Number(p.minimumOrderQuantity) > 1)
+        );
+    };
+
     const isAddedToCart = product ? isInCart[product._id] : false;
 
     useEffect(() => {
@@ -1153,7 +1187,7 @@ export default function ProductDetails() {
                                 </div>
                             )}
 
-                            {product.weight && (
+                            {hasPositiveNumber(product.weight) && (
                                 <div className={`flex items-center p-3 rounded-lg transition-all ${darkMode ? 'bg-blue-900/40 hover:bg-blue-900/60 text-blue-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
                                     <FaBalanceScale className={`${darkMode ? 'text-green-300 mr-2' : 'text-green-600 mr-2'}`} />
                                     <div>
@@ -1163,7 +1197,7 @@ export default function ProductDetails() {
                                 </div>
                             )}
 
-                            {product.dimensions && (
+                            {hasDimensions(product) && (
                                 <div className={`flex items-center p-3 rounded-lg transition-all ${darkMode ? 'bg-blue-900/40 hover:bg-blue-900/60 text-blue-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
                                     <FaBox className={`${darkMode ? 'text-green-300 mr-2' : 'text-green-600 mr-2'}`} />
                                     <div>
@@ -1239,7 +1273,9 @@ export default function ProductDetails() {
                                         transition={{ duration: 0.35, ease: "easeInOut" }}
                                     >
                                         <h3 className="font-semibold mb-2">Product Description</h3>
-                                        <p className={`${darkMode ? 'text-blue-100' : 'text-gray-700'} whitespace-pre-line`}>{product.description}</p>
+                                        <div className={`p-4 rounded ${darkMode ? 'bg-blue-900/30' : 'bg-gray-50'}`}>
+                                            <p className={`${darkMode ? 'text-blue-100' : 'text-gray-700'} whitespace-pre-line`}>{product.description}</p>
+                                        </div>
                                         {product.tags?.length > 0 && (
                                             <div className="mt-4">
                                                 <h4 className="font-medium mb-2">Tags</h4>
@@ -1261,42 +1297,47 @@ export default function ProductDetails() {
                                         transition={{ duration: 0.35, ease: "easeInOut" }}
                                     >
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <h3 className="font-semibold mb-2">Product Details</h3>
-                                                <ul className={`${darkMode ? 'text-blue-100' : 'text-gray-700'} space-y-2 text-sm`}>
-                                                    {product.brand && <li><span className="font-medium">Brand:</span> {product.brand}</li>}
-                                                    {product.sku && <li><span className="font-medium">SKU:</span> {product.sku}</li>}
-                                                    {product.category && <li><span className="font-medium">Category:</span> {product.category}</li>}
-                                                    {product.weight && <li><span className="font-medium">Weight:</span> {product.weight}g</li>}
-                                                    {product.dimensions && (
-                                                        <li>
-                                                            <span className="font-medium">Dimensions:</span> {product.dimensions.width} × {product.dimensions.height} × {product.dimensions.depth} cm
-                                                        </li>
-                                                    )}
-                                                    {product.meta?.barcode && <li><span className="font-medium">Barcode:</span> {product.meta.barcode}</li>}
-                                                    {product.meta?.qrCode && <li><span className="font-medium">QR Code:</span> {product.meta.qrCode}</li>}
-                                                </ul>
-                                            </div>
-                                            <div>
-                                                <h3 className="font-semibold mb-2">Shipping & Warranty</h3>
-                                                <ul className={`${darkMode ? 'text-blue-100' : 'text-gray-700'} space-y-2 text-sm`}>
-                                                    {product.shippingInformation && (
-                                                        <li><span className="font-medium">Shipping:</span> {product.shippingInformation}</li>
-                                                    )}
-                                                    {product.availabilityStatus && (
-                                                        <li><span className="font-medium">Availability:</span> {product.availabilityStatus}</li>
-                                                    )}
-                                                    {product.warrantyInformation && (
-                                                        <li><span className="font-medium">Warranty:</span> {product.warrantyInformation}</li>
-                                                    )}
-                                                    {product.returnPolicy && (
-                                                        <li><span className="font-medium">Return Policy:</span> {product.returnPolicy}</li>
-                                                    )}
-                                                    {product.minimumOrderQuantity && product.minimumOrderQuantity > 1 && (
-                                                        <li><span className="font-medium">Min Order Qty:</span> {product.minimumOrderQuantity}</li>
-                                                    )}
-                                                </ul>
-                                            </div>
+                                            {hasSpecs(product) && (
+                                                <div>
+                                                    <h3 className="font-semibold mb-2">Product Details</h3>
+                                                    <ul className={`${darkMode ? 'text-blue-100' : 'text-gray-700'} space-y-2 text-sm`}>
+                                                        {hasValue(product.brand) && <li><span className="font-medium">Brand:</span> {product.brand}</li>}
+                                                        {hasValue(product.sku) && <li><span className="font-medium">SKU:</span> {product.sku}</li>}
+                                                        {hasValue(product.category) && <li><span className="font-medium">Category:</span> {product.category}</li>}
+                                                        {hasPositiveNumber(product.weight) && <li><span className="font-medium">Weight:</span> {product.weight}g</li>}
+                                                        {hasDimensions(product) && (
+                                                            <li>
+                                                                <span className="font-medium">Dimensions:</span> {product.dimensions.width} × {product.dimensions.height} × {product.dimensions.depth} cm
+                                                            </li>
+                                                        )}
+                                                        {hasValue(product.meta?.barcode) && <li><span className="font-medium">Barcode:</span> {product.meta.barcode}</li>}
+                                                        {hasValue(product.meta?.qrCode) && <li><span className="font-medium">QR Code:</span> {product.meta.qrCode}</li>}
+                                                    </ul>
+                                                </div>
+                                            )}
+
+                                            {hasShipping(product) && (
+                                                <div>
+                                                    <h3 className="font-semibold mb-2">Shipping & Warranty</h3>
+                                                    <ul className={`${darkMode ? 'text-blue-100' : 'text-gray-700'} space-y-2 text-sm`}>
+                                                        {hasValue(product.shippingInformation) && (
+                                                            <li><span className="font-medium">Shipping:</span> {product.shippingInformation}</li>
+                                                        )}
+                                                        {hasValue(product.availabilityStatus) && (
+                                                            <li><span className="font-medium">Availability:</span> {product.availabilityStatus}</li>
+                                                        )}
+                                                        {hasValue(product.warrantyInformation) && (
+                                                            <li><span className="font-medium">Warranty:</span> {product.warrantyInformation}</li>
+                                                        )}
+                                                        {hasValue(product.returnPolicy) && (
+                                                            <li><span className="font-medium">Return Policy:</span> {product.returnPolicy}</li>
+                                                        )}
+                                                        {product.minimumOrderQuantity && product.minimumOrderQuantity > 1 && (
+                                                            <li><span className="font-medium">Min Order Qty:</span> {product.minimumOrderQuantity}</li>
+                                                        )}
+                                                    </ul>
+                                                </div>
+                                            )}
                                         </div>
                                     </motion.div>
                                 )}

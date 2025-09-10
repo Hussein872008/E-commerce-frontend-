@@ -69,6 +69,8 @@ export default function SellerDashboard() {
     ...entry,
   }));
 
+  const alertsCount = Array.isArray(sellerDashboardStats?.stockAlerts) ? sellerDashboardStats.stockAlerts.length : 0;
+
   if (loading) {
     return (
       <div className={`min-h-screen py-8 pb-32 transition-colors duration-500 ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-800'}`}>
@@ -195,27 +197,45 @@ export default function SellerDashboard() {
             </div>
           </div>
 
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={handleAlertsClick}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleAlertsClick(); } }}
-            className={`p-6 rounded-2xl transition-all duration-300 cursor-pointer ${isDarkMode ? 'bg-gray-800/60 border border-gray-700/30 shadow-lg' : 'bg-gradient-to-br from-white to-blue-50 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-blue-100/50'}`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-base font-semibold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Stock Alerts</p>
-                 <h3 className="text-3xl font-extrabold text-yellow-500 mt-2">
-                   {Array.isArray(sellerDashboardStats.stockAlerts) ? sellerDashboardStats.stockAlerts.length : 0}
-                 </h3>
-              </div>
-              <div className={`p-4 rounded-full ${isDarkMode ? 'bg-yellow-900/50' : 'bg-yellow-100'}`}>
-                <svg className="w-7 h-7 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+          {alertsCount > 0 ? (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={handleAlertsClick}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleAlertsClick(); } }}
+              className={`p-6 rounded-2xl transition-all duration-300 cursor-pointer ${isDarkMode ? 'bg-gray-800/60 border border-gray-700/30 shadow-lg' : 'bg-gradient-to-br from-white to-blue-50 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-blue-100/50'}`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-base font-semibold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Stock Alerts</p>
+                   <h3 className="text-3xl font-extrabold text-yellow-500 mt-2">
+                     {alertsCount}
+                   </h3>
+                </div>
+                <div className={`p-4 rounded-full ${isDarkMode ? 'bg-yellow-900/50' : 'bg-yellow-100'}`}>
+                  <svg className="w-7 h-7 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className={`p-6 rounded-2xl transition-all duration-300 ${isDarkMode ? 'bg-gray-800/40 border border-gray-700/10' : 'bg-white border border-blue-50/40'}`} aria-hidden="true">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-base font-semibold ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Stock Alerts</p>
+                   <h3 className="text-3xl font-extrabold text-yellow-400 mt-2">
+                     {alertsCount}
+                   </h3>
+                </div>
+                <div className={`p-4 rounded-full ${isDarkMode ? 'bg-yellow-900/30' : 'bg-yellow-50'}`}>
+                  <svg className="w-7 h-7 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
   <div className={`p-6 rounded-2xl transition-all duration-300 mb-10 ${isDarkMode ? 'bg-gray-800/60 border border-gray-700/30 shadow-lg' : 'bg-gradient-to-br from-white to-blue-50 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-blue-100/50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]'}`}>

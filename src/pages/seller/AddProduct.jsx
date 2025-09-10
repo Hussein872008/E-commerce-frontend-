@@ -432,8 +432,19 @@ export default function AddProduct() {
       }
 
     } catch (err) {
-      console.error("Add product error:", err);
-      setError(err.response?.data?.message || "Error adding product");
+      try {
+        console.error("Add product error:", err);
+        if (err.response) {
+          console.error('Response status:', err.response.status);
+          console.error('Response data:', err.response.data);
+        }
+      } catch (logErr) {
+        console.error('Error while logging error object', logErr);
+      }
+
+      setError(
+        err.response?.data?.message || (err.response && JSON.stringify(err.response.data)) || "Error adding product"
+      );
     } finally {
       setLoading(false);
     }
@@ -1234,7 +1245,6 @@ export default function AddProduct() {
                         accept="image/jpeg, image/png, image/webp"
                         onChange={handleImageChange}
                         className="hidden"
-                        required
                       />
                     </label>
                   </div>
