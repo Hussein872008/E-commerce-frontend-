@@ -13,11 +13,10 @@ import Unauthorized from "./pages/Unauthorized";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-import BuyerLayout from "./layouts/BuyerLayout";
+import MainLayout from "./components/MainLayout";
 import Store from "./pages/buyer/Store";
-import Orders from "./pages/buyer/Orders";      
+import Orders from "./pages/buyer/Orders";
 
-import SellerLayout from "./layouts/SellerLayout";
 import SellerDashboard from "./pages/seller/Dashboard";
 import AddProduct from "./pages/seller/AddProduct";
 import EditProduct from "./pages/seller/EditProduct";
@@ -36,32 +35,25 @@ function App() {
   }, [dispatch]);
   return (
     <Routes>
-  {/* الصفحة الرئيسية */}
-  <Route path="/" element={<Home />} />
+      <Route path="/" element={<Home />} />
 
-      {/* صفحات عامة */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
 
-  {/* Public store page inside BuyerLayout so navbar shows for visitors */}
-  <Route element={<BuyerLayout />}> 
-    <Route path="/store" element={<Store />} />
-  </Route>
+      <Route element={<MainLayout role="buyer" />}>
+        <Route path="/store" element={<Store />} />
+      </Route>
 
-  {/* Note: /profile is now a sidebar component inside BuyerLayout; no separate route */}
 
-      {/* راوتس المشتري */}
-      {/* صفحات عامة للكل */}
       <Route path="/product/:id" element={<ProductDetails />} />
 
-      {/* جميع صفحات المشتري (بما فيها /store) داخل BuyerLayout */}
       <Route
         element={
           <ProtectedRoute allowedRoles={["buyer", "admin"]}>
-            <BuyerLayout />
+            <MainLayout role="buyer" />
           </ProtectedRoute>
         }
       >
@@ -71,7 +63,6 @@ function App() {
         <Route path="/checkout" element={<Checkout />} />
       </Route>
 
-      {/* راوتس الأدمن */}
       <Route
         path="/admin-dashboard"
         element={
@@ -84,7 +75,7 @@ function App() {
       <Route
         element={
           <ProtectedRoute allowedRoles={["seller", "admin"]}>
-            <SellerLayout />
+            <MainLayout role="seller" />
           </ProtectedRoute>
         }
       >

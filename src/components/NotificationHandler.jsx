@@ -8,22 +8,30 @@ const NotificationHandler = memo(({ notification }) => {
   const dispatch = useDispatch();
 
   const handleNotificationClick = (notif) => {
+    let user = null;
+    try { user = JSON.parse(localStorage.getItem('user') || 'null'); } catch (e) { user = null; }
+    const role = user && (user.role || user.roles) ? (user.role || (Array.isArray(user.roles) ? user.roles[0] : user.roles)) : null;
+
     let path = '/seller';
     let search = '';
-    
+
     if (notif.type === 'order' && notif.relatedId) {
-      path = `/seller/orders`;
+      if (role === 'buyer' || role === 'user') {
+        path = `/buyer/orders`;
+      } else {
+        path = `/seller/orders`;
+      }
       search = `?highlight=${notif.relatedId}`;
       dispatch(setHighlightedOrder(notif.relatedId));
-    } else if (notif.type === 'product' && notif.relatedId) {
-      path = `/seller/my-products`;
-      search = `?highlight=${notif.relatedId}`;
+    } else if ((notif.type === 'product' || notif.type === 'product-available') && notif.relatedId) {
+      path = `/product/${notif.relatedId}`;
+      search = '';
     }
-    
+
     if (notif._id) {
       dispatch(markNotificationAsRead(notif._id));
     }
-    
+
     navigate(path + search);
   };
 

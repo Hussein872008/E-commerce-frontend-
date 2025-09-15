@@ -146,6 +146,7 @@ export default function Store() {
             <div className="ml-3">
               <p className={`text-sm ${isDarkMode ? 'text-red-200' : 'text-red-700'}`}>{error}</p>
               <button 
+                type="button"
                 onClick={handleResetFilters} 
                 className={`mt-2 text-sm font-medium transition-colors ${isDarkMode ? 'text-red-300 hover:text-red-100' : 'text-red-600 hover:text-red-500'}`}
               >
@@ -174,6 +175,7 @@ export default function Store() {
           <div className="relative flex-1 md:w-64">
             <FiSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
             <input
+              id="search-products"
               type="text"
               placeholder="Search products..."
               className={`pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 w-full transition-all
@@ -184,6 +186,7 @@ export default function Store() {
             />
           </div>
           <button
+            type="button"
             onClick={() => setShowFilters(!showFilters)}
             className={`ml-2 px-4 py-2 border rounded-lg flex items-center transition-colors relative
               ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100 hover:bg-gray-800' : 'bg-white hover:bg-gray-50'}`}
@@ -212,8 +215,10 @@ export default function Store() {
               onChange={(v) => handleFilterChange("minRating", v)} 
             />
             <div>
-              <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Sort By</label>
+              <label htmlFor="sort-by" className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Sort By</label>
               <select 
+                id="sort-by"
+                name="sortBy"
                 className={`w-full border rounded-md p-2 focus:ring-2 focus:ring-green-500 transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
                 value={filters.sortBy} 
                 onChange={(e) => handleFilterChange("sortBy", e.target.value)} 
@@ -226,8 +231,10 @@ export default function Store() {
               </select>
             </div>
             <div>
-              <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Min Price</label>
+              <label htmlFor="min-price" className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Min Price</label>
               <input
+                id="min-price"
+                name="minPrice"
                 type="number"
                 min="0"
                 className={`w-full border rounded-md p-2 focus:ring-2 focus:ring-green-500 transition-all ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
@@ -237,8 +244,10 @@ export default function Store() {
               />
             </div>
             <div>
-              <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Max Price</label>
+              <label htmlFor="max-price" className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>Max Price</label>
               <input
+                id="max-price"
+                name="maxPrice"
                 type="number"
                 min="0"
                 className={`w-full border rounded-md p-2 focus:ring-2 focus:ring-green-500 transition-all ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
@@ -250,12 +259,14 @@ export default function Store() {
           </div>
           <div className="flex justify-end mt-4 space-x-2">
             <button
+              type="button"
               onClick={handleResetFilters}
               className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
             >
               Reset All
             </button>
             <button
+              type="button"
               onClick={() => setShowFilters(false)}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
@@ -270,6 +281,7 @@ export default function Store() {
         )}
         {isFiltered && (
           <button 
+            type="button"
             onClick={handleResetFilters}
             className={`text-sm transition-colors ${isDarkMode ? 'text-green-300 hover:text-green-100' : 'text-green-600 hover:text-green-800'}`}
           >
@@ -288,6 +300,7 @@ export default function Store() {
           </div>
           <p className={`mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>No products found matching your criteria</p>
           <button 
+            type="button"
             onClick={handleResetFilters} 
             className={`mt-4 px-4 py-2 rounded-lg transition-colors ${isDarkMode ? 'bg-green-700 text-white hover:bg-green-800' : 'bg-green-600 text-white hover:bg-green-700'}`}
           >

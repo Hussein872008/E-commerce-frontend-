@@ -153,7 +153,6 @@ const WishlistPage = () => {
                             .filter(item => item?.product)
                             .map((item) => (
                                 <div key={item.product._id} className="relative group transition-all duration-200 hover:scale-[1.03]">
-                                    {/* Remove from wishlist button overlays the card */}
                                     <button
                                         onClick={() => handleRemoveFromWishlist(item.product._id)}
                                         className={`absolute top-2 right-2 z-20 p-2 rounded-full transition-all ${darkMode ? 'text-red-300 hover:text-red-400 hover:bg-red-900' : 'text-red-500 hover:text-red-700 hover:bg-red-50'}`}
@@ -161,7 +160,6 @@ const WishlistPage = () => {
                                     >
                                         <FaTrash />
                                     </button>
-                                    {/* Full product card */}
                                     <ProductCard product={item.product} />
                                 </div>
                             ))}
@@ -170,7 +168,6 @@ const WishlistPage = () => {
                 </>
             )}
 
-            {/* تم حذف مودال المقارنة */}
             </div>
     );
 };

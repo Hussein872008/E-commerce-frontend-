@@ -3,7 +3,7 @@ import { useEffect, forwardRef } from 'react';
 import { FiBell, FiBox, FiShoppingCart, FiAlertCircle, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setHighlightedOrder } from '../redux/notificationSlice';
+import { setHighlightedOrder, markNotificationAsRead } from '../redux/notificationSlice';
 
 const NotificationToast = forwardRef(({ notification, onClose }, ref) => {
     const navigate = useNavigate();
@@ -22,6 +22,7 @@ const NotificationToast = forwardRef(({ notification, onClose }, ref) => {
             case 'order':
                 return <FiShoppingCart className="text-green-500" />;
             case 'product':
+            case 'product-available':
                 return <FiBox className="text-blue-500" />;
             default:
                 return <FiAlertCircle className="text-yellow-500" />;
@@ -29,12 +30,24 @@ const NotificationToast = forwardRef(({ notification, onClose }, ref) => {
     };
 
     const handleClick = () => {
+        if (notification._id) {
+            dispatch(markNotificationAsRead(notification._id));
+        }
+        let user = null;
+        try { user = JSON.parse(localStorage.getItem('user') || 'null'); } catch (e) { user = null; }
+        const role = user && (user.role || user.roles) ? (user.role || (Array.isArray(user.roles) ? user.roles[0] : user.roles)) : null;
+
         if (notification.type === 'order' && notification.relatedId) {
             dispatch(setHighlightedOrder(notification.relatedId));
-            navigate(`/seller/orders?highlight=${notification.relatedId}`);
-        }
-        else if (notification.type === 'product' && notification.relatedId) {
+            if (role === 'buyer' || role === 'user') {
+                navigate(`/buyer/orders?highlight=${notification.relatedId}`);
+            } else {
+                navigate(`/seller/orders?highlight=${notification.relatedId}`);
+            }
+        } else if (notification.type === 'product' && notification.relatedId) {
             navigate(`/seller/my-products?highlight=${notification.relatedId}`);
+        } else if ((notification.type === 'product-available') && notification.relatedId) {
+            navigate(`/product/${notification.relatedId}`);
         }
         onClose();
     };
@@ -69,6 +82,9 @@ const NotificationToast = forwardRef(({ notification, onClose }, ref) => {
             <button
                 onClick={(e) => {
                     e.stopPropagation();
+                    if (notification._id) {
+                        dispatch(markNotificationAsRead(notification._id));
+                    }
                     onClose();
                 }}
                 className="flex-shrink-0 -mr-1 -mt-1 p-2 rounded-full text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -83,14 +99,20 @@ const NotificationToastContainer = ({ notifications, onClose }) => {
     return (
         <div className="fixed top-16 right-4 p-4 z-50">
             <AnimatePresence>
-                {notifications.map((notification) => (
-                    <NotificationToast
-                        key={notification._id}
-                        notification={notification}
-                        onClose={() => onClose(notification._id)}
-                    />
-                ))}
-            </AnimatePresence>
+                        {notifications.map((notification, idx) => {
+                            const idPart = notification._id && String(notification._id).trim();
+                            const relatedPart = notification.relatedId && String(notification.relatedId).trim();
+                            const datePart = notification.createdAt && String(notification.createdAt).trim();
+                            const toastKey = `t-${idPart || relatedPart || datePart || idx}`;
+                            return (
+                            <NotificationToast
+                                key={toastKey}
+                                notification={notification}
+                                onClose={() => onClose(notification._id)}
+                            />
+                            );
+                        })}
+                    </AnimatePresence>
         </div>
     );
 };

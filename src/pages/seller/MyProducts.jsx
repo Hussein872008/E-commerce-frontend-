@@ -324,7 +324,6 @@ export default function MyProducts() {
 
   return (
     <div className={`container mx-auto px-4 py-8 pb-32 transition-colors duration-500 ${isDarkMode ? 'text-gray-100 bg-gradient-to-br from-gray-900 via-blue-950 to-purple-950' : ''}`}>
-      {/* Enhanced Header with Stats */}
   <div className={`p-6 rounded-2xl mb-8 transition-all ${isDarkMode ? 'bg-gray-800/60 border border-gray-700/30 shadow-lg' : 'bg-gradient-to-br from-white/80 to-indigo-50 border border-indigo-100/30 shadow-[0_8px_30px_rgb(0,0,0,0.06)]'}`}> 
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
           <div>
@@ -347,7 +346,6 @@ export default function MyProducts() {
           </div>
         </div>
 
-        {/* Statistics Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
           <div className={`p-4 rounded-xl transition-shadow ${isDarkMode ? 'bg-gray-800/60 border border-gray-700/30 shadow-lg' : 'bg-white'} `}>
             <div className="flex items-center">
@@ -398,13 +396,14 @@ export default function MyProducts() {
           </div>
         </div>
 
-  {/* Enhanced Search and Filters */}
   <div className={`mt-6 space-y-4 ${isDarkMode ? '' : ''}`}>
-          {/* Search Bar */}
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
+              <label htmlFor="searchProducts" className="sr-only">Search products</label>
               <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
+                id="searchProducts"
+                name="searchProducts"
                 type="text"
                 placeholder="Search products by name, SKU, or description..."
                 value={searchTerm}
@@ -412,6 +411,7 @@ export default function MyProducts() {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
+                aria-label="Search products by name, SKU, or description"
                 className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
                   isDarkMode 
                     ? 'bg-gray-800/60 border-gray-700/30 text-gray-100 placeholder-gray-500 focus:border-indigo-500' 
@@ -488,16 +488,16 @@ export default function MyProducts() {
             </div>
           </div>
 
-          {/* Advanced Filters */}
           {showFilters && (
             <div className={`${isDarkMode ? 'bg-gray-800/60 border border-gray-700/30' : 'bg-white'} p-4 rounded-xl space-y-4 animate-fadeIn`}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Category Filter */}
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
+                  <label htmlFor="filterCategory" className={`block text-sm font-medium mb-2 ${
                     isDarkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>Category</label>
                   <select
+                    id="filterCategory"
+                    name="filterCategory"
                     value={selectedCategory}
                     onChange={(e) => {
                       setSelectedCategory(e.target.value);
@@ -516,16 +516,19 @@ export default function MyProducts() {
                   </select>
                 </div>
 
-                {/* Price Range */}
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Price Range</label>
+                  <div className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Price Range</div>
                   <div className="flex gap-3">
                     <div className="relative flex-1">
+                      <label htmlFor="priceMin" className="sr-only">Minimum price</label>
                       <input
+                        id="priceMin"
+                        name="priceMin"
                         type="number"
                         placeholder="Min"
                         value={priceRange.min}
                         onChange={(e) => setPriceRange({...priceRange, min: e.target.value})}
+                        aria-label="Minimum price"
                         className={`w-full pl-8 pr-4 py-3 border rounded-xl transition-all duration-300 outline-none
                         ${isDarkMode 
                           ? 'bg-gray-800/60 border-gray-700/50 text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:bg-gray-800/80' 
@@ -535,11 +538,15 @@ export default function MyProducts() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                     </div>
                     <div className="relative flex-1">
+                      <label htmlFor="priceMax" className="sr-only">Maximum price</label>
                       <input
+                        id="priceMax"
+                        name="priceMax"
                         type="number"
                         placeholder="Max"
                         value={priceRange.max}
                         onChange={(e) => setPriceRange({...priceRange, max: e.target.value})}
+                        aria-label="Maximum price"
                         className={`w-full pl-8 pr-4 py-3 border rounded-xl transition-all duration-300 outline-none
                         ${isDarkMode 
                           ? 'bg-gray-800/60 border-gray-700/50 text-gray-200 placeholder-gray-500 focus:border-indigo-500 focus:bg-gray-800/80' 
@@ -551,10 +558,11 @@ export default function MyProducts() {
                   </div>
                 </div>
 
-                {/* Stock Filter */}
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Stock Status</label>
+                  <label htmlFor="filterStock" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Stock Status</label>
                   <select
+                    id="filterStock"
+                    name="filterStock"
                     value={stockFilter}
                     onChange={(e) => setStockFilter(e.target.value)}
                     className={`w-full px-4 py-3 border rounded-xl transition-all duration-300 outline-none
@@ -570,13 +578,14 @@ export default function MyProducts() {
                   </select>
                 </div>
 
-                {/* Sort Options */}
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${
+                  <label htmlFor="sortBy" className={`block text-sm font-medium mb-2 ${
                     isDarkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>Sort By</label>
                   <div className="flex gap-2">
                     <select
+                      id="sortBy"
+                      name="sortBy"
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value)}
                       className={`flex-1 px-4 py-3 border rounded-xl transition-all duration-300 outline-none
@@ -866,7 +875,6 @@ export default function MyProducts() {
         </>
       )}
 
-      {/* Add custom animations */}
       <style>{`
         .product-card {
           transition: all 0.3s ease-in-out;
@@ -915,6 +923,13 @@ export default function MyProducts() {
         .dark-mode-popup .swal2-cancel {
           background-color: rgb(239 68 68) !important;
           color: white !important;
+        }
+        /* Disable hover-dependent transforms on touch devices to avoid accidental zoom/hover visuals */
+        @media (hover: none), (pointer: coarse) {
+          .product-card { transform: none !important; }
+          .product-card .group-hover\\:scale-110, .product-card .group-hover\\:bg-opacity-10 { transform: none !important; }
+          .product-card img { transition: none !important; }
+          .product-card .group-hover\\:scale-110 { transform: none !important; }
         }
       `}</style>
     </div>

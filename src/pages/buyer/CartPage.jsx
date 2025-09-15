@@ -346,12 +346,10 @@ const handleRemoveItem = useCallback(async (itemId, productTitle) => {
                         </div>
                       )}
 
-                      {/* Inline warnings instead of render-time toasts */}
                       {stock > 0 && item.quantity > stock && (
                         <p className="text-yellow-600 text-sm mt-1">Requested quantity exceeds available stock ({stock})</p>
                       )}
 
-                      {/* inline transient alert */}
                       {alerts[item._id] && (
                         <div className={`mt-2 text-sm ${alerts[item._id].type === 'error' ? 'text-red-500' : 'text-yellow-600'}`} role="status">
                           {alerts[item._id].text}
@@ -368,7 +366,6 @@ const handleRemoveItem = useCallback(async (itemId, productTitle) => {
             </div>
           </div>
 
-          {/* Order Summary */}
           <div className={`p-6 rounded-lg shadow-inner transition-all duration-300 ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50'}`}>
             <h2 className="text-lg font-bold mb-4">Order Summary</h2>
             <div className="space-y-4">
@@ -383,7 +380,6 @@ const handleRemoveItem = useCallback(async (itemId, productTitle) => {
         </div>
       </div>
 
-      {/* SweetAlert confirmation is now used for remove and clear actions */}
     </div>
   );
 };

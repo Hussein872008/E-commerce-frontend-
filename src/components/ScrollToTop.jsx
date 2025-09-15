@@ -8,15 +8,28 @@ export default function ScrollToTop({ behavior = 'smooth' }) {
 
   useEffect(() => {
     try {
-      window.scrollTo({ top: 0, behavior });
+      const key = 'mainlayoutFirstLoadDone';
+      const first = !sessionStorage.getItem(key);
+      if (first) {
+        try {
+          window.scrollTo({ top: 0, behavior });
+        } catch (e) {
+          window.scrollTo(0, 0);
+        }
+        sessionStorage.setItem(key, '1');
+      }
     } catch (e) {
-      window.scrollTo(0, 0);
+      try {
+        window.scrollTo({ top: 0, behavior });
+      } catch (err) {
+        window.scrollTo(0, 0);
+      }
     }
   }, [pathname, behavior]);
 
   useEffect(() => {
     const toggleVisibility = () => {
-      if (window.pageYOffset > 300) {
+      if (window.pageYOffset > 20) {
         setIsVisible(true);
       } else {
         setIsVisible(false);
@@ -38,19 +51,18 @@ export default function ScrollToTop({ behavior = 'smooth' }) {
     }
   };
 
-  const showInSellerPages = pathname.includes('/seller');
+  const isSellerPage = pathname.includes('/seller');
 
-  if (!showInSellerPages) return null;
+  const baseClasses = 'fixed bottom-8 right-8 p-3 rounded-full text-white shadow-lg transition-all duration-300 z-50 hover:scale-110 active:scale-95 animate-fade-in';
+  const sellerClasses = 'bg-indigo-600 hover:bg-indigo-700';
+  const buyerClasses = 'bg-gradient-to-br from-[#2361E8] to-[#4338CA] hover:opacity-90';
 
   return (
     <>
       {isVisible && (
         <button
           onClick={scrollToTop}
-          className={`fixed bottom-8 right-8 p-3 rounded-full bg-indigo-600 text-white shadow-lg 
-            hover:bg-indigo-700 transition-all duration-300 z-50
-            hover:scale-110 active:scale-95
-            animate-fade-in`}
+          className={`${baseClasses} ${isSellerPage ? sellerClasses : buyerClasses}`}
           aria-label="Scroll to top"
         >
           <FiArrowUp className="w-6 h-6" />

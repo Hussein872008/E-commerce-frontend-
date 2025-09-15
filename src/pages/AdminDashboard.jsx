@@ -250,7 +250,6 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <header className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-gradient-to-tr from-indigo-500 to-pink-500 text-white p-3 rounded-xl shadow-lg transform-gpu hover:scale-105 transition duration-300 hover:rotate-3"> 
@@ -296,9 +295,7 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {/* Main layout */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar Tabs */}
           <aside className={`lg:col-span-1 bg-white rounded-xl p-4 shadow-md sticky top-6 h-fit transition-all duration-300 ${isSidebarCollapsed ? 'lg:w-20' : ''}`}>
             <button 
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -354,9 +351,7 @@ export default function AdminDashboard() {
             )}
           </aside>
 
-          {/* Content area */}
           <main className="lg:col-span-3 space-y-6">
-            {/* Loading overlay */}
             {loading && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
                 <div className="bg-white/90 p-4 rounded-lg shadow-lg flex items-center gap-3 animate-pulse">
@@ -368,7 +363,6 @@ export default function AdminDashboard() {
 
             {activeTab === 'dashboard' && (
               <section className="space-y-6">
-                {/* Stats Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="p-4 rounded-2xl bg-white shadow-md transform hover:-translate-y-1 transition-all duration-300 group border border-transparent hover:border-indigo-100">
                     <div className="flex items-center justify-between">
@@ -416,7 +410,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="bg-white rounded-xl p-4 shadow-md transition-all duration-300 hover:shadow-lg">
                     <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
@@ -462,7 +455,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Sales Trend */}
                 <div className="bg-white p-4 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg">
                   <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -490,7 +482,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Recent Orders */}
                 <div className="bg-white p-4 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg">
                   <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -802,7 +793,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* User Details Modal */}
       <Modal
         isOpen={userDetailsModalOpen}
         onRequestClose={() => setUserDetailsModalOpen(false)}
@@ -882,7 +872,6 @@ export default function AdminDashboard() {
         )}
       </Modal>
 
-      {/* Order Details Modal */}
       <Modal
         isOpen={orderDetailsModalOpen}
         onRequestClose={() => setOrderDetailsModalOpen(false)}

@@ -104,7 +104,11 @@ export default function Login() {
         </div>
 
         {error && error !== "No token found" && (
-          <div className={`p-3 border text-center text-sm mb-2 animate-pulse ${darkMode ? 'bg-red-900 border-red-700 text-red-300' : 'bg-red-50 border-red-200 text-red-700'}`}>
+          <div
+            className={`p-3 border text-center text-sm mb-2 animate-pulse ${darkMode ? 'bg-red-900 border-red-700 text-red-300' : 'bg-red-50 border-red-200 text-red-700'}`}
+            role="alert"
+            aria-live="assertive"
+          >
             <span className="font-medium">Error:</span> {error}
           </div>
         )}
@@ -124,9 +128,11 @@ export default function Login() {
                 value={formData.email}
                 onChange={handleChange}
                 onBlur={handleBlur}
+                aria-invalid={fieldErrors.email ? true : false}
+                aria-describedby={fieldErrors.email ? 'email-error' : undefined}
               />
               {fieldErrors.email && (
-                <div className={`text-xs mt-2 flex items-center ${darkMode ? 'text-red-300' : 'text-red-600'}`}>
+                <div id="email-error" role="alert" aria-live="polite" className={`text-xs mt-2 flex items-center ${darkMode ? 'text-red-300' : 'text-red-600'}`}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -148,12 +154,15 @@ export default function Login() {
                 value={formData.password}
                 onChange={handleChange}
                 onBlur={handleBlur}
+                aria-invalid={fieldErrors.password ? true : false}
+                aria-describedby={fieldErrors.password ? 'password-error' : undefined}
               />
               <button
                 type="button"
-                tabIndex={-1}
                 className={`absolute right-3 top-10 transition-colors duration-200 p-1 rounded-full ${darkMode ? 'text-blue-200 hover:text-blue-400 hover:bg-gray-800' : 'text-gray-500 hover:text-blue-700 hover:bg-gray-100'}`}
                 onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
               >
                 {showPassword ? (
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -167,7 +176,7 @@ export default function Login() {
                 )}
               </button>
               {fieldErrors.password && (
-                <div className={`text-xs mt-2 flex items-center ${darkMode ? 'text-red-300' : 'text-red-600'}`}>
+                <div id="password-error" role="alert" aria-live="polite" className={`text-xs mt-2 flex items-center ${darkMode ? 'text-red-300' : 'text-red-600'}`}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>

@@ -34,8 +34,11 @@ export const refreshToken = createAsyncThunk(
   'auth/refreshToken',
   async (_, { rejectWithValue }) => {
     try {
-  const { data } = await api.post('/api/auth/refresh-token', {}, { withCredentials: true });
-      localStorage.setItem('token', data.token);
+  const storedRefresh = localStorage.getItem('refreshToken');
+  const body = storedRefresh ? { refreshToken: storedRefresh } : {};
+  const { data } = await api.post('/api/auth/refresh-token', body, { withCredentials: true });
+      if (data?.token) localStorage.setItem('token', data.token);
+      if (data?.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
       return data.token;
     } catch (err) {
       return rejectWithValue(handleApiError(err, 'Token refresh failed'));
@@ -59,9 +62,10 @@ export const registerUser = createAsyncThunk(
         return rejectWithValue(response.data.message || 'Registration failed');
       }
 
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
+  const { token, user, refreshToken } = response.data;
+  if (token) localStorage.setItem('token', token);
+  if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+  localStorage.setItem('user', JSON.stringify(user));
 
       return { token, user, role: user.role };
     } catch (error) {
@@ -80,9 +84,10 @@ export const loginUser = createAsyncThunk(
         return rejectWithValue(response.data.message || 'Login failed');
       }
 
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
+  const { token, user, refreshToken } = response.data;
+  if (token) localStorage.setItem('token', token);
+  if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+  localStorage.setItem('user', JSON.stringify(user));
 
       return { token, user, role: user.role };
     } catch (error) {
@@ -206,6 +211,7 @@ const authSlice = createSlice({
   reducers: {
     logout: (state) => {
       localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
       state.user = null;
       state.token = null;

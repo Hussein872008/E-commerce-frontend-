@@ -59,7 +59,6 @@ const ProductBadges = memo(({ product }) => {
         </span>
       )}
       
-      {/* Extra images */}
       {product.extraImages?.length > 0 && (
         <div className="absolute bottom-3 right-3 flex gap-1.5 z-10">
           {product.extraImages.slice(0, 2).map((img, idx) => (
@@ -165,12 +164,10 @@ const ProductActions = memo(({
             : "Add to cart"
         }
       >
-        {/* تأثير وميض عند التحميل */}
         {cartLoading && (
           <div className="absolute inset-0 bg-white/30 animate-pulse"></div>
         )}
         
-        {/* تأثير wave عند النقر */}
         <span className="absolute inset-0 scale-0 transition-all duration-500 group-hover:scale-105 group-hover:bg-white/20 rounded-xl"></span>
         
         {cartLoading ? (
@@ -195,7 +192,6 @@ const ProductActions = memo(({
         )}
       </button>
       
-      {/* زر المفضلة بجانب زر السلة */}
       <button
         onClick={onWishlistToggle}
         className={`p-2.5 rounded-xl transition-all duration-300 shadow-lg transform-gpu ${
@@ -404,7 +400,6 @@ function ProductCard({ product }) {
       >
   <div className={`absolute inset-0 transition-opacity duration-500 ${hovered ? (darkMode ? 'bg-gradient-to-br from-gray-800/40 to-blue-900/40 opacity-100' : 'bg-gradient-to-br from-blue-50/30 to-purple-50/30 opacity-100') : 'opacity-0'}`}></div>
         
-        {/* صورة المنتج + badges */}
   <div className={`relative w-full aspect-square overflow-hidden ${darkMode ? 'bg-gradient-to-br from-gray-900 to-blue-900' : 'bg-gradient-to-br from-gray-50 to-gray-200'}` }>
           <div className={`w-full h-full transition-opacity duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}>
             <ProductImage 
@@ -418,9 +413,7 @@ function ProductCard({ product }) {
           <ProductBadges product={product} />
         </div>
         
-        {/* محتوى البطاقة */}
   <div className={`flex-1 flex flex-col px-4 py-3 relative z-10 ${darkMode ? 'text-gray-100' : ''}`}>
-          {/* العنوان والتقييم */}
           <div className="flex items-center justify-between mb-1">
             <h2 className={`font-bold text-base leading-tight line-clamp-2 transition-colors duration-300 ${darkMode ? 'text-blue-200 hover:text-blue-400' : 'text-gray-900 hover:text-blue-600'}`}>
               {product.title}
@@ -433,10 +426,8 @@ function ProductCard({ product }) {
             )}
           </div>
           
-          {/* السعر */}
           <ProductPrice product={product} />
           
-          {/* Brand, Category, Stock */}
           <div className="flex items-center gap-2 mb-2 text-xs flex-wrap">
             {product.brand && (
               <span className={`px-2 py-1 rounded-full font-medium transform-gpu transition-all duration-300 hover:scale-105 ${darkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700'}`}>{product.brand}</span>
@@ -455,7 +446,6 @@ function ProductCard({ product }) {
             )}
           </div>
           
-          {/* التقييم وعدد المراجعات */}
           <div className="flex items-center mb-2">
             {reviewCount > 0 ? (
               <div className="flex items-center gap-2">

@@ -11,6 +11,13 @@ export default function EditProduct() {
   const { token } = useSelector((state) => state.auth);
   const isDarkMode = useSelector((state) => state.theme.darkMode);
 
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }, []);
+
   const [product, setProduct] = useState({
     title: "",
     description: "",
@@ -462,12 +469,21 @@ const handleRemoveExtraImage = async (index) => {
       <form onSubmit={handleSubmit} className="space-y-6">
         {activeTab === "basic" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Title */}
             <div className="space-y-1">
               <div className="relative group">
+                <label
+                  htmlFor="title"
+                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
+                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                >
+                  Product Name (Required)
+                </label>
                 <input
-                  name="title"
                   id="title"
+                  type="text"
+                  name="title"
                   placeholder=" "
                   value={product.title}
                   onChange={handleChange}
@@ -479,22 +495,21 @@ const handleRemoveExtraImage = async (index) => {
                     }`}
                 />
                 {fieldErrors.title && <p className="text-sm text-red-500 mt-1">{fieldErrors.title}</p>}
-                <label
-                  htmlFor="title"
-                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
-                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
-                >
-                  Product Name (Required)
-                </label>
               </div>
             </div>
 
-            {/* Price */}
             <div className="space-y-1">
               <div className="relative group">
                 <div className={`absolute left-3 top-[45%] -translate-y-1/2 text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>$</div>
+                <label
+                  htmlFor="price"
+                  className={`absolute left-8 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E] '
+                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                >
+                  Price (Required)
+                </label>
                 <input
                   id="price"
                   type="number"
@@ -512,21 +527,10 @@ const handleRemoveExtraImage = async (index) => {
                     }`}
                 />
                 {fieldErrors.price && <p className="text-sm text-red-500 mt-1">{fieldErrors.price}</p>}
-                <label
-                          htmlFor="price"
-                          className={`absolute left-8 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                              ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E] '
-                              : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                            } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
-                        >
-                          Price (Required)
-                        </label>
               </div>
             </div>
 
-            {/* Original Price removed per design request */}
 
-            {/* Discount */}
             <div className="space-y-1">
               <div className="relative group">
                 <input
@@ -556,7 +560,6 @@ const handleRemoveExtraImage = async (index) => {
               </div>
             </div>
 
-            {/* Stock */}
             <div className="space-y-1">
               <div className="relative group">
                 <input
@@ -585,7 +588,6 @@ const handleRemoveExtraImage = async (index) => {
               </div>
             </div>
 
-            {/* Category */}
             <div className="space-y-1">
               <div className="relative group">
                 <select
@@ -620,7 +622,6 @@ const handleRemoveExtraImage = async (index) => {
               </div>
             </div>
 
-            {/* Brand */}
             <div className="space-y-1">
               <div className="relative group">
                 <input
@@ -647,9 +648,7 @@ const handleRemoveExtraImage = async (index) => {
               </div>
             </div>
 
-            {/* SKU removed: cannot be changed during edit */}
 
-            {/* Weight */}
             <div className="space-y-1">
               <div className="relative group">
                 <input
@@ -677,7 +676,6 @@ const handleRemoveExtraImage = async (index) => {
               </div>
             </div>
 
-            {/* Dimensions */}
             <div className="md:col-span-2 space-y-1">
               <label className={`block text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Dimensions (cm) (optional)</label>
               <div className="grid grid-cols-3 gap-3">
@@ -741,7 +739,6 @@ const handleRemoveExtraImage = async (index) => {
               </div>
             </div>
 
-            {/* Warranty Information */}
             <div className="space-y-1">
               <div className="relative group">
                 <input
@@ -760,7 +757,6 @@ const handleRemoveExtraImage = async (index) => {
               </div>
             </div>
 
-            {/* Shipping Information */}
             <div className="space-y-1">
               <div className="relative group">
                 <input
@@ -780,7 +776,6 @@ const handleRemoveExtraImage = async (index) => {
             </div>
 
 
-            {/* Return Policy */}
             <div className="space-y-1">
               <div className="relative group">
                 <input
@@ -799,7 +794,6 @@ const handleRemoveExtraImage = async (index) => {
               </div>
             </div>
 
-            {/* Minimum Order Quantity */}
             <div className="space-y-1">
               <div className="relative group">
                 <input
@@ -820,7 +814,6 @@ const handleRemoveExtraImage = async (index) => {
               </div>
             </div>
 
-            {/* Tags */}
             <div className="space-y-1">
               <div className="relative group">
                 <input
@@ -842,7 +835,6 @@ const handleRemoveExtraImage = async (index) => {
               </div>
             </div>
 
-            {/* Description */}
             <div className="md:col-span-2 space-y-1">
               <div className="relative group">
                 <textarea
@@ -859,7 +851,9 @@ const handleRemoveExtraImage = async (index) => {
                   }`}
                 />
                 {fieldErrors.description && <p className="text-sm text-red-500 mt-1">{fieldErrors.description}</p>}
-                <label htmlFor="description" className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]' : 'text-gray-500 peer-focus:text-blue-600 bg-white'} peer-placeholder-shown:top-7 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}>Product Description (Required)</label>
+                <label htmlFor="description" className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]' : 'text-gray-500 peer-focus:text-blue-600 bg-white'} peer-placeholder-shown:top-7 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}>
+                  Product Description (Required)
+                </label>
               </div>
             </div>
           </div>

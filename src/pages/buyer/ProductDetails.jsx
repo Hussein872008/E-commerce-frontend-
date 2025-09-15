@@ -37,6 +37,7 @@ import {
     FaPlus,
     FaMinus
 } from "react-icons/fa";
+import { subscribeToProduct, unsubscribeFromProduct, fetchSubscriptionsForUser } from '../../redux/notificationSlice';
 import { fetchCart, addItemOptimistically, updateCartStatus } from '../../redux/cart.slice';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -46,7 +47,7 @@ export default function ProductDetails() {
     const navigate = useNavigate();
     const dispatch = useDispatch();
 
-    const { user: currentUser, token } = useSelector((state) => state.auth);
+    const { user: currentUser, token, role } = useSelector((state) => state.auth);
     const { loading: productsLoading, relatedProducts } = useSelector((state) => state.products);
     const { isInCart, items } = useSelector((state) => state.cart);
 
@@ -65,6 +66,10 @@ export default function ProductDetails() {
     const [cartLoading, setCartLoading] = useState(false);
     const [showRemoveOption, setShowRemoveOption] = useState(false);
     const [qtyWarning, setQtyWarning] = useState("");
+    const [isSubscribed, setIsSubscribed] = useState(false);
+    const [subLoading, setSubLoading] = useState(false);
+    const [triggerBellEffect, setTriggerBellEffect] = useState(false);
+    const [showSubscribedMessage, setShowSubscribedMessage] = useState(false);
 
 
     useEffect(() => {
@@ -128,6 +133,7 @@ export default function ProductDetails() {
     };
 
     const isAddedToCart = product ? isInCart[product._id] : false;
+    const isBuyer = role === 'buyer' || (currentUser && currentUser.role === 'buyer');
 
     useEffect(() => {
         if (token) {
@@ -150,6 +156,17 @@ export default function ProductDetails() {
             }
         }
     }, [token, dispatch]);
+
+    useEffect(() => {
+        let timer;
+        if (isSubscribed) {
+            setShowSubscribedMessage(true);
+            timer = setTimeout(() => setShowSubscribedMessage(false), 5000);
+        } else {
+            setShowSubscribedMessage(false);
+        }
+        return () => clearTimeout(timer);
+    }, [isSubscribed]);
 
     const isValidObjectId = (id) => /^[0-9a-fA-F]{24}$/.test(id);
 
@@ -189,8 +206,16 @@ export default function ProductDetails() {
 
                 await dispatch(fetchRelatedProducts(productRes.data.category));
 
-                if (currentUser && token) {
+               if (currentUser && token) {
                     await fetchWishlistStatus(id);
+                    try {
+                        if (token) setAuthToken(token);
+                        const subsRes = await api.get('/api/notifications/subscriptions/my-subscriptions');
+                        const subs = subsRes.data.subscriptions || [];
+                        const found = subs.some(s => (s.product && (s.product._id === id || String(s.product) === String(id))) || String(s.product) === String(id));
+                        setIsSubscribed(Boolean(found));
+                    } catch (err) {
+                    }
                 }
 
             } catch (err) {
@@ -569,6 +594,11 @@ export default function ProductDetails() {
         e?.preventDefault?.();
         e?.stopPropagation?.();
 
+        if (!isBuyer) {
+            toast.error('Only buyer accounts can add products to the cart.');
+            return;
+        }
+
         if (!currentUser) {
             toast.error('You must be logged in to add products to cart');
             navigate('/login');
@@ -690,6 +720,33 @@ export default function ProductDetails() {
         }
     };
 
+    const handleSubscribeClick = async () => {
+        if (!currentUser) {
+            navigate("/login", { state: { from: `/product/${id}` } });
+            return;
+        }
+
+        setTriggerBellEffect(true);
+        const clearAnim = setTimeout(() => setTriggerBellEffect(false), 700);
+
+        try {
+            setSubLoading(true);
+            if (!isSubscribed) {
+                await dispatch(subscribeToProduct(id)).unwrap();
+                setIsSubscribed(true);
+            } else {
+                await dispatch(unsubscribeFromProduct(id)).unwrap();
+                setIsSubscribed(false);
+            }
+        } catch (err) {
+            console.error("Subscription error:", err);
+        } finally {
+            setSubLoading(false);
+            clearTimeout(clearAnim);
+            setTriggerBellEffect(false);
+        }
+    };
+
     const allImages = product ? [
         product.image,
         ...(product.extraImages || [])
@@ -724,10 +781,10 @@ export default function ProductDetails() {
                 <div className="mb-6">
                     <Skeleton height={30} width={150} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                 </div>
-                <div className={`rounded-xl shadow-lg overflow-hidden ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-white'}`}> 
+                <div className={`rounded-xl shadow-lg overflow-hidden ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-white'}`}>
                     <div className="flex flex-col lg:flex-row">
                         <div className="lg:w-1/2 p-6">
-                            <div className={`mb-4 h-96 flex items-center justify-center rounded-lg overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}> 
+                            <div className={`mb-4 h-96 flex items-center justify-center rounded-lg overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
                                 <Skeleton height={384} width="100%" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                             </div>
                             <div className="grid grid-cols-4 gap-3 mt-4">
@@ -779,7 +836,7 @@ export default function ProductDetails() {
         return (
             <div className="container mx-auto p-4 text-center text-red-600">
                 {error}
-                <button
+                <button type="button"
                     onClick={() => navigate(-1)}
                     className="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition-colors"
                 >
@@ -804,7 +861,9 @@ export default function ProductDetails() {
     }
 
     return (
-        <div className={`container mx-auto px-4 py-8 max-w-7xl relative ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-blue-100' : 'bg-gradient-to-br from-blue-50 via-indigo-100 to-purple-50 text-gray-800'}`}>
+        <div className={`container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-7xl relative
+            ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-blue-100' : 'bg-gradient-to-br from-blue-50 via-indigo-100 to-purple-50 text-gray-800'}
+        `}>
             {lightboxOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
                     <button
@@ -855,9 +914,9 @@ export default function ProductDetails() {
                 <FaArrowLeft className="mr-2" /> Back to Store
             </button>
 
-            <div className={`rounded-xl shadow-lg overflow-hidden transition-all hover:shadow-xl ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-white'}`}> 
-                <div className="flex flex-col lg:flex-row">
-                    <div className="lg:w-1/2 p-6">
+            <div className={`rounded-xl shadow-lg overflow-hidden transition-all hover:shadow-xl ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-white'}`}>
+                <div className="flex flex-col lg:flex-row gap-4">
+                    <div className="w-full lg:w-1/2 p-2 sm:p-6">
                         <div
                             className={`mb-4 h-96 flex items-center justify-center rounded-lg overflow-hidden relative group cursor-zoom-in transition-colors ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-black' : 'bg-gray-50'}`}
                             onClick={() => openLightbox(currentSlide)}
@@ -885,9 +944,12 @@ export default function ProductDetails() {
                         </div>
 
                         {product.extraImages?.length > 0 && (
-                            <div className="grid grid-cols-4 gap-3 mt-4">
+                            <div className="grid grid-cols-4 gap-2 sm:gap-3 mt-4">
                                 <div
-                                    className={`h-24 cursor-pointer rounded-md overflow-hidden relative transition-all flex items-center justify-center ${mainImage === product.image ? (darkMode ? 'ring-2 ring-green-400 scale-105' : 'border-green-500 scale-105') : (darkMode ? 'ring-0 hover:ring-1 hover:ring-blue-700' : 'border-transparent hover:border-gray-300')}`}
+                                    className={`h-20 sm:h-24 cursor-pointer rounded-md overflow-hidden relative transition-all flex items-center justify-center
+                                        ${mainImage === product.image
+                                            ? (darkMode ? 'ring-2 ring-green-400 scale-105' : 'ring-2 ring-green-500 scale-105')
+                                            : (darkMode ? 'ring-0 hover:ring-1 hover:ring-blue-700' : 'ring-0 hover:ring-1 hover:ring-blue-400')}`}
                                     onClick={() => handleThumbnailClick(product.image, 0)}
                                 >
                                     {thumbnailsLoading && (
@@ -906,7 +968,10 @@ export default function ProductDetails() {
                                 {product.extraImages.map((img, index) => (
                                     <div
                                         key={`extra-img-${index}`}
-                                        className={`h-24 cursor-pointer rounded-md overflow-hidden relative transition-all flex items-center justify-center ${mainImage === img ? (darkMode ? 'ring-2 ring-green-400 scale-105' : 'border-green-500 scale-105') : (darkMode ? 'ring-0 hover:ring-1 hover:ring-blue-700' : 'border-transparent hover:border-gray-300')}`}
+                                        className={`h-20 sm:h-24 cursor-pointer rounded-md overflow-hidden relative transition-all flex items-center justify-center
+                                            ${mainImage === img
+                                                ? (darkMode ? 'ring-2 ring-green-400 scale-105' : 'ring-2 ring-green-500 scale-105')
+                                                : (darkMode ? 'ring-0 hover:ring-1 hover:ring-blue-700' : 'ring-0 hover:ring-1 hover:ring-blue-400')}`}
                                         onClick={() => handleThumbnailClick(img, index + 1)}
                                     >
                                         {thumbnailsLoading && (
@@ -934,40 +999,97 @@ export default function ProductDetails() {
                             </span>
                             <div className="flex space-x-2">
                                 <motion.button
+                                    type="button"
                                     onClick={handleWishlistToggle}
-                                    className={`p-2 rounded-full transition-all focus:outline-none`}
+                                    className="p-2 rounded-full focus:outline-none"
                                     title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
                                     aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
                                     aria-pressed={isWishlisted}
-                                    whileTap={{ scale: 0.9 }}
-                                    animate={{ scale: isWishlisted ? 1.12 : 1 }}
-                                    transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+                                    whileTap={{ scale: 0.85 }}
+                                    animate={isWishlisted ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+                                    transition={{ type: "tween", duration: 0.4, ease: "easeOut" }}
                                     style={{
-                                        background: isWishlisted ? (darkMode ? 'rgba(236,72,153,0.12)' : 'rgba(255,228,230,0.9)') : 'transparent',
-                                        color: isWishlisted ? 'rgb(236 72 153)' : (darkMode ? 'rgb(148 163 184)' : 'rgb(156 163 175)')
+                                        background: isWishlisted
+                                            ? (darkMode ? "rgba(236,72,153,0.15)" : "rgba(255,228,230,0.9)")
+                                            : "transparent",
                                     }}
                                 >
-                                    <motion.span
-                                        initial={{ scale: 1 }}
-                                        animate={{ scale: isWishlisted ? [1, 1.25, 1] : 1 }}
-                                        transition={{ duration: 0.45, times: [0, 0.5, 1], ease: 'easeOut' }}
-                                        className="inline-flex items-center justify-center"
-                                    >
-                                        <FaHeart aria-hidden="true" />
-                                    </motion.span>
+                                    <FaHeart
+                                        className={`w-5 h-5 ${isWishlisted
+                                                ? "text-pink-500 drop-shadow-sm"
+                                                : darkMode
+                                                    ? "text-slate-400"
+                                                    : "text-gray-400"
+                                            }`}
+                                    />
                                 </motion.button>
 
-                                <button
+                                <motion.button
                                     onClick={shareProduct}
-                                    className="p-2 rounded-full text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
+                                    className="p-2 rounded-full text-gray-400 transition-colors"
                                     title="Share"
+                                    whileHover={{ scale: 1.15, rotate: 5 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    transition={{ type: "spring", stiffness: 300, damping: 15 }}
                                 >
-                                    <FaShare />
-                                </button>
+                                    <FaShare className="w-5 h-5" />
+                                </motion.button>
+
+                                <motion.button
+                                    onClick={handleSubscribeClick}
+                                    className={`ml-2 p-2 rounded-full flex items-center justify-center focus:outline-none ${subLoading ? 'animate-pulse' : ''}`}
+                                    title={isSubscribed ? "Subscribed" : "Enable notifications"}
+                                    aria-label={isSubscribed ? "Subscribed to notifications" : "Enable notifications"}
+                                    aria-pressed={isSubscribed}
+                                    whileTap={{ scale: 0.9, rotate: -10 }}
+                                    animate={isSubscribed ? { scale: [1, 1.12, 1] } : { scale: 1 }}
+                                    transition={{ type: "tween", duration: 0.35, ease: "easeOut" }}
+                                    style={{ minWidth: 40, minHeight: 40 }}
+                                >
+                                    <motion.span animate={triggerBellEffect ? { rotate: [0, -18, 18, -8, 0], scale: [1, 1.08, 1] } : { scale: 1 }} transition={{ duration: 0.6 }}>
+                                        <FaBell
+                                            className={`w-5 h-5 ${isSubscribed
+                                                    ? "text-yellow-400 drop-shadow-sm"
+                                                    : "text-gray-400"
+                                                }`}
+                                        />
+                                    </motion.span>
+                                </motion.button>
                             </div>
+
                         </div>
 
+
                         <h1 className={`text-3xl font-bold mb-2 transition-colors ${darkMode ? 'hover:text-blue-400 text-blue-100' : 'hover:text-blue-700 text-blue-900'}`}>{product.title}</h1>
+                        <div className="mb-3">
+                            <AnimatePresence>
+                                {isSubscribed && showSubscribedMessage && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -8 }}
+                                        transition={{ duration: 0.35 }}
+                                        className={`inline-flex items-center gap-3 px-3 py-2 rounded-md shadow-sm font-medium ${darkMode ? 'bg-green-900/40 text-green-200' : 'bg-green-50 text-green-800'}`}
+                                    >
+                                        <motion.span
+                                            animate={triggerBellEffect ? { rotate: [0, -20, 20, -10, 0], scale: [1, 1.15, 1] } : { scale: 1 }}
+                                            transition={{ duration: 0.6 }}
+                                            className="flex-shrink-0"
+                                        >
+                                            <FaBell className="w-4 h-4 text-yellow-400 drop-shadow-sm" />
+                                        </motion.span>
+                                        <span className="text-sm">You will get a notification when stock increases.</span>
+                                        <button
+                                            onClick={() => setShowSubscribedMessage(false)}
+                                            aria-label="Dismiss notification message"
+                                            className={`ml-2 text-xs font-semibold rounded px-2 py-0.5 ${darkMode ? 'bg-green-800/30 hover:bg-green-800/50' : 'bg-white/80 hover:bg-white'}`}
+                                        >
+                                            ×
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
 
                         {product.sku && (
                             <p className={`text-sm mb-2 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>SKU: {product.sku}</p>
@@ -1066,11 +1188,13 @@ export default function ProductDetails() {
                                     <FaMinus />
                                 </button>
                                 <input
+                                    id="product-quantity"
+                                    name="quantity"
                                     type="number"
                                     min={product.minimumOrderQuantity || 1}
                                     max={Math.min(product.quantity, 10)}
                                     value={quantity}
-                                    disabled={isAddedToCart}
+                                    disabled={!isBuyer || isAddedToCart}
                                     onChange={e => {
                                         const val = parseInt(e.target.value, 10);
                                         const minQty = product.minimumOrderQuantity || 1;
@@ -1111,12 +1235,11 @@ export default function ProductDetails() {
                                         setQtyWarning("");
                                         setQuantity(prev => prev + 1);
                                     }}
-                                    disabled={quantity >= Math.min(product.quantity, 10) || isAddedToCart}
+                                    disabled={quantity >= Math.min(product.quantity, 10) || isAddedToCart || !isBuyer}
                                     aria-label="Increase quantity"
                                 >
                                     <FaPlus />
                                 </button>
-                                {/* Inline warning message below quantity controls */}
                                 <div className={`w-full min-h-[1.5em] mt-2 text-sm text-center transition-all duration-200 ${qtyWarning ? 'text-red-600' : 'text-transparent'}`} role="alert">
                                     {qtyWarning ? qtyWarning : '.'}
                                 </div>
@@ -1124,12 +1247,12 @@ export default function ProductDetails() {
 
                             <button
                                 onClick={isAddedToCart ? handleRemoveFromCart : handleAddToCart}
-                                disabled={product.quantity <= 0 || cartLoading}
+                                disabled={product.quantity <= 0 || cartLoading || !isBuyer}
                                 className={`flex-1 flex items-center justify-center space-x-2 px-6 py-3 rounded-md text-white transition-all font-semibold ${product.quantity > 0
-                                        ? isAddedToCart
-                                            ? 'bg-red-600 hover:bg-red-700'
-                                            : darkMode ? 'bg-blue-700 hover:bg-blue-800' : 'bg-blue-600 hover:bg-blue-700'
-                                        : 'bg-gray-400 cursor-not-allowed'
+                                    ? isAddedToCart
+                                        ? 'bg-red-600 hover:bg-red-700'
+                                        : darkMode ? 'bg-blue-700 hover:bg-blue-800' : 'bg-blue-600 hover:bg-blue-700'
+                                    : 'bg-gray-400 cursor-not-allowed'
                                     }`}
                                 aria-label={isAddedToCart ? 'Remove from cart' : 'Add to cart'}
                             >
@@ -1164,6 +1287,11 @@ export default function ProductDetails() {
                                     </>
                                 )}
                             </button>
+                            {!isBuyer && (
+                                <div className={`text-sm mt-2 ${darkMode ? 'text-blue-300' : 'text-gray-600'}`}>
+                                    You are signed in as <span className="font-semibold">{role || currentUser?.role || 'user'}</span>. Switch to a buyer account to purchase.
+                                </div>
+                            )}
                         </div>
 
                         <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1228,7 +1356,6 @@ export default function ProductDetails() {
                             )}
                         </div>
 
-                        {/* تم تحسين ألوان التابات للوضوح في الدارك مود */}
                         <div className={`mb-6 border-b ${darkMode ? 'border-blue-900' : 'border-gray-200'}`}>
                             <nav className="-mb-px flex space-x-8">
                                 <button
@@ -1261,7 +1388,6 @@ export default function ProductDetails() {
                             </nav>
                         </div>
 
-                        {/* تم إضافة تأثيرات انتقال بين التابات باستخدام framer-motion */}
                         <div className="mb-6 min-h-[200px]">
                             <AnimatePresence mode="wait">
                                 {activeTab === "description" && (
@@ -1349,7 +1475,7 @@ export default function ProductDetails() {
                                         exit={{ opacity: 0, x: -40 }}
                                         transition={{ duration: 0.35, ease: "easeInOut" }}
                                     >
-                                       
+
                                         {(() => {
                                             return (
                                                 <>
@@ -1401,6 +1527,9 @@ export default function ProductDetails() {
                                                                 ))}
                                                             </div>
                                                             <textarea
+                                                                id="review-comment"
+                                                                name="reviewComment"
+                                                                aria-label="Write your review"
                                                                 value={reviewForm.comment}
                                                                 onChange={(e) => setReviewForm(prev => ({
                                                                     ...prev,
@@ -1478,6 +1607,9 @@ export default function ProductDetails() {
                                                                                     ))}
                                                                                 </div>
                                                                                 <textarea
+                                                                                    id="editing-review-comment"
+                                                                                    name="editingReviewComment"
+                                                                                    aria-label="Edit your review"
                                                                                     value={editingReview.comment}
                                                                                     onChange={(e) => setEditingReview(prev => ({
                                                                                         ...prev,
@@ -1587,7 +1719,6 @@ export default function ProductDetails() {
                 </div>
             </div>
 
-            {/* Related products removed as requested */}
 
         </div>
     );

@@ -163,10 +163,8 @@ const Checkout = () => {
           <h1 className={`text-2xl font-bold ${darkMode ? 'text-green-300' : 'text-green-700'}`}>Checkout</h1>
         </motion.div>
 
-        {/* Stepper - تصميم متجاوب */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center w-full max-w-md">
-            {/* Step 1 */}
             <div className={`flex flex-col items-center flex-1 ${currentStep === 1 ? (darkMode ? 'text-green-300' : 'text-green-600') : (currentStep > 1 ? (darkMode ? 'text-green-400' : 'text-green-500') : (darkMode ? 'text-gray-400' : 'text-gray-400'))}`}>
               <div className={`rounded-full h-10 w-10 flex items-center justify-center relative ${currentStep === 1 ? (darkMode ? 'bg-green-700 text-white' : 'bg-green-600 text-white') : (currentStep > 1 ? (darkMode ? 'bg-green-800' : 'bg-green-500 text-white') : (darkMode ? 'bg-gray-800' : 'bg-gray-200'))}`}>
                 {currentStep > 1 ? <FiCheck className="text-lg" /> : '1'}
@@ -176,7 +174,6 @@ const Checkout = () => {
             
             <div className={`flex-1 h-1 mx-2 ${currentStep > 1 ? (darkMode ? 'bg-green-700' : 'bg-green-500') : (darkMode ? 'bg-gray-700' : 'bg-gray-300')}`}></div>
             
-            {/* Step 2 */}
             <div className={`flex flex-col items-center flex-1 ${currentStep === 2 ? (darkMode ? 'text-green-300' : 'text-green-600') : (currentStep > 2 ? (darkMode ? 'text-green-400' : 'text-green-500') : (darkMode ? 'text-gray-400' : 'text-gray-400'))}`}>
               <div className={`rounded-full h-10 w-10 flex items-center justify-center ${currentStep === 2 ? (darkMode ? 'bg-green-700 text-white' : 'bg-green-600 text-white') : (currentStep > 2 ? (darkMode ? 'bg-green-800' : 'bg-green-500 text-white') : (darkMode ? 'bg-gray-800' : 'bg-gray-200'))}`}>
                 {currentStep > 2 ? <FiCheck className="text-lg" /> : '2'}
@@ -186,7 +183,6 @@ const Checkout = () => {
             
             <div className={`flex-1 h-1 mx-2 ${currentStep > 2 ? (darkMode ? 'bg-green-700' : 'bg-green-500') : (darkMode ? 'bg-gray-700' : 'bg-gray-300')}`}></div>
             
-            {/* Step 3 */}
             <div className={`flex flex-col items-center flex-1 ${currentStep === 3 ? (darkMode ? 'text-green-300' : 'text-green-600') : (darkMode ? 'text-gray-400' : 'text-gray-400')}`}>
               <div className={`rounded-full h-10 w-10 flex items-center justify-center ${currentStep === 3 ? (darkMode ? 'bg-green-700 text-white' : 'bg-green-600 text-white') : (darkMode ? 'bg-gray-800' : 'bg-gray-200')}`}>3</div>
               <div className="text-xs mt-2 text-center hidden sm:block">Confirm Order</div>
@@ -195,7 +191,6 @@ const Checkout = () => {
         </div>
 
         <AnimatePresence mode="wait">
-          {/* Step 1: Shipping Info */}
           {currentStep === 1 && (
             <motion.div 
               key="step1"
@@ -271,7 +266,6 @@ const Checkout = () => {
             </motion.div>
           )}
 
-          {/* Step 2: Payment Method */}
           {currentStep === 2 && (
             <motion.div 
               key="step2"
@@ -366,7 +360,6 @@ const Checkout = () => {
             </motion.div>
           )}
 
-          {/* Step 3: Confirm Order */}
           {currentStep === 3 && (
             <motion.div 
               key="step3"
@@ -447,7 +440,6 @@ const Checkout = () => {
           )}
         </AnimatePresence>
 
-        {/* أزرار التنقل */}
         <div className="flex flex-col-reverse sm:flex-row justify-between items-center gap-3 mt-6">
           <div className="w-full sm:w-auto">
             {currentStep > 1 ? (

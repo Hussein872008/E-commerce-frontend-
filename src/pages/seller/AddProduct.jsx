@@ -49,6 +49,7 @@ export default function AddProduct() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [editCategoryName, setEditCategoryName] = useState("");
   const [activeSection, setActiveSection] = useState("basic");
+  const tabsRef = useRef(null);
   const navigate = useNavigate();
   const { token } = useSelector((state) => state.auth);
   const isDarkMode = useSelector((state) => state.theme.darkMode);
@@ -82,6 +83,18 @@ export default function AddProduct() {
       fetchData();
     }
   }, [token]);
+
+  useEffect(() => {
+    try {
+      if (tabsRef && tabsRef.current) {
+        const activeBtn = tabsRef.current.querySelector('[data-active="true"]');
+        if (activeBtn && typeof activeBtn.scrollIntoView === 'function') {
+          activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+      }
+    } catch (e) {
+    }
+  }, [activeSection]);
 
 
 
@@ -427,7 +440,7 @@ export default function AddProduct() {
         setSuccess("✅ Product added successfully!");
         setSaved(true);
         setTimeout(() => {
-          window.location.href = '/seller/my-products';
+          window.location.replace('/seller/my-products');
         }, 1500);
       }
 
@@ -458,11 +471,11 @@ export default function AddProduct() {
   }, [imagePreview, extraImagesPreviews]);
 
   return (
-    <div className={`max-w-6xl mx-auto p-6 transition-all duration-300 pb-32 ${isDarkMode
+    <div className={`w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 transition-all duration-300 pb-28 ${isDarkMode
         ? 'bg-gradient-to-br from-gray-900 via-blue-950 to-purple-950 text-gray-100 shadow-lg ring-1 ring-gray-700'
         : 'bg-white/95 backdrop-blur-sm rounded-xl shadow-xl ring-1 ring-slate-200/50 hover:shadow-2xl'
       }`}>
-      <div className="flex justify-between items-center mb-8">
+  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
           <h2 className={`text-3xl font-bold ${isDarkMode
               ? 'text-white'
@@ -476,7 +489,7 @@ export default function AddProduct() {
         </div>
         <button
           onClick={() => navigate("/seller/my-products")}
-          className={`flex items-center gap-2 px-4 py-2 transition-all duration-200 rounded-lg ${isDarkMode
+          className={`flex items-center gap-2 px-3 py-2 transition-all duration-200 rounded-lg ${isDarkMode
               ? 'text-white/90 hover:text-white/100 hover:bg-gray-800/50 hover:shadow-md'
               : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50 hover:shadow-md'
             }`}>
@@ -537,62 +550,65 @@ export default function AddProduct() {
         </div>
       )}
 
-      {/* Navigation Tabs */}
-      <div className={`flex mb-8 gap-1 border-b ${isDarkMode ? 'border-gray-700/30' : 'border-gray-200'}`}>
-        <button
-          onClick={() => setActiveSection("basic")}
-          className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 flex items-center gap-2 ${activeSection === "basic"
-              ? isDarkMode
-                ? "bg-blue-900/30 text-blue-400 border-b-2 border-blue-400"
-                : "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
-              : isDarkMode
-                ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          Basic Information
-        </button>
-        <button
-          onClick={() => handleChangeSection("details")}
-          className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 flex items-center gap-2 ${activeSection === "details"
-              ? isDarkMode
-                ? "bg-blue-900/30 text-blue-400 border-b-2 border-blue-400"
-                : "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
-              : isDarkMode
-                ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Product Details
-        </button>
-        <button
-          onClick={() => handleChangeSection("images")}
-          className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 flex items-center gap-2 ${activeSection === "images"
-              ? isDarkMode
-                ? "bg-blue-900/30 text-blue-400 border-b-2 border-blue-400"
-                : "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
-              : isDarkMode
-                ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          Images
-        </button>
+      <div className={`mb-6 border-b ${isDarkMode ? 'border-gray-700/30' : 'border-gray-200'}`}>
+        <div ref={tabsRef} className="flex gap-1 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+          <button
+            onClick={() => setActiveSection("basic")}
+            data-active={activeSection === 'basic'}
+            className={`flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 flex items-center gap-2 ${activeSection === "basic"
+                ? isDarkMode
+                  ? "bg-blue-900/30 text-blue-400 border-b-2 border-blue-400"
+                  : "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
+                : isDarkMode
+                  ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+              }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Basic Information
+          </button>
+          <button
+            onClick={() => handleChangeSection("details")}
+            data-active={activeSection === 'details'}
+            className={`flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 flex items-center gap-2 ${activeSection === "details"
+                ? isDarkMode
+                  ? "bg-blue-900/30 text-blue-400 border-b-2 border-blue-400"
+                  : "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
+                : isDarkMode
+                  ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+              }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Product Details
+          </button>
+          <button
+            onClick={() => handleChangeSection("images")}
+            data-active={activeSection === 'images'}
+            className={`flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 flex items-center gap-2 ${activeSection === "images"
+                ? isDarkMode
+                  ? "bg-blue-900/30 text-blue-400 border-b-2 border-blue-400"
+                  : "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
+                : isDarkMode
+                  ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+              }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Images
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8 relative">
-        {/* Basic Information Section */}
+  <form onSubmit={handleSubmit} className="space-y-8 relative">
         {(activeSection === "basic") && (
-          <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in ${isDarkMode ? '' : ''}`}>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-in ${isDarkMode ? '' : ''}`}>
             <div className="md:col-span-2">
               <h3 className={`text-lg font-semibold mb-4 flex items-center ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
@@ -602,22 +618,8 @@ export default function AddProduct() {
               </h3>
             </div>
 
-            {/* Title */}
             <div className="space-y-1">
               <div className="relative group">
-                <input
-                  ref={titleRef}
-                  name="title"
-                  id="title"
-                  placeholder=" "
-                  value={formData.title}
-                  onChange={handleChange}
-                  required
-                  className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
-                    } group-hover:border-blue-500/30`}
-                />
                 <label
                   htmlFor="title"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
@@ -627,32 +629,27 @@ export default function AddProduct() {
                 >
                   Product Title (Required)
                 </label>
+                <input
+                  id="title"
+                  type="text"
+                  name="title"
+                  placeholder=" "
+                  value={formData.title}
+                  onChange={handleChange}
+                  required
+                  className={`peer w-full p-3 sm:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
+                      ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                    } group-hover:border-blue-500/30`}
+                />
                 <span className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Enter a clear, descriptive title for your product
                 </span>
               </div>
             </div>
 
-            {/* Price */}
             <div className="space-y-1">
               <div className="relative group">
-                <div className={`absolute left-4 top-[34%] -translate-y-1/2 text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>$</div>
-                <input
-                  ref={priceRef}
-                  id="price"
-                  type="number"
-                  name="price"
-                  placeholder=" "
-                  value={formData.price}
-                  onChange={handleChange}
-                  min="0.01"
-                  step="0.01"
-                  required
-                  className={`peer w-full p-4 pl-8 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
-                    } group-hover:border-blue-500/30`}
-                />
                 <label
                   htmlFor="price"
                   className={`absolute left-8 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
@@ -662,13 +659,28 @@ export default function AddProduct() {
                 >
                   Price (Required)
                 </label>
+                <div className={`absolute left-4 top-[34%] -translate-y-1/2 text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>$</div>
+                <input
+                  id="price"
+                  type="number"
+                  name="price"
+                  placeholder=" "
+                  value={formData.price}
+                  onChange={handleChange}
+                  min="0.01"
+                  step="0.01"
+                  required
+                  className={`peer w-full p-3 sm:p-4 pl-8 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
+                      ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                    } group-hover:border-blue-500/30`}
+                />
                 <span className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Set the price in USD (minimum $0.01)
                 </span>
               </div>
             </div>
 
-            {/* Discount */}
             <div className="space-y-1">
               <div className="relative group">
                 <input
@@ -683,7 +695,7 @@ export default function AddProduct() {
                   }}
                   min="1"
                   max="100"
-                  className={`peer w-full p-4 pr-8 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
+                  className={`peer w-full p-3 sm:p-4 pr-8 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
                       ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
@@ -704,7 +716,6 @@ export default function AddProduct() {
               </div>
             </div>
 
-            {/* Category */}
             <div className="space-y-1">
               <div className="relative group">
                 {categoriesLoading ? (
@@ -760,7 +771,7 @@ export default function AddProduct() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {!showNewCategoryField && !editingCategory && (
                           <button
                             type="button"
@@ -773,6 +784,8 @@ export default function AddProduct() {
                         {showNewCategoryField && (
                           <div className="flex items-center gap-2">
                             <input
+                              id="newCategory"
+                              name="newCategory"
                               type="text"
                               value={newCategory}
                               onChange={(e) => setNewCategory(e.target.value)}
@@ -786,7 +799,7 @@ export default function AddProduct() {
 
                         {editingCategory && (
                           <div className="flex items-center gap-2">
-                            <input value={editCategoryName} onChange={(e) => setEditCategoryName(e.target.value)} className="p-2 rounded-lg text-sm border" />
+                            <input id="editCategoryName" name="editCategoryName" value={editCategoryName} onChange={(e) => setEditCategoryName(e.target.value)} className="p-2 rounded-lg text-sm border" />
                             <button type="button" onClick={saveEditCategory} className="px-3 py-1 rounded-lg bg-blue-600 text-white text-sm">Save</button>
                             <button type="button" onClick={cancelEdit} className="px-3 py-1 rounded-lg bg-gray-100 text-sm">Cancel</button>
                           </div>
@@ -798,7 +811,6 @@ export default function AddProduct() {
               </div>
             </div>
 
-            {/* Quantity */}
             <div className="space-y-1">
               <div className="relative group">
                 <input
@@ -811,7 +823,7 @@ export default function AddProduct() {
                   onChange={handleChange}
                   min="1"
                   required
-                  className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
+                  className={`peer w-full p-3 sm:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
                       ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
@@ -831,7 +843,6 @@ export default function AddProduct() {
               </div>
             </div>
 
-            {/* Brand */}
             <div className="space-y-1">
               <div className="relative group">
                 <input
@@ -861,8 +872,7 @@ export default function AddProduct() {
               </div>
             </div>
 
-            {/* Description */}
-            <div className="md:col-span-2 space-y-1">
+            <div className="sm:col-span-2 space-y-1">
               <div className="relative group">
                 <textarea
                   ref={descriptionRef}
@@ -871,9 +881,9 @@ export default function AddProduct() {
                   placeholder=" "
                   value={formData.description}
                   onChange={handleChange}
-                  rows="5"
+                  rows="4"
                   required
-                  className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
+                  className={`peer w-full p-3 sm:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
                       ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
@@ -901,9 +911,8 @@ export default function AddProduct() {
           </div>
         )}
 
-        {/* Product Details Section */}
         {(activeSection === "details") && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-in">
             <div className="md:col-span-2">
               <h3 className={`text-lg font-semibold mb-4 flex items-center ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
@@ -941,12 +950,12 @@ export default function AddProduct() {
               </div>
             </div>
 
-            <div className="md:col-span-2 space-y-1">
+            <div className="sm:col-span-2 space-y-1">
               <div className="relative group">
                 <label className={`block text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Dimensions (cm) (optional)
                 </label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="relative group">
                     <input
                       type="number"
@@ -1185,7 +1194,7 @@ export default function AddProduct() {
                       <img
                         src={imagePreview}
                         alt="Main preview"
-                        className="w-64 h-64 object-contain rounded-lg"
+                        className="w-full max-w-xs sm:max-w-sm h-auto sm:h-64 object-contain rounded-lg"
                       />
                       <button
                         type="button"
@@ -1205,7 +1214,7 @@ export default function AddProduct() {
                       onDragOver={(e) => { e.preventDefault(); setIsDraggingMain(true); }}
                       onDragLeave={(e) => { e.preventDefault(); setIsDraggingMain(false); }}
                       onDrop={handleMainDrop}
-                      className={`group flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${
+                      className={`group flex flex-col items-center justify-center w-full h-48 sm:h-64 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${
                         isDarkMode 
                           ? isDraggingMain
                             ? 'border-blue-500 bg-blue-500/10'
@@ -1264,18 +1273,18 @@ export default function AddProduct() {
                 <div className="space-y-6">
                   {extraImagesPreviews.length > 0 && (
                     <div
-                      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3"
                       onDragOver={(e) => { e.preventDefault(); setIsDraggingExtra(true); }}
                       onDragLeave={(e) => { e.preventDefault(); setIsDraggingExtra(false); }}
                       onDrop={handleExtraDrop}
                     >
                       {extraImagesPreviews.map((preview, index) => (
-                        <div key={index} className="relative group">
-                          <div className={`p-3 rounded-xl ${isDarkMode ? 'bg-gray-900/50' : 'bg-white'} shadow-lg ring-1 ring-gray-900/5 transition duration-300 group-hover:shadow-xl`}>
+                          <div key={index} className="relative group">
+                          <div className={`p-2 rounded-xl ${isDarkMode ? 'bg-gray-900/50' : 'bg-white'} shadow-sm ring-1 ring-gray-900/5 transition duration-300 group-hover:shadow-md`}>
                             <img
                               src={preview}
                               alt={`Preview ${index + 1}`}
-                              className="w-full h-32 object-contain rounded-lg"
+                              className="w-full h-28 sm:h-32 object-contain rounded-md"
                             />
                             <button
                               type="button"
@@ -1299,7 +1308,7 @@ export default function AddProduct() {
                         onDragOver={(e) => { e.preventDefault(); setIsDraggingExtra(true); }}
                         onDragLeave={(e) => { e.preventDefault(); setIsDraggingExtra(false); }}
                         onDrop={handleExtraDrop}
-                        className={`group flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${
+                        className={`group flex flex-col items-center justify-center w-full h-36 sm:h-40 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${
                           isDarkMode 
                             ? isDraggingExtra
                               ? 'border-blue-500 bg-blue-500/10'
@@ -1345,21 +1354,19 @@ export default function AddProduct() {
           </div>
         )}
 
-        {/* Navigation Buttons */}
-<div className="mt-10">
-  <div className={`rounded-2xl shadow-lg border p-6 transition-all duration-300 ${
+  <div className="mt-8">
+    <div className={`rounded-2xl shadow-lg border p-4 sm:p-6 transition-all duration-300 ${
     isDarkMode 
       ? 'bg-gray-800/90 border-gray-700' 
       : 'bg-white border-gray-200'
   }`}>
     <div className="flex justify-between items-center">
       
-      {/* زر الرجوع */}
       {activeSection !== "basic" && (
         <button
           type="button"
           onClick={() => setActiveSection(activeSection === "details" ? "basic" : "details")}
-          className={`group px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-medium transition-all duration-300 ${
+          className={`group px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-300 ${
             isDarkMode
               ? 'bg-gray-700/50 text-gray-300 hover:bg-gray-600 hover:text-white'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1372,13 +1379,12 @@ export default function AddProduct() {
         </button>
       )}
 
-      {/* أزرار التقدم / الإرسال */}
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
         {activeSection !== "images" ? (
           <button
             type="button"
             onClick={() => handleNext()}
-            className={`group px-6 py-3 rounded-xl font-medium text-sm flex items-center gap-2 transition-all duration-300 transform hover:-translate-y-0.5 shadow-md ${
+            className={`group px-4 sm:px-6 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 transform hover:-translate-y-0.5 shadow-md w-full sm:w-auto ${
               isDarkMode
                 ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white'
                 : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white'
@@ -1393,7 +1399,7 @@ export default function AddProduct() {
           <button
             type="submit"
             disabled={loading}
-            className={`group px-8 py-3 rounded-xl font-medium text-sm flex items-center gap-2 transition-all duration-300 transform hover:-translate-y-0.5 shadow-md ${
+            className={`group px-6 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 transform hover:-translate-y-0.5 shadow-md w-full sm:w-auto ${
               loading
                 ? isDarkMode
                   ? 'bg-blue-500/50 cursor-not-allowed text-white/70'

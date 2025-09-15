@@ -63,6 +63,7 @@ const normalizeStats = (raw = {}) => {
             total: Number(raw.total) || 0,
             completed: Number(raw.completed) || 0,
             pending: Number(raw.pending) || 0,
+            shipped: Number(raw.shipped) || 0,
             cancelled: Number(raw.cancelled) || 0
         };
     }
@@ -71,25 +72,27 @@ const normalizeStats = (raw = {}) => {
         const os = raw.orderStatus;
         const shippedCount = Number(os.Shipped || os.shipped || os.ShippedCount || 0) || 0;
         const completedCount = Number(os.Delivered || os.delivered || os.completed || os.Completed || 0) || 0;
-        const pendingCount = (Number(os.Processing || os.processing || os.pending || 0) || 0) + shippedCount;
+        const pendingCount = Number(os.Processing || os.processing || os.pending || 0) || 0;
         const cancelledCount = Number(os.Cancelled || os.cancelled || os.Canceled || 0) || 0;
-        const totalCount = Number(raw.total) || completedCount + pendingCount + cancelledCount;
+        const totalCount = Number(raw.total) || completedCount + pendingCount + shippedCount + cancelledCount;
         return {
             total: totalCount || 0,
             completed: completedCount || 0,
             pending: pendingCount || 0,
+            shipped: shippedCount || 0,
             cancelled: cancelledCount || 0
         };
     }
 
     const shipped = Number(raw.shipped || raw.Shipped || 0) || 0;
     const completed = Number(raw.delivered || raw.completed || raw.Delivered || 0) || 0;
-    const pending = (Number(raw.processing || raw.pending || 0) || 0) + shipped;
+    const pending = Number(raw.processing || raw.pending || 0) || 0;
     const cancelled = Number(raw.cancelled || raw.canceled || 0) || 0;
     return {
-        total: Number(raw.total) || completed + pending + cancelled,
+        total: Number(raw.total) || completed + pending + shipped + cancelled,
         completed,
         pending,
+        shipped,
         cancelled
     };
 };
@@ -162,8 +165,8 @@ export const createOrder = createAsyncThunk(
         try {
             const { token } = getState().auth;
             setAuthToken(token);
-            const response = await api.post('/api/orders/create', orderData);
-            return response.data.order;
+        const response = await api.post('/api/orders/create', orderData);
+        return response.data.order || response.data;
         } catch (error) {
             return rejectWithValue(error.response?.data?.error || 'فشل في إنشاء الطلب');
         }
@@ -194,9 +197,26 @@ export const fetchOrderDetails = createAsyncThunk(
             const { token } = getState().auth;
             setAuthToken(token);
             const response = await api.get(`/api/orders/${orderId}`);
-            return processOrderItems([response.data])[0];
+            const payload = response.data?.order || response.data;
+            return processOrderItems([payload])[0];
         } catch (error) {
             return rejectWithValue(error.response?.data?.error || 'فشل في جلب تفاصيل الطلب');
+        }
+    }
+);
+
+export const fetchOrderStats = createAsyncThunk(
+    'orders/fetchOrderStats',
+    async (_, { getState, rejectWithValue }) => {
+        try {
+            const { token } = getState().auth;
+            setAuthToken(token);
+            const response = await api.get('/api/orders/my/stats', { params: { _ts: Date.now() } });
+            const payload = response.data?.stats || response.data;
+            return normalizeStats(payload);
+        } catch (error) {
+            console.error('Fetch stats error:', error.response?.data || error.message);
+            return rejectWithValue(error.response?.data?.error || 'Failed to fetch order stats');
         }
     }
 );
@@ -207,13 +227,20 @@ export const searchOrders = createAsyncThunk(
         try {
             const { token } = getState().auth;
             setAuthToken(token);
+            const params = { ...searchParams };
+            if (String(params.status).toLowerCase() === 'processing') {
+                params.includeShipped = true;
+            }
             const response = await api.get('/api/orders/search', {
-                params: searchParams
+                params
             });
+            const data = response.data || {};
             return {
-                orders: processOrderItems(response.data.orders || []),
-                total: response.data.total || 0,
-                pages: response.data.pages || 1
+                orders: processOrderItems(data.orders || []),
+                total: data.total || 0,
+                pages: data.pages || 1,
+                page: data.page || (searchParams.page || 1),
+                limit: data.limit || (searchParams.limit || 10)
             };
         } catch (error) {
             return rejectWithValue(error.response?.data?.error || 'فشل في البحث عن الطلبات');
@@ -225,7 +252,7 @@ const ordersSlice = createSlice({
     name: 'orders',
     initialState: {
         items: [],
-        stats: { total: 0, completed: 0, pending: 0, cancelled: 0 },
+        stats: { total: 0, completed: 0, pending: 0, shipped: 0, cancelled: 0 },
         pagination: { total: 0, pages: 1, currentPage: 1 },
         currentOrder: null,
         loading: false,
@@ -322,6 +349,14 @@ const ordersSlice = createSlice({
             })
             .addCase(searchOrders.rejected, (state, action) => {
                 state.loading = false;
+                state.error = action.payload;
+            })
+            .addCase(fetchOrderStats.pending, (state) => {
+            })
+            .addCase(fetchOrderStats.fulfilled, (state, action) => {
+                state.stats = action.payload;
+            })
+            .addCase(fetchOrderStats.rejected, (state, action) => {
                 state.error = action.payload;
             });
     }

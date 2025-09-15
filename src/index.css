@@ -1,8 +1,58 @@
+/* stylelint-disable at-rule-no-unknown, block-no-empty */
+/*
+	Tailwind `@tailwind` directives and an intentionally empty runtime overrides
+	rule are valid in this project. Disable the specific Stylelint rules for
+	this file to avoid false positives.
+*/
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* دعم الدارك مود عبر كلاس 'dark' */
 html.dark {
 	color-scheme: dark;
 }
+
+html, :host, body {
+	-moz-text-size-adjust: 100%;
+	-webkit-text-size-adjust: 100%; 
+	text-size-adjust: 100%;        
+}
+
+*:where(:not(input):not(textarea)) {
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+@keyframes swal2-show { from { transform: translateY(6px) scale(0.96); opacity: 0 } to { transform: translateY(0) scale(1); opacity: 1 } }
+@keyframes swal2-hide { from { transform: translateY(0) scale(1); opacity: 1 } to { transform: translateY(6px) scale(0.96); opacity: 0 } }
+.swal2-popup {
+	animation: swal2-show 0.22s cubic-bezier(.2,.9,.3,1) !important;
+}
+.swal2-hide {
+	animation: swal2-hide 0.16s ease !important;
+}
+
+:root {
+	--swal2-icon-zoom-safe: 1;
+}
+.swal2-icon {
+	transform-origin: center;
+	-webkit-user-select: none;
+	user-select: none;
+	transform: scale(var(--swal2-icon-zoom-safe));
+}
+
+@keyframes Toastify__slideInRight_safe {
+  0% { transform: translate3d(110%, 0, 0); opacity: 0 } 
+  100% { transform: translate3d(0, 0, 0); opacity: 1 }
+}
+.Toastify__slideInRight {
+  animation-name: Toastify__slideInRight_safe !important;
+}
+
+@keyframes swal2-animate-success-line-tip-safe { 0% { transform: scaleX(0) translateY(0); opacity: 0 } 100% { transform: scaleX(1) translateY(0); opacity: 1 } }
+@keyframes swal2-animate-success-line-long-safe { 0% { transform: scaleX(0); opacity: 0 } 100% { transform: scaleX(1); opacity: 1 } }
+.swal2-success .swal2-success-line-tip { animation: swal2-animate-success-line-tip-safe .75s forwards !important }
+.swal2-success .swal2-success-line-long { animation: swal2-animate-success-line-long-safe .75s forwards !important }
+
+[data-runtime-overrides] { /* runtime overrides injected dynamically */ }

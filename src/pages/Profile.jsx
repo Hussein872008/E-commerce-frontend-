@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from 'framer-motion';
 import { logout, updateProfile } from "../redux/authSlice";
@@ -31,6 +31,9 @@ export default function Profile({ open = false, onClose = () => {} }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  const slideOverRef = useRef(null);
+  const prevOverflowRef = useRef({ body: '', html: '' });
+
   const userName = user?.name || '';
   const userEmail = user?.email || '';
   const userRole = user?.role || '';
@@ -58,6 +61,32 @@ export default function Profile({ open = false, onClose = () => {} }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    if (open) {
+      prevOverflowRef.current.body = document.body.style.overflow || '';
+      prevOverflowRef.current.html = document.documentElement.style.overflow || '';
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+
+      setTimeout(() => {
+        try {
+          slideOverRef.current?.focus?.();
+        } catch (e) {
+        }
+      }, 0);
+    } else {
+      document.body.style.overflow = prevOverflowRef.current.body;
+      document.documentElement.style.overflow = prevOverflowRef.current.html;
+    }
+
+    return () => {
+      document.body.style.overflow = prevOverflowRef.current.body;
+      document.documentElement.style.overflow = prevOverflowRef.current.html;
+    };
+  }, [open]);
+
   const [passwordMatch, setPasswordMatch] = useState(true);
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [validations, setValidations] = useState({
@@ -84,6 +113,22 @@ export default function Profile({ open = false, onClose = () => {} }) {
     
     return strength;
   };
+
+  const [isHoverable, setIsHoverable] = useState(true);
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
+      const update = (e) => setIsHoverable(e.matches);
+      setIsHoverable(mq.matches);
+      if (mq.addEventListener) mq.addEventListener('change', update);
+      else mq.addListener(update);
+      return () => {
+        if (mq.removeEventListener) mq.removeEventListener('change', update);
+        else mq.removeListener(update);
+      };
+    }
+    return undefined;
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -247,11 +292,16 @@ export default function Profile({ open = false, onClose = () => {} }) {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: '100%', opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            ref={slideOverRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
             className={`absolute inset-y-0 right-0 z-50 w-full md:w-96 lg:w-[420px] overflow-y-auto shadow-2xl backdrop-blur-lg ${
               darkMode 
                 ? 'bg-gray-900/95 text-gray-100 border-l border-blue-500/20' 
                 : 'bg-white/95 text-gray-800 border-l border-gray-200'
             }`}
+            style={{ WebkitOverflowScrolling: 'touch' }}
           >
             <div className={`p-6 flex items-center justify-between ${
               darkMode 
@@ -265,8 +315,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
               <div className="flex items-center gap-3">
                 <motion.button 
                   onClick={onClose} 
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
+                  {...(isHoverable ? { whileHover: { scale: 1.1 }, whileTap: { scale: 0.95 } } : {})}
                   className={`p-2 rounded-full transition ${
                     darkMode 
                       ? 'hover:bg-white/10 active:bg-white/20' 
@@ -297,7 +346,6 @@ export default function Profile({ open = false, onClose = () => {} }) {
                     </div>
                   )}
 
-                  {/* Avatar and user info */}
                   <motion.div 
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
@@ -305,13 +353,13 @@ export default function Profile({ open = false, onClose = () => {} }) {
                     className="flex items-center mb-8 gap-6"
                   >
                     <motion.div 
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                      {...(isHoverable ? { whileHover: { scale: 1.05 }, whileTap: { scale: 0.95 } } : {})}
                       className={`w-24 h-24 rounded-full flex items-center justify-center text-5xl font-extrabold shadow-lg ring-4 transition-all duration-300 ${
                         darkMode 
                           ? 'bg-gradient-to-br from-blue-900 to-purple-900 text-blue-300 ring-blue-500/30' 
                           : 'bg-gradient-to-br from-blue-500 to-purple-500 text-white ring-purple-200'
                       }`}
+                      aria-hidden="true"
                     >
                       {(userName || userEmail || '?').charAt(0).toUpperCase()}
                     </motion.div>
@@ -328,7 +376,8 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         initial={{ x: -20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         transition={{ duration: 0.5, delay: 0.2 }}
-                        className={`mb-1 ${darkMode ? 'text-blue-200' : 'text-gray-600'}`}
+                        className={`mb-1 truncate max-w-[18rem] sm:max-w-none ${darkMode ? 'text-blue-200' : 'text-gray-600'}`}
+                        title={userEmail}
                       >
                         {userEmail}
                       </motion.p>
@@ -366,6 +415,22 @@ export default function Profile({ open = false, onClose = () => {} }) {
 
                   {editMode ? (
                     <form onSubmit={handleSubmit} className="space-y-4">
+                      <input
+                        type="text"
+                        name="username"
+                        autoComplete="username"
+                        defaultValue={userEmail}
+                        tabIndex={-1}
+                        style={{position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden'}}
+                      />
+                      <input
+                        type="email"
+                        name="email"
+                        autoComplete="email"
+                        defaultValue={userEmail}
+                        tabIndex={-1}
+                        style={{position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden'}}
+                      />
                       <div>
                         <label className={`block mb-2 ${darkMode ? 'text-blue-200' : 'text-gray-700'}`} htmlFor="name">
                           Name
@@ -374,6 +439,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                           type="text"
                           id="name"
                           name="name"
+                          autoComplete="name"
                           value={formData.name}
                           onChange={handleInputChange}
                           className={`w-full p-2 border rounded focus:ring-2 focus:border-transparent ${darkMode ? 'bg-gray-900 border-gray-700 text-blue-100 focus:ring-blue-500' : 'bg-white border-gray-300 text-gray-800 focus:ring-green-500'}`}
@@ -381,7 +447,6 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         />
                       </div>
 
-                      {/* Current Password Field */}
                       <div>
                         <label className={`block mb-2 ${darkMode ? 'text-blue-200' : 'text-gray-700'}`} htmlFor="currentPassword">
                           Current Password
@@ -391,6 +456,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                             type={showPasswords.current ? "text" : "password"}
                             id="currentPassword"
                             name="currentPassword"
+                            autoComplete="current-password"
                             value={formData.currentPassword}
                             onChange={handleInputChange}
                             className={`w-full p-3 pr-10 border rounded-lg focus:ring-2 focus:border-transparent transition-all ${
@@ -422,7 +488,6 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         </Link>
                       </div>
 
-                      {/* New Password Field */}
                       <div>
                         <label className={`block mb-2 ${darkMode ? 'text-blue-200' : 'text-gray-700'}`} htmlFor="newPassword">
                           New Password
@@ -432,6 +497,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                             type={showPasswords.new ? "text" : "password"}
                             id="newPassword"
                             name="newPassword"
+                            autoComplete="new-password"
                             value={formData.newPassword}
                             onChange={handleInputChange}
                             className={`w-full p-3 pr-10 border rounded-lg focus:ring-2 focus:border-transparent transition-all ${
@@ -473,7 +539,6 @@ export default function Profile({ open = false, onClose = () => {} }) {
                               ))}
                             </div>
 
-                            {/* Password Requirements */}
                             <div className="grid gap-2">
                               <motion.div 
                                 animate={{ opacity: 1, y: 0 }}
@@ -588,6 +653,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                               type={showPasswords.confirm ? "text" : "password"}
                               id="confirmPassword"
                               name="confirmPassword"
+                              autoComplete="new-password"
                               value={formData.confirmPassword}
                               onChange={handleInputChange}
                               className={`w-full p-3 pr-10 border rounded-lg focus:ring-2 focus:border-transparent transition-all ${
@@ -631,8 +697,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         <motion.button
                           type="button"
                           onClick={() => setEditMode(false)}
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.98 }}
+                          {...(isHoverable ? { whileHover: { scale: 1.03 }, whileTap: { scale: 0.98 } } : {})}
                           className={`px-4 py-2 rounded-lg transition-all duration-200 ${
                             darkMode 
                               ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-gray-200' 
@@ -645,8 +710,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         <motion.button
                           id="saveButton"
                           type="submit"
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.98 }}
+                          {...(isHoverable ? { whileHover: { scale: 1.03 }, whileTap: { scale: 0.98 } } : {})}
                           className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg ${
                             loading 
                               ? darkMode 
@@ -691,7 +755,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         </div>
                         <div>
                           <h3 className={`text-sm font-medium ${darkMode ? 'text-blue-200' : 'text-gray-500'}`}>Email</h3>
-                          <p className={`mt-1 ${darkMode ? 'text-blue-100' : 'text-gray-900'}`}>{user.email}</p>
+                          <p className={`mt-1 truncate max-w-[12rem] ${darkMode ? 'text-blue-100' : 'text-gray-900'}`} title={user.email}>{user.email}</p>
                         </div>
                         <div>
                           <h3 className={`text-sm font-medium ${darkMode ? 'text-blue-200' : 'text-gray-500'}`}>Role</h3>
@@ -720,10 +784,9 @@ export default function Profile({ open = false, onClose = () => {} }) {
                           <motion.button
                             onClick={() => {
                                 handleLogout();
-                              
+                            
                             }}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            {...(isHoverable ? { whileHover: { scale: 1.02 }, whileTap: { scale: 0.98 } } : {})}
                             className={`w-full px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-lg ${
                               darkMode 
                                 ? 'bg-gradient-to-r from-blue-700 to-blue-600 text-blue-100 hover:shadow-blue-500/20' 
@@ -734,8 +797,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                           </motion.button>
                           <motion.button
                             onClick={() => setEditMode(true)}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            {...(isHoverable ? { whileHover: { scale: 1.02 }, whileTap: { scale: 0.98 } } : {})}
                             className={`w-full px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-lg ${
                               darkMode 
                                 ? 'bg-gradient-to-r from-purple-700 to-purple-600 text-purple-100 hover:shadow-purple-500/20' 
@@ -747,8 +809,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         </div>
                         <motion.button 
                           onClick={() => setShowDeleteModal(true)}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
+                          {...(isHoverable ? { whileHover: { scale: 1.02 }, whileTap: { scale: 0.98 } } : {})}
                           className={`w-full px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 ${
                             darkMode 
                               ? 'bg-red-900/20 text-red-400 hover:bg-red-900/30 border border-red-600/30' 
@@ -765,7 +826,6 @@ export default function Profile({ open = false, onClose = () => {} }) {
             </div>
           </motion.div>
 
-          {/* Custom Delete Account Modal */}
           <AnimatePresence>
             {showDeleteModal && (
               <motion.div
@@ -788,7 +848,6 @@ export default function Profile({ open = false, onClose = () => {} }) {
                       : 'bg-white text-gray-800'
                   }`}
                 >
-                  {/* Header */}
                   <div className={`px-6 py-4 border-b ${
                     darkMode ? 'border-gray-700' : 'border-gray-200'
                   }`}>
@@ -820,7 +879,6 @@ export default function Profile({ open = false, onClose = () => {} }) {
                     </div>
                   </div>
 
-                  {/* Content */}
                   <div className="p-6 space-y-4">
                     <motion.div
                       initial={{ y: 20, opacity: 0 }}
@@ -872,16 +930,20 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.2 }}
                       >
-                        <label className={`block text-sm font-medium mb-1.5 ${
+                        <label htmlFor="deleteEmail" className={`block text-sm font-medium mb-1.5 ${
                           darkMode ? 'text-gray-300' : 'text-gray-700'
                         }`}>
                           Confirm your email address
                         </label>
                         <input
+                          id="deleteEmail"
+                          name="deleteEmail"
                           type="email"
                           value={deleteEmail}
+                          autoComplete="email"
                           onChange={(e) => setDeleteEmail(e.target.value)}
                           placeholder={user.email}
+                          aria-label="Confirm your email address"
                           className={`w-full p-3 border rounded-lg transition-all duration-200 ${
                             darkMode 
                               ? 'bg-gray-800/50 border-gray-700 text-gray-100 focus:border-red-500 focus:ring-1 focus:ring-red-500' 
@@ -896,14 +958,32 @@ export default function Profile({ open = false, onClose = () => {} }) {
                           animate={{ y: 0, opacity: 1 }}
                           transition={{ delay: 0.3 }}
                         >
-                          <label className={`block text-sm font-medium mb-1.5 ${
+                          <input
+                            type="text"
+                            name="username"
+                            autoComplete="username"
+                            defaultValue={userEmail}
+                            tabIndex={-1}
+                            style={{position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden'}}
+                          />
+                          <input
+                            type="email"
+                            name="email"
+                            autoComplete="email"
+                            defaultValue={userEmail}
+                            tabIndex={-1}
+                            style={{position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden'}}
+                          />
+                          <label htmlFor="deletePassword" className={`block text-sm font-medium mb-1.5 ${
                             darkMode ? 'text-gray-300' : 'text-gray-700'
                           }`}>
                             Enter your password
                           </label>
                           <input
                             id="deletePassword"
+                            name="deletePassword"
                             type="password"
+                            autoComplete="current-password"
                             placeholder="Enter your password"
                             className={`w-full p-3 border rounded-lg transition-all duration-200 ${
                               darkMode 
@@ -916,7 +996,6 @@ export default function Profile({ open = false, onClose = () => {} }) {
                     </div>
                   </div>
 
-                  {/* Footer */}
                   <div className={`px-6 py-4 border-t ${
                     darkMode ? 'border-gray-700' : 'border-gray-200'
                   }`}>

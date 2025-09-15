@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import api, { setAuthToken } from "../../utils/api";
-import { updateOrderStatus } from "../../redux/adminSlice";
+import { updateSellerOrderStatus } from "../../redux/adminSlice";
 import "../../styles/highlight.css";
 import { FiRefreshCw, FiFilter, FiShoppingCart, FiDollarSign, FiX, FiSearch, FiClock, FiTruck, FiCheckCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { FaSpinner } from 'react-icons/fa';
@@ -102,7 +102,7 @@ const Orders = () => {
   }, []);
 
   const handleStatusUpdate = (orderId) => {
-    dispatch(updateOrderStatus({ orderId, status: "Shipped" }))
+    dispatch(updateSellerOrderStatus({ orderId, status: "Shipped" }))
       .then((res) => {
         if (!res.error) {
           setSuccessMsg("Order status updated successfully!");
@@ -179,7 +179,6 @@ const Orders = () => {
 
   return (
     <div className={`max-w-6xl mx-auto p-4 pb-32 transition-colors duration-500 ${isDarkMode ? 'text-gray-100 bg-gradient-to-br from-gray-900 via-blue-950 to-purple-950' : ''}`}>
-      {/* Enhanced Header */}
   <div className={`p-6 rounded-2xl mb-8 transition-all ${isDarkMode ? 'bg-gray-800/60 border border-gray-700/30 shadow-lg' : 'bg-gradient-to-br from-white/80 to-indigo-50 p-6 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-indigo-100/30'}`}>
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
           <div>
@@ -202,14 +201,15 @@ const Orders = () => {
           </div>
         </div>
 
-        {/* Enhanced Search and Filters */}
             <div className="mt-6 space-y-4">
-          {/* Search Bar */}
           <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
+              <div className="flex-1 relative">
               <FiSearch className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
               <input
+                id="ordersSearch"
+                name="ordersSearch"
                 type="text"
+                aria-label="Search orders by ID, customer name, or email"
                 placeholder="Search orders by ID, customer name, or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -232,14 +232,14 @@ const Orders = () => {
             </div>
           </div>
 
-          {/* Advanced Filters */}
             {showFilters && (
             <div className={`${isDarkMode ? 'bg-gray-800/60 border-gray-700/30' : 'bg-white border-gray-200'} p-4 rounded-xl border space-y-4`}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Status Filter */}
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Status</label>
+                  <label htmlFor="statusFilter" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Status</label>
                   <select
+                    id="statusFilter"
+                    name="statusFilter"
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className={`w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : 'border border-gray-200 bg-white text-gray-800'}`}
@@ -252,10 +252,11 @@ const Orders = () => {
                   </select>
                 </div>
 
-                {/* Date Filter */}
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Date Range</label>
+                  <label htmlFor="dateFilter" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Date Range</label>
                   <select
+                    id="dateFilter"
+                    name="dateFilter"
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value)}
                     className={`w-full px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : 'border border-gray-200 bg-white text-gray-800'}`}
@@ -267,11 +268,12 @@ const Orders = () => {
                   </select>
                 </div>
 
-                {/* Sort Options */}
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Sort By</label>
+                  <label htmlFor="sortBy" className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Sort By</label>
                   <div className="flex gap-1">
                     <select
+                      id="sortBy"
+                      name="sortBy"
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value)}
                       className={`flex-1 px-3 py-2 rounded-l-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : 'border border-gray-200 bg-white text-gray-800'}`}
@@ -289,9 +291,8 @@ const Orders = () => {
                   </div>
                 </div>
 
-                {/* Quick Actions */}
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Quick Actions</label>
+                  <div className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Quick Actions</div>
                   <div className="flex gap-2">
                     <button
                       onClick={clearFilters}
@@ -321,7 +322,6 @@ const Orders = () => {
           {successMsg}
         </div>
       )}
-      {/* تحسين عرض البطاقات */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[...Array(4)].map((_, i) => (
@@ -482,7 +482,6 @@ const Orders = () => {
                 })}
                 </AnimatePresence>
               </div>
-              {/* Summary row */}
               <div className={`mt-8 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between font-bold text-lg ${isDarkMode ? 'bg-gray-800/60 border-gray-700' : 'bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100'}`}>
                 <div className={`flex items-center gap-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>
                   <FiShoppingCart className="w-5 h-5" />
@@ -498,7 +497,6 @@ const Orders = () => {
           )}
         </>
       )}
-      {/* Custom Animations */}
       <style>{`
         @keyframes highlightPulse {
           0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }

@@ -13,6 +13,42 @@ export const fetchNotifications = createAsyncThunk(
   }
 );
 
+export const subscribeToProduct = createAsyncThunk(
+  'notifications/subscribeToProduct',
+  async (productId, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/api/notifications/subscriptions/subscribe', { productId });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const unsubscribeFromProduct = createAsyncThunk(
+  'notifications/unsubscribeFromProduct',
+  async (productId, { rejectWithValue }) => {
+    try {
+      const response = await api.delete(`/api/notifications/subscriptions/unsubscribe/${productId}`);
+      return { productId, data: response.data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const fetchSubscriptionsForUser = createAsyncThunk(
+  'notifications/fetchSubscriptionsForUser',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/notifications/subscriptions/my-subscriptions');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
 export const markNotificationAsRead = createAsyncThunk(
   'notifications/markAsRead',
   async (notificationId, { rejectWithValue }) => {
@@ -40,6 +76,7 @@ export const markAllNotificationsAsRead = createAsyncThunk(
 const initialState = {
   notifications: [],
   unreadCount: 0,
+    subscriptions: [],
   isLoading: false,
   error: null,
   lastFetched: null,
@@ -143,6 +180,20 @@ export const createNotificationSlice = () => createSlice({
           notification.read = true;
         });
         state.unreadCount = 0;
+      })
+      .addCase(subscribeToProduct.fulfilled, (state, action) => {
+        if (action.payload && action.payload.subscription) {
+          state.subscriptions.push(action.payload.subscription);
+        }
+      })
+      .addCase(unsubscribeFromProduct.fulfilled, (state, action) => {
+        const pid = action.payload?.productId;
+        if (pid) {
+          state.subscriptions = state.subscriptions.filter(s => s.product?._id !== pid && String(s.product) !== String(pid));
+        }
+      })
+      .addCase(fetchSubscriptionsForUser.fulfilled, (state, action) => {
+        state.subscriptions = action.payload.subscriptions || [];
       });
   }
 });
@@ -150,94 +201,64 @@ export const createNotificationSlice = () => createSlice({
 let initialized = false;
 let currentSocket = null;
 
-export const initializeNotifications = (userId) => (dispatch) => {
-  if (initialized) {
-    if (currentSocket && currentSocket.userId !== userId) {
-      currentSocket.disconnect();
-      initialized = false;
-    } else {
-      return;
-    }
-  }
-  
-  import('../utils/socket').then(module => {
-    currentSocket = module.initializeSocket(dispatch);
-  });
-  
-  if (currentSocket) {
-    currentSocket.userId = userId;
-    
-    const reconnectInterval = setInterval(() => {
-      if (!currentSocket.connected) {
-        currentSocket.connect();
+export const initializeNotifications = (userId) => {
+  return async (dispatch) => {
+    if (initialized) {
+      if (currentSocket && currentSocket.userId !== userId) {
+        currentSocket.disconnect();
+        initialized = false;
+      } else {
+        return () => {};
       }
-    }, 5000);
+    }
+
+    const module = await import('../utils/socket');
+    const socket = module.initializeSocket(dispatch);
+    currentSocket = socket;
+    currentSocket.userId = userId;
+
+    if (socket.connected) {
+      socket.emit('join', userId);
+    }
+
+    socket.on('connect', () => {
+      socket.emit('join', userId);
+      dispatch(fetchNotifications());
+    });
+
+    try {
+      const token = (() => {
+        try { return localStorage.getItem('token'); } catch (e) { return null; }
+      })();
+
+      if (token) {
+        try {
+          await dispatch(fetchNotifications());
+        } catch (err) {
+          console.warn('[Notifications] Failed to fetch notifications during initialize (likely unauthenticated):', err?.message || err);
+        }
+      } else {
+        console.info('[Notifications] Skipping fetchNotifications — no token present');
+      }
+    } catch (e) {
+      console.error('[Notifications] initializeNotifications error:', e);
+    }
+
+    initialized = true;
 
     return () => {
-      clearInterval(reconnectInterval);
       if (currentSocket) {
-        currentSocket.disconnect();
+        try {
+          currentSocket.off('initialNotifications');
+          currentSocket.off('notificationUpdate');
+          currentSocket.off('connect');
+          currentSocket.off('disconnect');
+          currentSocket.disconnect();
+        } catch (e) {}
+        currentSocket = null;
       }
+      initialized = false;
     };
-  }
-
-  initialized = true;
-
-  import('../utils/socket').then(module => {
-    const socket = module.initializeSocket();
-    currentSocket = socket;
-  });
-  currentSocket.userId = userId;
-
-  if (socket.connected) {
-    socket.emit('join', userId);
-  }
-
-  socket.on('initialNotifications', ({ notifications, unreadCount }) => {
-    if (notifications) {
-      dispatch(updateNotifications(notifications));
-    }
-    if (typeof unreadCount === 'number') {
-      dispatch(updateUnreadCount(unreadCount));
-    }
-  });
-
-  socket.on('notificationUpdate', ({ newNotification, unreadCount }) => {
-    if (newNotification) {
-      dispatch(addNotification(newNotification));
-      
-      const audio = new Audio('/notification-sound.mp3');
-      audio.play().catch(() => {});
-    }
-    
-    if (typeof unreadCount === 'number') {
-      dispatch(updateUnreadCount(unreadCount));
-    }
-  });
-
-  socket.on('connect', () => {
-    socket.emit('join', userId);
-    dispatch(fetchNotifications());
-  });
-
-  socket.on('disconnect', (reason) => {
-  console.warn('Socket disconnected:', reason);
-    if (reason === 'io server disconnect') {
-      socket.connect();
-    }
-  });
-
-  dispatch(fetchNotifications());
-
-  return () => {
-    if (currentSocket) {
-      currentSocket.off('initialNotifications');
-      currentSocket.off('notificationUpdate');
-      currentSocket.off('connect');
-      currentSocket.off('disconnect');
-      currentSocket = null;
-    }
-    initialized = false;
   };
 };
 

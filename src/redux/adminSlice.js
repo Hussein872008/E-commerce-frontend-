@@ -86,6 +86,21 @@ export const updateOrderStatus = createAsyncThunk(
   }
 );
 
+export const updateSellerOrderStatus = createAsyncThunk(
+  'admin/updateSellerOrderStatus',
+  async ({ orderId, status }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await api.put(`/api/orders/seller/update/${orderId}`, { status }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data.order;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  }
+);
+
 export const fetchAllProducts = createAsyncThunk(
   'admin/fetchAllProducts',
   async (_, { rejectWithValue }) => {
@@ -254,6 +269,38 @@ const adminSlice = createSlice({
         }
       })
       .addCase(updateOrderStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.updating = false;
+        state.error = action.payload;
+        state.updateError = action.payload;
+      })
+      .addCase(updateSellerOrderStatus.pending, (state) => {
+        state.loading = true;
+        state.updating = true;
+        state.error = null;
+        state.updateError = null;
+      })
+      .addCase(updateSellerOrderStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        state.updating = false;
+        state.updateError = null;
+
+        const index = state.orders.findIndex(order => order._id === action.payload._id);
+        if (index !== -1) {
+          state.orders[index] = action.payload;
+        }
+
+        const recentIndex = state.recentOrders.findIndex(order => order._id === action.payload._id);
+        if (recentIndex !== -1) {
+          state.recentOrders[recentIndex] = action.payload;
+        }
+
+        const sellerIndex = state.sellerOrders.findIndex(order => order._id === action.payload._id);
+        if (sellerIndex !== -1) {
+          state.sellerOrders[sellerIndex] = action.payload;
+        }
+      })
+      .addCase(updateSellerOrderStatus.rejected, (state, action) => {
         state.loading = false;
         state.updating = false;
         state.error = action.payload;

@@ -2,7 +2,7 @@ import { io } from 'socket.io-client';
 import store from '../redux/store';
 import { addNotification, updateUnreadCount } from '../redux/notificationSlice';
 
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL;
 
 let socket;
 
@@ -30,8 +30,10 @@ export const initializeSocket = (dispatch) => {
   }
 
   if (!socket) {
+    const token = store.getState().auth.token;
     socket = io(SOCKET_URL, {
       withCredentials: true,
+      auth: token ? { token } : undefined,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -42,9 +44,13 @@ export const initializeSocket = (dispatch) => {
     });
 
     socket.on('connect', () => {
+      console.info('[Socket] connected', socket.id);
       const userId = store.getState().auth.user?._id;
       if (userId) {
+        console.info('[Socket] emitting join for user', userId);
         socket.emit('join', userId);
+      } else {
+        console.info('[Socket] no authenticated user to join room');
       }
     });
 
@@ -61,26 +67,25 @@ export const initializeSocket = (dispatch) => {
     });
 
     socket.on('notificationUpdate', (data) => {
-      
-      const { newNotification, unreadCount } = data;
-      
+      console.info('[Socket] notificationUpdate received', data && data.newNotification ? data.newNotification._id : null, data && data.unreadCount);
+      const { newNotification, unreadCount } = data || {};
       if (newNotification) {
         handleNotification(newNotification, dispatch);
       }
-      
       if (typeof unreadCount === 'number') {
         dispatch(updateUnreadCount(unreadCount));
       }
     });
 
     socket.on('newNotification', (notification) => {
+      console.info('[Socket] newNotification received', notification && (notification._id || notification.relatedId));
       handleNotification(notification, dispatch);
     });
 
     socket.on('newOrder', (orderData) => {
       const notification = {
         type: 'order',
-        message: `طلب جديد: ${orderData.orderNumber}`,
+        message: `New Order: ${orderData.orderNumber}`,
         data: orderData,
         read: false,
         createdAt: new Date().toISOString(),
@@ -108,3 +113,66 @@ export const initializeSocket = (dispatch) => {
 };
 
 export default socket;
+
+try {
+  if (typeof window !== 'undefined') {
+    window.__socketDebugger = window.__socketDebugger || {};
+
+    window.__socketDebugger.initialize = (dispatch) => {
+      try {
+        const module = require('../utils/socket');
+      } catch (e) {
+      }
+      const s = initializeSocket(dispatch || (store && store.dispatch));
+      console.info('[__socketDebugger] initialize called, socket:', s && s.id);
+      return s;
+    };
+
+    window.__socketDebugger.getSocket = () => socket;
+
+    window.__socketDebugger.getStatus = () => {
+      return {
+        connected: !!(socket && socket.connected),
+        id: socket && socket.id,
+        auth: store.getState().auth || null
+      };
+    };
+
+    window.__socketDebugger.listRoomSockets = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        if (!token || !user) throw new Error('No token or user in localStorage');
+        const userId = user.id || user._id;
+        const res = await fetch(`http://localhost:5000/api/debug/room/${userId}/sockets`, {
+          method: 'GET',
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        return await res.json();
+      } catch (err) {
+        console.error('[__socketDebugger] listRoomSockets error', err);
+        throw err;
+      }
+    };
+
+    window.__socketDebugger.sendTestOrderDelivered = async (orderId) => {
+      try {
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        if (!token || !user) throw new Error('No token or user in localStorage');
+        const userId = user.id || user._id;
+        const body = { recipientId: userId, orderId: orderId || ('TEST_ORDER_' + Date.now()) };
+        const res = await fetch('http://localhost:5000/api/debug/order-delivered', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify(body)
+        });
+        return await res.json();
+      } catch (err) {
+        console.error('[__socketDebugger] sendTestOrderDelivered error', err);
+        throw err;
+      }
+    };
+  }
+} catch (e) {
+}
