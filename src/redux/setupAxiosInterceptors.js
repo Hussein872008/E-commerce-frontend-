@@ -21,6 +21,14 @@ export default function setupAxiosInterceptors() {
     (response) => response,
     async (error) => {
       const originalRequest = error.config;
+      const authPaths = ['/api/auth/login', '/api/auth/register', '/api/auth/refresh-token', '/api/auth/forgot-password', '/api/auth/reset-password'];
+      try {
+        const requestUrl = originalRequest && originalRequest.url ? originalRequest.url : '';
+        if (authPaths.some(p => requestUrl.includes(p))) {
+          return Promise.reject(error);
+        }
+      } catch (e) {
+      }
 
       if (error.response?.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true;

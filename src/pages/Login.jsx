@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { loginUser, verifyToken, clearError } from "../redux/authSlice";
+import { loginUser, verifyToken, clearError, setLoading } from "../redux/authSlice";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -25,6 +25,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [touchedFields, setTouchedFields] = useState({});
+  const [submitError, setSubmitError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && user && role) {
@@ -88,11 +90,21 @@ export default function Login() {
       toast.error("Please fix the errors in the form");
       return;
     }
-    dispatch(loginUser(formData))
-      .unwrap()
-      .then(() => {
+    setSubmitError(null);
+
+    (async () => {
+      setIsSubmitting(true);
+      try {
+        await dispatch(loginUser(formData)).unwrap();
         toast.success("Login successful");
-      });
+      } catch (err) {
+        const message = typeof err === 'string' ? err : (err?.message || 'Email or Password is incorrect');
+        setSubmitError(message);
+      } finally {
+        dispatch(setLoading(false));
+        setIsSubmitting(false);
+      }
+    })();
   };
 
   return (
@@ -103,15 +115,15 @@ export default function Login() {
           <p className={`mt-2 text-sm ${darkMode ? 'text-blue-200' : 'text-gray-500'}`}>Sign in to continue to your account</p>
         </div>
 
-        {error && error !== "No token found" && (
+        {(submitError || (error && error !== "No token found")) ? (
           <div
-            className={`p-3 border text-center text-sm mb-2 animate-pulse ${darkMode ? 'bg-red-900 border-red-700 text-red-300' : 'bg-red-50 border-red-200 text-red-700'}`}
+            className={`p-3 border text-center text-sm mb-2 ${darkMode ? 'bg-red-900 border-red-700 text-red-300' : 'bg-red-50 border-red-200 text-red-700'}`}
             role="alert"
             aria-live="assertive"
           >
-            <span className="font-medium">Error:</span> {error}
+            <span className="font-medium">{submitError || error}</span>
           </div>
-        )}
+        ) : null}
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-5">
@@ -209,10 +221,10 @@ export default function Login() {
           <div>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isSubmitting || isLoading}
               className={`group relative w-full flex justify-center items-center py-3 px-4 rounded-xl text-white font-medium shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.99] ${isLoading ? (darkMode ? 'bg-gray-700 cursor-not-allowed' : 'bg-gray-400 cursor-not-allowed') : (darkMode ? 'bg-gradient-to-r from-blue-900 to-purple-900 hover:from-blue-800 hover:to-purple-800' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700')}`}
             >
-              {isLoading ? (
+              {(isSubmitting || isLoading) ? (
                 <>
                   <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
