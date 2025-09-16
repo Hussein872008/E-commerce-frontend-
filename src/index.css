@@ -18,7 +18,11 @@ html, :host, body {
 	text-size-adjust: 100%;        
 }
 
-*:where(:not(input):not(textarea)) {
+/* Avoid disabling selection globally. Use the `.no-select` helper class where
+   you explicitly want to prevent text selection (buttons, icons, drag handles).
+   That keeps the normal I-beam cursor and selection behavior on paragraphs,
+   links and other text content. */
+.no-select {
 	-webkit-user-select: none;
 	user-select: none;
 }
@@ -55,4 +59,8 @@ html, :host, body {
 .swal2-success .swal2-success-line-tip { animation: swal2-animate-success-line-tip-safe .75s forwards !important }
 .swal2-success .swal2-success-line-long { animation: swal2-animate-success-line-long-safe .75s forwards !important }
 
-[data-runtime-overrides] { /* runtime overrides injected dynamically */ }
+[data-runtime-overrides] {
+	/* runtime overrides injected dynamically by the app. Keep this rule non-empty
+		 so stylelint doesn't flag it as an empty block. */
+	--runtime-placeholder: 0;
+}

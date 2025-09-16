@@ -16,14 +16,14 @@ import { initializeNotifications } from './redux/notificationSlice';
 
 function insertRuntimeCssOverrides() {
   try {
-    const css = `
+  const css = `
 /* Override SWAL2 keyframes that use margin-top (layout thrash) with transform-based animations */
 @keyframes swal2-animate-error-x-mark{0%{transform:translateY(10px) scale(.4);opacity:0}40%{transform:translateY(-6px) scale(1.05);opacity:1}to{transform:translateY(0) scale(1);opacity:1}}
 @keyframes swal2-animate-success-line-long{0%{transform:translateY(0) scale(.6);opacity:0}65%{transform:translateY(0) scale(.6);opacity:0}84%{transform:translateY(0) scale(1.02)}100%{transform:translateY(0) scale(1);opacity:1}}
 @keyframes swal2-animate-success-line-tip{0%{transform:translateY(0) scale(.6);opacity:0}54%{transform:translateY(0) scale(.6);opacity:0}70%{transform:translateY(0) scale(1.02)}84%{transform:translateY(0) scale(1)}100%{transform:translateY(0) scale(1);opacity:1}}
 .swal2-icon { zoom: unset !important; transform-origin: center; }
 html, :host, body { -webkit-text-size-adjust: 100%; -moz-text-size-adjust: 100%; text-size-adjust: 100%; }
-*:where(:not(input):not(textarea)) { -webkit-user-select: none; -moz-user-select: none; user-select: none; }
+/* Note: global user-select rules removed to allow normal text caret and selection. */
 `;
 
     const ATTR = 'data-runtime-overrides';
