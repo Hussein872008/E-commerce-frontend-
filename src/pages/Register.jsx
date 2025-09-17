@@ -169,16 +169,17 @@ export default function Register() {
                 Email Address
               </label>
               <input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="Enter your email"
-                value={formData.email}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                required
-                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 ${darkMode ? 'dark:bg-gray-800 dark:text-blue-100' : ''} ${fieldErrors.email ? (darkMode ? 'border-red-700' : 'border-red-500') : (darkMode ? 'border-gray-700' : 'border-gray-300')}`}
-              />
+              id="email"
+              name="email"
+              type="email"
+              placeholder="Enter your email"
+              value={formData.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              required
+              autocomplete="username"
+              className={`...`}
+             />
               {fieldErrors.email && (
                 <div className="text-red-600 text-xs mt-2 flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
