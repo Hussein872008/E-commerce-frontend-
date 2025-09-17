@@ -1,6 +1,11 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api, { setAuthToken } from '../utils/api';
 
+const resolveRoleFromUser = (user) => {
+  if (!user) return null;
+  return user.role || user.activeRole || (Array.isArray(user.roles) && user.roles.length ? user.roles[0] : null);
+}
+
 const initialState = {
   user: JSON.parse(localStorage.getItem('user')) || null,
   token: localStorage.getItem('token') || null,
@@ -8,7 +13,7 @@ const initialState = {
   isLoading: false,
   error: null,
   success: null,
-  role: JSON.parse(localStorage.getItem('user'))?.role || null
+  role: resolveRoleFromUser(JSON.parse(localStorage.getItem('user')))
 };
 
 const handleApiError = (error, defaultMessage) => {
@@ -67,7 +72,7 @@ export const registerUser = createAsyncThunk(
   if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
   localStorage.setItem('user', JSON.stringify(user));
 
-      return { token, user, role: user.role };
+  return { token, user, role: resolveRoleFromUser(user) };
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Registration failed'));
     }
@@ -89,7 +94,7 @@ export const loginUser = createAsyncThunk(
   if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
   localStorage.setItem('user', JSON.stringify(user));
 
-      return { token, user, role: user.role };
+  return { token, user, role: resolveRoleFromUser(user) };
     } catch (error) {
       return rejectWithValue(handleApiError(error, 'Login failed'));
     }
@@ -106,11 +111,11 @@ export const verifyToken = createAsyncThunk(
   setAuthToken(token);
   const response = await api.get('/api/auth/verify-token');
 
-      if (!response.data.user || !response.data.user.role) {
+      if (!response.data.user) {
         throw new Error('Invalid user data');
       }
 
-      return { user: response.data.user, role: response.data.user.role };
+  return { user: response.data.user, role: resolveRoleFromUser(response.data.user) };
     } catch (error) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -118,6 +123,25 @@ export const verifyToken = createAsyncThunk(
     }
   }
 );
+
+  export const switchRoleUser = createAsyncThunk(
+    'auth/switchRole',
+    async ({ userId, newRole }, { getState, rejectWithValue }) => {
+      try {
+        const token = getState().auth.token;
+        if (!token) return rejectWithValue('Not authenticated');
+        setAuthToken(token);
+          console.debug('[switchRoleUser] sending request', { userId, newRole });
+          const response = await api.put(`/api/users/${userId}/switch-role`, { newRole });
+          console.debug('[switchRoleUser] response', response && response.data ? response.data : response);
+        if (!response.data.success) return rejectWithValue(response.data.message || 'Role switch failed');
+        return response.data.user;
+      } catch (err) {
+          console.error('[switchRoleUser] error', err);
+        return rejectWithValue(handleApiError(err, 'Failed to switch role'));
+      }
+    }
+  );
 
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
@@ -242,9 +266,27 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         state.user = action.payload.user;
         state.token = action.payload.token;
-        state.role = action.payload.user.role;
+  state.role = resolveRoleFromUser(action.payload.user);
         state.success = 'Registration successful';
         state.error = null;
+      })
+      .addCase(switchRoleUser.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        state.success = null;
+      })
+      .addCase(switchRoleUser.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload;
+        state.role = resolveRoleFromUser(action.payload);
+        localStorage.setItem('user', JSON.stringify(action.payload));
+        state.success = 'Role switched successfully';
+        state.error = null;
+      })
+      .addCase(switchRoleUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || action.error?.message;
+        state.success = null;
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.isLoading = false;
@@ -262,7 +304,7 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         state.user = action.payload.user;
         state.token = action.payload.token;
-        state.role = action.payload.user.role;
+  state.role = resolveRoleFromUser(action.payload.user);
         state.success = 'Login successful';
         state.error = null;
       })
@@ -280,7 +322,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
-        state.role = action.payload.user.role;
+  state.role = resolveRoleFromUser(action.payload.user);
         state.error = null;
       })
       .addCase(verifyToken.rejected, (state, action) => {

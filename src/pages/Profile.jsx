@@ -1,17 +1,33 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo, memo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from 'framer-motion';
-import { logout, updateProfile } from "../redux/authSlice";
+import { logout, updateProfile, verifyToken } from "../redux/authSlice";
+import { switchRoleUser } from "../redux/authSlice";
 import { useNavigate, Link } from "react-router-dom";
-import { FaUser, FaLock, FaSave, FaSignOutAlt, FaTimes, FaTrash, FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaUser, FaLock, FaSave, FaSignOutAlt, FaTimes, FaTrash, FaEye, FaEyeSlash, FaExchangeAlt } from "react-icons/fa";
+import Swal from 'sweetalert2';
 import { toast } from "react-toastify";
 import { deleteAccount } from "../redux/authSlice";
-import Swal from 'sweetalert2';
 
-export default function Profile({ open = false, onClose = () => {} }) {
+function Profile({ open = false, onClose = () => {} }) {
   const { user: currentUser, token } = useSelector((state) => state.auth);
   const darkMode = useSelector(state => state.theme.darkMode);
   const [user, setUser] = useState(currentUser || null);
+  const userName = useMemo(() => {
+    return (user && (user.name || user.username)) || (currentUser && (currentUser.name || currentUser.username)) || '';
+  }, [user, currentUser]);
+  const userEmail = useMemo(() => {
+    return (user && user.email) || (currentUser && currentUser.email) || '';
+  }, [user, currentUser]);
+  const userRole = useMemo(() => {
+    return (user && (user.activeRole || user.role)) || (currentUser && (currentUser.activeRole || currentUser.role)) || 'user';
+  }, [user, currentUser]);
+  const userCreatedAt = useMemo(() => {
+    return (user && (user.createdAt || user.meta?.createdAt)) || (currentUser && currentUser.createdAt) || null;
+  }, [user, currentUser]);
+  const userUpdatedAt = useMemo(() => {
+    return (user && user.updatedAt) || (currentUser && currentUser.updatedAt) || null;
+  }, [user, currentUser]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [editMode, setEditMode] = useState(false);
@@ -29,108 +45,55 @@ export default function Profile({ open = false, onClose = () => {} }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteEmail, setDeleteEmail] = useState("");
   const dispatch = useDispatch();
+  const isAuthLoading = useSelector(state => state.auth.isLoading);
   const navigate = useNavigate();
 
   const slideOverRef = useRef(null);
   const prevOverflowRef = useRef({ body: '', html: '' });
+  const saveButtonRef = useRef(null);
+  const deletePasswordRef = useRef(null);
+  const [isHoverable, setIsHoverable] = useState(false);
 
-  const userName = user?.name || '';
-  const userEmail = user?.email || '';
-  const userRole = user?.role || '';
-  const userCreatedAt = user?.createdAt || null;
-  const userUpdatedAt = user?.updatedAt || null;
-
-  useEffect(() => {
-    if (currentUser) {
-      setUser(currentUser);
-      setFormData({
-        name: currentUser.name || "",
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-    } else {
-      setUser(null);
-    }
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-
-    if (open) {
-      prevOverflowRef.current.body = document.body.style.overflow || '';
-      prevOverflowRef.current.html = document.documentElement.style.overflow || '';
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
-
-      setTimeout(() => {
-        try {
-          slideOverRef.current?.focus?.();
-        } catch (e) {
-        }
-      }, 0);
-    } else {
-      document.body.style.overflow = prevOverflowRef.current.body;
-      document.documentElement.style.overflow = prevOverflowRef.current.html;
-    }
-
-    return () => {
-      document.body.style.overflow = prevOverflowRef.current.body;
-      document.documentElement.style.overflow = prevOverflowRef.current.html;
-    };
-  }, [open]);
-
-  const [passwordMatch, setPasswordMatch] = useState(true);
-  const [passwordStrength, setPasswordStrength] = useState(0);
-  const [validations, setValidations] = useState({
-    length: false,
-    uppercase: false,
-    lowercase: false,
-    number: false,
-    special: false
-  });
-
-  const validatePassword = (password) => {
-    const checks = {
-      length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      number: /[0-9]/.test(password),
-      special: /[^A-Za-z0-9]/.test(password)
-    };
-    
-    setValidations(checks);
-    
-    const strength = Object.values(checks).filter(Boolean).length;
-    setPasswordStrength(strength);
-    
-    return strength;
-  };
-
-  const [isHoverable, setIsHoverable] = useState(true);
   useEffect(() => {
     if (typeof window !== 'undefined' && window.matchMedia) {
       const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
-      const update = (e) => setIsHoverable(e.matches);
-      setIsHoverable(mq.matches);
-      if (mq.addEventListener) mq.addEventListener('change', update);
-      else mq.addListener(update);
+      const update = (e) => setIsHoverable(Boolean(e.matches));
+      try {
+        mq.addEventListener ? mq.addEventListener('change', update) : mq.addListener(update);
+      } catch (e) {
+      }
+      setIsHoverable(Boolean(mq.matches));
       return () => {
-        if (mq.removeEventListener) mq.removeEventListener('change', update);
-        else mq.removeListener(update);
+        try {
+          mq.removeEventListener ? mq.removeEventListener('change', update) : mq.removeListener(update);
+        } catch (e) {}
       };
     }
     return undefined;
   }, []);
 
-  const handleInputChange = (e) => {
+  const hoverProps = useMemo(() => (isHoverable ? { whileHover: { scale: 1.03 }, whileTap: { scale: 0.98 } } : {}), [isHoverable]);
+
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [validations, setValidations] = useState({ length: false, uppercase: false, lowercase: false, number: false, special: false });
+  const [passwordMatch, setPasswordMatch] = useState(false);
+
+  const validatePassword = useCallback((pw) => {
+    if (typeof pw !== 'string') pw = '';
+    const length = pw.length >= 8;
+    const uppercase = /[A-Z]/.test(pw);
+    const lowercase = /[a-z]/.test(pw);
+    const number = /[0-9]/.test(pw);
+    const special = /[^A-Za-z0-9]/.test(pw);
+    const vals = { length, uppercase, lowercase, number, special };
+    setValidations(vals);
+    const strength = Object.values(vals).filter(Boolean).length;
+    setPasswordStrength(strength);
+    return vals;
+  }, []);
+
+
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData(prev => {
       const newData = { ...prev, [name]: value };
@@ -145,19 +108,18 @@ export default function Profile({ open = false, onClose = () => {} }) {
       if (name === 'confirmPassword') {
         setPasswordMatch(value === prev.newPassword);
         if (value === prev.newPassword && value !== '') {
-          const button = document.querySelector('#saveButton');
-          if (button) {
-            button.classList.add('animate-pulse');
-            setTimeout(() => button.classList.remove('animate-pulse'), 1000);
+          if (saveButtonRef.current) {
+            saveButtonRef.current.classList.add('animate-pulse');
+            setTimeout(() => saveButtonRef.current && saveButtonRef.current.classList.remove('animate-pulse'), 1000);
           }
         }
       }
       
       return newData;
     });
-  };
+  }, [validatePassword]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -197,44 +159,43 @@ export default function Profile({ open = false, onClose = () => {} }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dispatch, formData, token, user, validatePassword]);
 
-  const handleLogout = async () => {
-    const result = await Swal.fire({
-      title: 'Logout',
-      text: 'Are you sure you want to logout?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, Logout',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: darkMode ? '#1d4ed8' : '#2563eb',
-      cancelButtonColor: darkMode ? '#374151' : '#6b7280',
-      background: darkMode ? '#1f2937' : '#ffffff',
-      color: darkMode ? '#e5e7eb' : '#1f2937'
-    });
-
-    if (result.isConfirmed) {
-      dispatch(logout());
-      onClose();
-      navigate("/login");
-      Swal.fire({
-        title: 'Success',
-        text: 'Logged out successfully',
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false,
+  const handleLogout = useCallback(async () => {
+    try {
+      const res = await Swal.fire({
+        title: 'Confirm logout',
+        text: 'Are you sure you want to logout?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, logout',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true,
         background: darkMode ? '#1f2937' : '#ffffff',
         color: darkMode ? '#e5e7eb' : '#1f2937'
       });
-    }
-  };
 
-  const handleDelete = async () => {
+      if (res.isConfirmed) {
+        dispatch(logout());
+        try { onClose(); } catch (e) { /* ignore */ }
+        navigate('/login');
+        toast.success('Logged out successfully');
+      }
+    } catch (err) {
+      console.warn('Logout confirm failed', err);
+      dispatch(logout());
+      try { onClose(); } catch (e) {}
+      navigate('/login');
+      toast.success('Logged out');
+    }
+  }, [dispatch, darkMode, navigate, onClose]);
+
+  const handleDelete = useCallback(async () => {
     if (!user) return;
 
     try {
-      const password = deleteEmail === user.email ? document.querySelector('#deletePassword').value : null;
-      
+      const password = deleteEmail === user.email ? (deletePasswordRef.current ? deletePasswordRef.current.value : null) : null;
+
       if (!password) {
         setError('Please enter your password to delete your account');
         return;
@@ -245,25 +206,11 @@ export default function Profile({ open = false, onClose = () => {} }) {
 
       await dispatch(deleteAccount({ password })).unwrap();
 
-  const modal = document.querySelector('#deleteModal');
-  if (modal) {
-    modal.classList.add('scale-0', 'opacity-0');
-  }
+      setShowDeleteModal(false);
+      toast.success('Your account has been deleted successfully');
 
-  await Swal.fire({
-    title: 'Account deleted',
-    text: 'Your account has been deleted successfully.',
-    icon: 'success',
-    timer: 1500,
-    showConfirmButton: false,
-    background: darkMode ? '#1f2937' : '#ffffff',
-    color: darkMode ? '#e5e7eb' : '#1f2937'
-  });
-
-  dispatch(logout());
-  onClose();
-  window.location.reload();
-
+      dispatch(logout());
+      onClose();
     } catch (err) {
       console.error('Delete error:', err);
       setLoading(false);
@@ -280,13 +227,13 @@ export default function Profile({ open = false, onClose = () => {} }) {
         setTimeout(() => modal.classList.remove('animate-shake'), 500);
       }
     }
-  };
+  }, [deleteEmail, dispatch, onClose, user]);
 
   return (
     <AnimatePresence mode="wait">
       {open && (
         <div className="fixed inset-0 z-50 pointer-events-auto">
-          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+          <div className="absolute inset-0 bg-black/20" onClick={onClose} aria-hidden="true" />
           <motion.div
             initial={{ x: '100%', opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
@@ -296,12 +243,12 @@ export default function Profile({ open = false, onClose = () => {} }) {
             tabIndex={-1}
             role="dialog"
             aria-modal="true"
-            className={`absolute inset-y-0 right-0 z-50 w-full md:w-96 lg:w-[420px] overflow-y-auto shadow-2xl backdrop-blur-lg ${
+            className={`absolute inset-y-0 right-0 z-50 w-full md:w-96 lg:w-[420px] overflow-y-auto shadow-2xl ${
               darkMode 
                 ? 'bg-gray-900/95 text-gray-100 border-l border-blue-500/20' 
                 : 'bg-white/95 text-gray-800 border-l border-gray-200'
             }`}
-            style={{ WebkitOverflowScrolling: 'touch' }}
+            style={{ WebkitOverflowScrolling: 'touch', willChange: 'transform, opacity' }}
           >
             <div className={`p-6 flex items-center justify-between ${
               darkMode 
@@ -315,7 +262,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
               <div className="flex items-center gap-3">
                 <motion.button 
                   onClick={onClose} 
-                  {...(isHoverable ? { whileHover: { scale: 1.1 }, whileTap: { scale: 0.95 } } : {})}
+                  {...hoverProps}
                   className={`p-2 rounded-full transition ${
                     darkMode 
                       ? 'hover:bg-white/10 active:bg-white/20' 
@@ -346,14 +293,8 @@ export default function Profile({ open = false, onClose = () => {} }) {
                     </div>
                   )}
 
-                  <motion.div 
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 0.5 }}
-                    className="flex items-center mb-8 gap-6"
-                  >
-                    <motion.div 
-                      {...(isHoverable ? { whileHover: { scale: 1.05 }, whileTap: { scale: 0.95 } } : {})}
+                  <div className="flex items-center mb-8 gap-6">
+                    <div 
                       className={`w-24 h-24 rounded-full flex items-center justify-center text-5xl font-extrabold shadow-lg ring-4 transition-all duration-300 ${
                         darkMode 
                           ? 'bg-gradient-to-br from-blue-900 to-purple-900 text-blue-300 ring-blue-500/30' 
@@ -362,43 +303,16 @@ export default function Profile({ open = false, onClose = () => {} }) {
                       aria-hidden="true"
                     >
                       {(userName || userEmail || '?').charAt(0).toUpperCase()}
-                    </motion.div>
+                    </div>
                     <div>
-                      <motion.h2 
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ duration: 0.5, delay: 0.1 }}
-                        className="text-2xl font-bold mb-1"
-                      >
-                        {userName}
-                      </motion.h2>
-                      <motion.p 
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ duration: 0.5, delay: 0.2 }}
-                        className={`mb-1 truncate max-w-[18rem] sm:max-w-none ${darkMode ? 'text-blue-200' : 'text-gray-600'}`}
-                        title={userEmail}
-                      >
-                        {userEmail}
-                      </motion.p>
-                      <motion.span 
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ duration: 0.5, delay: 0.3 }}
-                        className={`inline-block px-3 py-1 text-xs font-semibold rounded-full mb-1 ${
-                          darkMode 
-                            ? 'bg-gradient-to-r from-blue-800/40 to-purple-800/40 text-blue-300 border border-blue-700/30' 
-                            : 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 border border-blue-200'
-                        }`}
-                      >
-                        {userRole}
-                      </motion.span>
-                      <motion.div 
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ duration: 0.5, delay: 0.4 }}
-                        className={`text-xs mt-2 space-y-0.5 ${darkMode ? 'text-blue-300/70' : 'text-gray-500'}`}
-                      >
+                      <h2 className="text-2xl font-bold mb-1">{userName}</h2>
+                      <p className={`mb-1 truncate max-w-[18rem] sm:max-w-none ${darkMode ? 'text-blue-200' : 'text-gray-600'}`} title={userEmail}>{userEmail}</p>
+                      <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full mb-1 ${
+                        darkMode 
+                          ? 'bg-gradient-to-r from-blue-800/40 to-purple-800/40 text-blue-300 border border-blue-700/30' 
+                          : 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 border border-blue-200'
+                      }`}>{userRole}</span>
+                      <div className={`text-xs mt-2 space-y-0.5 ${darkMode ? 'text-blue-300/70' : 'text-gray-500'}`}>
                         <div className="flex items-center gap-1">
                           <div className={`w-1.5 h-1.5 rounded-full ${darkMode ? 'bg-green-500' : 'bg-green-400'}`} />
                           <span>Status: <span className={`font-semibold ${darkMode ? 'text-green-400' : 'text-green-600'}`}>Active</span></span>
@@ -409,9 +323,9 @@ export default function Profile({ open = false, onClose = () => {} }) {
                             <span>Member since {new Date(userCreatedAt).toLocaleDateString()}</span>
                           </div>
                         )}
-                      </motion.div>
+                      </div>
                     </div>
-                  </motion.div>
+                  </div>
 
                   {editMode ? (
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -697,7 +611,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         <motion.button
                           type="button"
                           onClick={() => setEditMode(false)}
-                          {...(isHoverable ? { whileHover: { scale: 1.03 }, whileTap: { scale: 0.98 } } : {})}
+                          {...hoverProps}
                           className={`px-4 py-2 rounded-lg transition-all duration-200 ${
                             darkMode 
                               ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-gray-200' 
@@ -709,8 +623,9 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         </motion.button>
                         <motion.button
                           id="saveButton"
+                          ref={saveButtonRef}
                           type="submit"
-                          {...(isHoverable ? { whileHover: { scale: 1.03 }, whileTap: { scale: 0.98 } } : {})}
+                          {...hoverProps}
                           className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-lg ${
                             loading 
                               ? darkMode 
@@ -728,12 +643,13 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         >
                           {loading ? (
                             <>
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: "100%" }}
-                                className={`absolute inset-0 ${darkMode ? 'bg-blue-500/20' : 'bg-white/20'}`}
-                                transition={{ duration: 1, repeat: Infinity }}
-                              />
+                                              <motion.div
+                                                initial={{ scaleX: 0 }}
+                                                animate={{ scaleX: 1 }}
+                                                className={`absolute left-0 top-0 bottom-0 origin-left ${darkMode ? 'bg-blue-500/20' : 'bg-white/20'}`}
+                                                transition={{ duration: 1, repeat: Infinity }}
+                                                style={{ willChange: 'transform, opacity' }}
+                                              />
                               <span className="z-10 flex items-center gap-2">
                                 <FaSave className="text-sm animate-pulse" /> Saving...
                               </span>
@@ -759,7 +675,96 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         </div>
                         <div>
                           <h3 className={`text-sm font-medium ${darkMode ? 'text-blue-200' : 'text-gray-500'}`}>Role</h3>
-                          <p className={`mt-1 capitalize ${darkMode ? 'text-blue-100' : 'text-gray-900'}`}>{user.role}</p>
+                          <div className="mt-1 flex items-center gap-3">
+                            <p className={`capitalize ${darkMode ? 'text-blue-100' : 'text-gray-900'}`}>{user.role}</p>
+                            <div>
+                              {/* Styled role-switch control: pill with icon + label; adapts to dark/light */}
+                              <button
+                                disabled={isAuthLoading}
+                                aria-label={`Switch role (current: ${user.role})`}
+                                title={`Switch to ${user.role === 'seller' ? 'Buyer' : 'Seller'}`}
+                                onClick={async () => {
+                                  if (!user) return;
+                                  const userId = user._id || user.id;
+                                  if (!userId) {
+                                    console.warn('User id not found for role switch', user);
+                                    return;
+                                  }
+                                  const target = user.role === 'seller' ? 'buyer' : 'seller';
+
+                                  if (user.role === 'seller' && target === 'buyer') {
+                                    const res = await Swal.fire({
+                                      title: 'Switch to Buyer?',
+                                      text: 'Switching from seller to buyer will deactivate all your products (they will no longer be active). This cannot be undone automatically. Do you want to continue?',
+                                      icon: 'warning',
+                                      showCancelButton: true,
+                                      confirmButtonText: 'Yes, switch to buyer',
+                                      cancelButtonText: 'Cancel',
+                                      background: darkMode ? '#1f2937' : '#ffffff',
+                                      color: darkMode ? '#e5e7eb' : '#1f2937'
+                                    });
+                                    if (!res.isConfirmed) return;
+                                  }
+
+                                  if (user.role !== 'seller' && target === 'seller') {
+                                    const res2 = await Swal.fire({
+                                      title: 'Switch to Seller?',
+                                      text: 'By switching to Seller you will be able to list and manage products. You will be redirected to the Seller Dashboard. Do you want to continue?',
+                                      icon: 'question',
+                                      showCancelButton: true,
+                                      confirmButtonText: 'Yes, switch to seller',
+                                      cancelButtonText: 'Cancel',
+                                      background: darkMode ? '#1f2937' : '#ffffff',
+                                      color: darkMode ? '#e5e7eb' : '#1f2937'
+                                    });
+                                    if (!res2.isConfirmed) return;
+                                  }
+
+                                  try {
+                                    const result = await dispatch(switchRoleUser({ userId, newRole: target })).unwrap();
+                                    toast.success('Role updated successfully');
+                                    setUser(result);
+
+                                    try {
+                                      localStorage.setItem('user', JSON.stringify(result));
+                                    } catch (e) {
+                                      console.warn('Failed to write user to localStorage after role switch', e);
+                                    }
+
+                                    if (target === 'seller') {
+                                      try { onClose(); } catch (e) { /* ignore */ }
+                                      setTimeout(() => {
+                                        navigate('/seller');
+                                        toast.success('Welcome to Seller mode! You have been redirected to the Seller Dashboard.', { autoClose: 3500 });
+                                      }, 200);
+                                    }
+
+                                    if (target === 'buyer') {
+                                      try { onClose(); } catch (e) { /* ignore */ }
+                                      setTimeout(() => {
+                                        navigate('/store');
+                                        setTimeout(() => {
+                                          try { window.location.reload(); } catch (e) { /* ignore */ }
+                                        }, 250);
+                                        toast.info('Your account has been switched to Buyer — your active products were deactivated.', { autoClose: 3500 });
+                                      }, 200);
+                                    }
+                                  } catch (err) {
+                                    console.error('Failed to switch role', err);
+                                    toast.error(err?.message || err || 'Failed to switch role');
+                                  }
+                                }}
+                                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-shadow focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                                  darkMode
+                                    ? 'bg-gray-800 text-gray-100 hover:shadow-lg focus:ring-blue-500/60'
+                                    : 'bg-white border border-gray-200 text-gray-800 hover:shadow-md focus:ring-blue-500/30'
+                                } ${isAuthLoading ? 'opacity-60 cursor-not-allowed' : 'hover:scale-[1.02]'}`}
+                              >
+                                <FaExchangeAlt className={`text-xs ${darkMode ? 'text-blue-200' : 'text-blue-600'}`} />
+                                <span className={`${darkMode ? 'text-blue-100' : 'text-gray-800'}`}>Switch</span>
+                              </button>
+                            </div>
+                          </div>
                         </div>
                         <div>
                           <h3 className={`text-sm font-medium ${darkMode ? 'text-blue-200' : 'text-gray-500'}`}>Status</h3>
@@ -782,11 +787,8 @@ export default function Profile({ open = false, onClose = () => {} }) {
                       <div className="flex flex-col gap-3 pt-6">
                         <div className="grid grid-cols-2 gap-3">
                           <motion.button
-                            onClick={() => {
-                                handleLogout();
-                            
-                            }}
-                            {...(isHoverable ? { whileHover: { scale: 1.02 }, whileTap: { scale: 0.98 } } : {})}
+                              onClick={() => { handleLogout(); }}
+                              {...hoverProps}
                             className={`w-full px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-lg ${
                               darkMode 
                                 ? 'bg-gradient-to-r from-blue-700 to-blue-600 text-blue-100 hover:shadow-blue-500/20' 
@@ -797,7 +799,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                           </motion.button>
                           <motion.button
                             onClick={() => setEditMode(true)}
-                            {...(isHoverable ? { whileHover: { scale: 1.02 }, whileTap: { scale: 0.98 } } : {})}
+                            {...hoverProps}
                             className={`w-full px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-lg ${
                               darkMode 
                                 ? 'bg-gradient-to-r from-purple-700 to-purple-600 text-purple-100 hover:shadow-purple-500/20' 
@@ -809,7 +811,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                         </div>
                         <motion.button 
                           onClick={() => setShowDeleteModal(true)}
-                          {...(isHoverable ? { whileHover: { scale: 1.02 }, whileTap: { scale: 0.98 } } : {})}
+                          {...hoverProps}
                           className={`w-full px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 ${
                             darkMode 
                               ? 'bg-red-900/20 text-red-400 hover:bg-red-900/30 border border-red-600/30' 
@@ -834,7 +836,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
               >
-                <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)} />
+                <div className="absolute inset-0 bg-black/30" onClick={() => setShowDeleteModal(false)} />
                 
                 <motion.div 
                   id="deleteModal"
@@ -847,6 +849,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                       ? 'bg-gradient-to-b from-gray-900 to-gray-800 text-gray-100' 
                       : 'bg-white text-gray-800'
                   }`}
+                  style={{ willChange: 'transform, opacity' }}
                 >
                   <div className={`px-6 py-4 border-b ${
                     darkMode ? 'border-gray-700' : 'border-gray-200'
@@ -990,6 +993,7 @@ export default function Profile({ open = false, onClose = () => {} }) {
                                 ? 'bg-gray-800/50 border-gray-700 text-gray-100 focus:border-red-500 focus:ring-1 focus:ring-red-500' 
                                 : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-red-500 focus:ring-1 focus:ring-red-500'
                             }`}
+                          ref={deletePasswordRef}
                           />
                         </motion.div>
                       )}
@@ -1057,3 +1061,5 @@ export default function Profile({ open = false, onClose = () => {} }) {
     </AnimatePresence>
   );
 }
+
+export default memo(Profile);

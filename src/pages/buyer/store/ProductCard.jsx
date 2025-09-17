@@ -6,6 +6,7 @@ import { FaHeart, FaRegStar, FaStarHalfAlt, FaStar } from "react-icons/fa";
 import { toast } from 'react-toastify';
 import api, { setAuthToken } from "../../../utils/api";
 import { updateCartStatus, fetchCart } from "../../../redux/cart.slice";
+import { isBuyer as isBuyerRole } from '../../../utils/role';
 import { incrementWishlistCount, decrementWishlistCount, fetchWishlistCount } from "../../../redux/wishlist.slice";
 
 const ProductImage = memo(({ product, hovered, onLoad, onError }) => {
@@ -213,7 +214,7 @@ const ProductActions = memo(({
 });
 
 function ProductCard({ product }) {
-  const { user, token } = useSelector((state) => state.auth);
+  const { user, token, role } = useSelector((state) => state.auth);
   const darkMode = useSelector(state => state.theme.darkMode);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [checkingWishlist, setCheckingWishlist] = useState(false);
@@ -225,6 +226,7 @@ function ProductCard({ product }) {
   const { isInCart, items } = useSelector((state) => state.cart);
   const isAddedToCart = isInCart[product._id] || false;
   const showRemoveOption = hovered && isAddedToCart;
+  const isBuyer = isBuyerRole(role || user || null);
 
   const getCartItemId = useCallback(() => {
     const cartItem = items.find(item => item.product?._id === product._id);
@@ -252,6 +254,10 @@ function ProductCard({ product }) {
     
     if (!user) {
       toast.error("Please login to manage wishlist");
+      return;
+    }
+    if (!isBuyer) {
+      toast.error('Only buyer accounts can use wishlist.');
       return;
     }
     
@@ -285,6 +291,10 @@ function ProductCard({ product }) {
     
     if (!user) {
       toast.error("You must be logged in to add products to cart");
+      return;
+    }
+    if (!isBuyer) {
+      toast.error('Only buyer accounts can add products to the cart.');
       return;
     }
     
@@ -325,6 +335,10 @@ function ProductCard({ product }) {
     
     if (!user) {
       toast.error("You must be logged in to remove products from cart");
+      return;
+    }
+    if (!isBuyer) {
+      toast.error('Only buyer accounts can modify the cart.');
       return;
     }
     

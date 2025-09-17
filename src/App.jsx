@@ -79,7 +79,7 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/seller/dashboard" element={<SellerDashboard />} />
+        <Route path="/seller" element={<SellerDashboard />} />
         <Route path="/seller/orders" element={<SellerOrders />} />
         <Route path="/seller/add-product" element={<AddProduct />} />
         <Route path="/seller/edit-product/:id" element={<EditProduct />} />

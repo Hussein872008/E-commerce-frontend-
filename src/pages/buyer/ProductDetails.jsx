@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
@@ -39,6 +39,7 @@ import {
 } from "react-icons/fa";
 import { subscribeToProduct, unsubscribeFromProduct, fetchSubscriptionsForUser } from '../../redux/notificationSlice';
 import { fetchCart, addItemOptimistically, updateCartStatus } from '../../redux/cart.slice';
+import { isBuyer as isBuyerRole } from '../../utils/role';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 
@@ -70,6 +71,7 @@ export default function ProductDetails() {
     const [subLoading, setSubLoading] = useState(false);
     const [triggerBellEffect, setTriggerBellEffect] = useState(false);
     const [showSubscribedMessage, setShowSubscribedMessage] = useState(false);
+    const [isBannerDismissed, setIsBannerDismissed] = useState(false);
 
 
     useEffect(() => {
@@ -97,6 +99,41 @@ export default function ProductDetails() {
     });
     const [imageLoading, setImageLoading] = useState(true);
     const [thumbnailsLoading, setThumbnailsLoading] = useState(true);
+    const [imageError, setImageError] = useState(false);
+
+    const failedImageSrcsRef = useRef(new Set());
+
+    const handleImgOnError = useCallback((e, src, isThumbnail = false) => {
+        try {
+            const failedSrc = src || e?.target?.getAttribute?.('src') || e?.target?.src;
+
+            if (failedImageSrcsRef.current.has(failedSrc)) {
+                try { e.target.src = '/placeholder-image.webp'; } catch (err) {}
+                if (isThumbnail) setThumbnailsLoading(false);
+                else setImageLoading(false);
+                return;
+            }
+
+            failedImageSrcsRef.current.add(failedSrc);
+
+            if (isThumbnail) {
+                setThumbnailsLoading(false);
+            } else {
+                setImageError(true);
+                setImageLoading(false);
+            }
+
+            try { e.target.src = '/placeholder-image.webp'; } catch (err) {}
+        } catch (err) {
+            if (isThumbnail) setThumbnailsLoading(false);
+            else setImageLoading(false);
+        }
+    }, []);
+
+    const getSafeSrc = useCallback((src) => {
+        if (!src) return '/placeholder-image.webp';
+        return failedImageSrcsRef.current.has(src) ? '/placeholder-image.webp' : src;
+    }, []);
 
     const hasValue = (v) => v !== undefined && v !== null && String(v).trim() !== "";
     const hasPositiveNumber = (v) => {
@@ -133,7 +170,7 @@ export default function ProductDetails() {
     };
 
     const isAddedToCart = product ? isInCart[product._id] : false;
-    const isBuyer = role === 'buyer' || (currentUser && currentUser.role === 'buyer');
+    const isBuyer = isBuyerRole(role || currentUser || null);
 
     useEffect(() => {
         if (token) {
@@ -313,6 +350,11 @@ export default function ProductDetails() {
 
     const handleReviewSubmit = async (e) => {
         e.preventDefault();
+
+        if (!isBuyer) {
+            toast.error('Only buyer accounts can submit reviews.');
+            return;
+        }
 
         if (!currentUser || !token) {
             toast.error("You need to login to write a review.");
@@ -677,6 +719,11 @@ export default function ProductDetails() {
             return;
         }
 
+        if (!isBuyer) {
+            toast.error('Only buyer accounts can use wishlist.');
+            return;
+        }
+
         try {
             setIsWishlisted(!isWishlisted);
             if (isWishlisted) {
@@ -723,6 +770,11 @@ export default function ProductDetails() {
     const handleSubscribeClick = async () => {
         if (!currentUser) {
             navigate("/login", { state: { from: `/product/${id}` } });
+            return;
+        }
+
+        if (!isBuyer) {
+            toast.error('Only buyer accounts can subscribe to product notifications.');
             return;
         }
 
@@ -881,9 +933,10 @@ export default function ProductDetails() {
 
                     <div className="max-w-full max-h-full">
                         <img
-                            src={allImages[currentSlide]}
+                            src={getSafeSrc(allImages[currentSlide])}
                             alt={`Product ${currentSlide + 1}`}
                             className="max-w-full max-h-screen object-contain"
+                            onError={(e) => handleImgOnError(e, allImages[currentSlide], false)}
                         />
                     </div>
 
@@ -914,6 +967,33 @@ export default function ProductDetails() {
                 <FaArrowLeft className="mr-2" /> Back to Store
             </button>
 
+            {/* Prominent seller banner (moved here so it's clearly visible) */}
+            {!isBuyer && !isBannerDismissed && (
+                <div className="mb-4">
+                    <div className={`rounded-md p-3 border ${darkMode ? 'bg-yellow-900/30 border-yellow-800 text-yellow-200' : 'bg-yellow-50 border-yellow-200 text-yellow-800'} flex items-start gap-3`} role="status" aria-live="polite">
+                        <div className="flex-shrink-0 mt-0.5">
+                            <FaInfoCircle className={`w-5 h-5 ${darkMode ? 'text-yellow-300' : 'text-yellow-600'}`} />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                                <div className="text-sm font-semibold">Signed in as: <span className="ml-2 font-bold">{role || currentUser?.role || 'user'}</span></div>
+                                <button
+                                    onClick={() => setIsBannerDismissed(true)}
+                                    aria-label="Dismiss account info"
+                                    className={`ml-4 text-xs px-2 py-1 rounded ${darkMode ? 'bg-yellow-800/40 hover:bg-yellow-800/60' : 'bg-white/80 hover:bg-white'} transition-colors`}
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                            <div className="mt-1 text-sm">
+                                To shop or use buyer-only features—like adding items to the cart, saving to a wishlist, posting reviews, or receiving product notifications—please switch to a Buyer account.
+                            </div>
+                           
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className={`rounded-xl shadow-lg overflow-hidden transition-all hover:shadow-xl ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-white'}`}>
                 <div className="flex flex-col lg:flex-row gap-4">
                     <div className="w-full lg:w-1/2 p-2 sm:p-6">
@@ -927,16 +1007,12 @@ export default function ProductDetails() {
                                 </div>
                             )}
                             <img
-                                src={mainImage}
+                                src={getSafeSrc(mainImage)}
                                 alt={product.title}
                                 className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                                 style={{ backgroundColor: 'transparent' }}
                                 onLoad={() => setImageLoading(false)}
-                                onError={(e) => {
-                                    e.target.src = '/placeholder-image.webp';
-                                    e.target.style.backgroundColor = 'transparent';
-                                    setImageLoading(false);
-                                }}
+                                onError={(e) => handleImgOnError(e, mainImage, false)}
                             />
                             <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                                 <FaExpand />
@@ -957,12 +1033,13 @@ export default function ProductDetails() {
                                             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-green-600"></div>
                                         </div>
                                     )}
-                                    <img
-                                        src={product.image}
+                                        <img
+                                        src={getSafeSrc(product.image)}
                                         alt="Main"
                                         className={`w-full h-full object-contain ${thumbnailsLoading ? 'opacity-0' : 'opacity-100'}`}
                                         style={{ backgroundColor: 'transparent' }}
                                         onLoad={() => setThumbnailsLoading(false)}
+                                        onError={(e) => handleImgOnError(e, product.image, true)}
                                     />
                                 </div>
                                 {product.extraImages.map((img, index) => (
@@ -980,11 +1057,12 @@ export default function ProductDetails() {
                                             </div>
                                         )}
                                         <img
-                                            src={img}
+                                            src={getSafeSrc(img)}
                                             alt={`${product.title} ${index + 1}`}
                                             className={`w-full h-full object-contain ${thumbnailsLoading ? 'opacity-0' : 'opacity-100'}`}
                                             style={{ backgroundColor: 'transparent' }}
                                             onLoad={() => setThumbnailsLoading(false)}
+                                            onError={(e) => handleImgOnError(e, img, true)}
                                         />
                                     </div>
                                 ))}
@@ -1287,11 +1365,7 @@ export default function ProductDetails() {
                                     </>
                                 )}
                             </button>
-                            {!isBuyer && (
-                                <div className={`text-sm mt-2 ${darkMode ? 'text-blue-300' : 'text-gray-600'}`}>
-                                    You are signed in as <span className="font-semibold">{role || currentUser?.role || 'user'}</span>. Switch to a buyer account to purchase.
-                                </div>
-                            )}
+                            
                         </div>
 
                         <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -472,7 +472,7 @@ export default function AddProduct() {
 
   return (
     <div className={`w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 transition-all duration-300 pb-28 ${isDarkMode
-        ? 'bg-gradient-to-br from-gray-900 via-blue-950 to-purple-950 text-gray-100 shadow-lg ring-1 ring-gray-700'
+        ? 'bg-gradient-to-br from-[#131C34] via-blue-950 to-purple-950 text-gray-100 shadow-lg ring-1 ring-gray-700'
         : 'bg-white/95 backdrop-blur-sm rounded-xl shadow-xl ring-1 ring-slate-200/50 hover:shadow-2xl'
       }`}>
   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
@@ -620,15 +620,6 @@ export default function AddProduct() {
 
             <div className="space-y-1">
               <div className="relative group">
-                <label
-                  htmlFor="title"
-                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-gray-900'
-                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
-                >
-                  Product Title (Required)
-                </label>
                 <input
                   id="title"
                   type="text"
@@ -638,10 +629,19 @@ export default function AddProduct() {
                   onChange={handleChange}
                   required
                   className={`peer w-full p-3 sm:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                      ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
+                <label
+                  htmlFor="title"
+                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
+                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                >
+                  Product Title (Required)
+                </label>
                 <span className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Enter a clear, descriptive title for your product
                 </span>
@@ -650,16 +650,6 @@ export default function AddProduct() {
 
             <div className="space-y-1">
               <div className="relative group">
-                <label
-                  htmlFor="price"
-                  className={`absolute left-8 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-gray-900'
-                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
-                >
-                  Price (Required)
-                </label>
-                <div className={`absolute left-4 top-[34%] -translate-y-1/2 text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>$</div>
                 <input
                   id="price"
                   type="number"
@@ -671,10 +661,20 @@ export default function AddProduct() {
                   step="0.01"
                   required
                   className={`peer w-full p-3 sm:p-4 pl-8 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                      ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
+                <label
+                  htmlFor="price"
+                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
+                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                >
+                  Price (Required)
+                </label>
+                <div className={`absolute right-9 top-[34%] -translate-y-1/2 text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>$</div>
                 <span className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Set the price in USD (minimum $0.01)
                 </span>
@@ -696,26 +696,25 @@ export default function AddProduct() {
                   min="1"
                   max="100"
                   className={`peer w-full p-3 sm:p-4 pr-8 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                      ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="discountPercentage"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-gray-900'
+                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
                       : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
                   Discount Percentage (1-100)
                 </label>
-                <div className={`absolute right-4 top-[30%] -translate-y-1/2 text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>%</div>
+                <div className={`absolute right-9 top-[34%] -translate-y-1/2 text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>%</div>
                 <span className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Set a discount between 0-100%
                 </span>
               </div>
             </div>
-
             <div className="space-y-1">
               <div className="relative group">
                 {categoriesLoading ? (
@@ -733,7 +732,7 @@ export default function AddProduct() {
                         onChange={handleChange}
                         required
                         className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                            ? 'bg-gray-900/50 border-gray-700/50 text-gray-100'
+                            ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100'
                             : 'bg-white/50 border-gray-300/50 text-gray-800'
                           } group-hover:border-blue-500/30`}
                       >
@@ -747,7 +746,7 @@ export default function AddProduct() {
                       <label
                         htmlFor="category"
                         className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                            ? 'text-gray-400 peer-focus:text-blue-400 bg-gray-900'
+                            ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
                             : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                           } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                       >
@@ -790,10 +789,10 @@ export default function AddProduct() {
                               value={newCategory}
                               onChange={(e) => setNewCategory(e.target.value)}
                               placeholder="New category"
-                              className={`p-2 rounded-lg text-sm border ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-800'}`}
+                              className={`p-2 rounded-lg text-sm border ${isDarkMode ? 'bg-[#131C34] border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-800'}`}
                             />
                             <button type="button" onClick={addNewCategory} className="px-3 py-1 rounded-lg bg-green-600 text-white text-sm">Add</button>
-                            <button type="button" onClick={() => { setShowNewCategoryField(false); setNewCategory(''); }} className="px-3 py-1 rounded-lg bg-gray-100 text-sm">Cancel</button>
+                            <button type="button" onClick={() => { setShowNewCategoryField(false); setNewCategory(''); }} className="px-3 py-1 rounded-lg bg-gray-400 text-sm">Cancel</button>
                           </div>
                         )}
 
@@ -824,14 +823,14 @@ export default function AddProduct() {
                   min="1"
                   required
                   className={`peer w-full p-3 sm:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                      ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="quantity"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-gray-900'
+                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
                       : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
@@ -853,14 +852,14 @@ export default function AddProduct() {
                   value={formData.brand}
                   onChange={handleChange}
                   className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                      ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="brand"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-gray-900'
+                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
                       : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
@@ -884,14 +883,14 @@ export default function AddProduct() {
                   rows="4"
                   required
                   className={`peer w-full p-3 sm:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                      ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="description"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-gray-900'
+                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
                       : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-7 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
@@ -934,14 +933,14 @@ export default function AddProduct() {
                   onChange={handleChange}
                   min="0"
                   className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                    ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="weight"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-gray-900 bg-gray-900'
+                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
                     : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
@@ -967,14 +966,14 @@ export default function AddProduct() {
                       min="0"
                       step="0.1"
                       className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                        ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                        ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                         : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                         } group-hover:border-blue-500/30`}
                     />
                     <label
                       htmlFor="dimensions.width"
                       className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                        ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-gray-900 bg-gray-900'
+                        ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
                         : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                         } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                     >
@@ -992,14 +991,14 @@ export default function AddProduct() {
                       min="0"
                       step="0.1"
                       className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                        ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                        ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                         : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                         } group-hover:border-blue-500/30`}
                     />
                     <label
                       htmlFor="dimensions.height"
                       className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                        ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-gray-900 bg-gray-900'
+                        ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
                         : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                         } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                     >
@@ -1017,14 +1016,14 @@ export default function AddProduct() {
                       min="0"
                       step="0.1"
                       className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                        ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                        ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                         : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                         } group-hover:border-blue-500/30`}
                     />
                     <label
                       htmlFor="dimensions.depth"
                       className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                        ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-gray-900 bg-gray-900'
+                        ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
                         : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                         } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                     >
@@ -1045,14 +1044,14 @@ export default function AddProduct() {
                   value={formData.warrantyInformation}
                   onChange={handleChange}
                   className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                    ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="warrantyInformation"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-gray-900 bg-gray-900'
+                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
                     : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
@@ -1071,14 +1070,14 @@ export default function AddProduct() {
                   value={formData.shippingInformation}
                   onChange={handleChange}
                   className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                    ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="shippingInformation"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-gray-900 bg-gray-900'
+                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
                     : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
@@ -1097,14 +1096,14 @@ export default function AddProduct() {
                   value={formData.returnPolicy}
                   onChange={handleChange}
                   className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                    ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="returnPolicy"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-gray-900 bg-gray-900'
+                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
                     : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
@@ -1124,14 +1123,14 @@ export default function AddProduct() {
                   onChange={handleChange}
                   min="1"
                   className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                    ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="minimumOrderQuantity"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-gray-900 bg-gray-900'
+                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
                     : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
@@ -1150,14 +1149,14 @@ export default function AddProduct() {
                   value={formData.tags}
                   onChange={handleChange}
                   className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                    ? 'bg-gray-900/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="tags"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-gray-900 bg-gray-900'
+                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
                     : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
@@ -1190,7 +1189,7 @@ export default function AddProduct() {
                 
                 {imagePreview ? (
                   <div className="relative inline-block group">
-                    <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-900/50' : 'bg-white'} shadow-lg ring-1 ring-gray-900/5 transition duration-300 group-hover:shadow-xl`}>
+                    <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-[#131C34]/50' : 'bg-white'} shadow-lg ring-1 ring-[#131C34]/5 transition duration-300 group-hover:shadow-xl`}>
                       <img
                         src={imagePreview}
                         alt="Main preview"
@@ -1280,7 +1279,7 @@ export default function AddProduct() {
                     >
                       {extraImagesPreviews.map((preview, index) => (
                           <div key={index} className="relative group">
-                          <div className={`p-2 rounded-xl ${isDarkMode ? 'bg-gray-900/50' : 'bg-white'} shadow-sm ring-1 ring-gray-900/5 transition duration-300 group-hover:shadow-md`}>
+                          <div className={`p-2 rounded-xl ${isDarkMode ? 'bg-[#131C34]/50' : 'bg-white'} shadow-sm ring-1 ring-[#131C34]/5 transition duration-300 group-hover:shadow-md`}>
                             <img
                               src={preview}
                               alt={`Preview ${index + 1}`}
@@ -1379,11 +1378,20 @@ export default function AddProduct() {
         </button>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+  <div className="flex-1 flex flex-col sm:flex-row items-center gap-3 sm:justify-end">
         {activeSection !== "images" ? (
           <button
             type="button"
-            onClick={() => handleNext()}
+            onClick={() => {
+              if (activeSection === 'basic') {
+                handleChangeSection('details');
+                return;
+              }
+              if (activeSection === 'details') {
+                setActiveSection('images');
+                return;
+              }
+            }}
             className={`group px-4 sm:px-6 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 transform hover:-translate-y-0.5 shadow-md w-full sm:w-auto ${
               isDarkMode
                 ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white'

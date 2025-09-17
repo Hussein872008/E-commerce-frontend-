@@ -31,7 +31,7 @@ export default function Login() {
   useEffect(() => {
     if (isAuthenticated && user && role) {
       const redirectPath = role === 'admin' ? '/admin-dashboard'
-        : role === 'seller' ? '/seller/dashboard'
+        : role === 'seller' ? '/seller'
         : '/store';
       navigate(redirectPath);
     }

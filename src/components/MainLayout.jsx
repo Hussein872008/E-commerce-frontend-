@@ -276,7 +276,7 @@ export default function MainLayout({ role = "buyer" }) {
     return (
       <>
         {[
-          { to: "/seller/dashboard", icon: <FiHome size={18} />, label: "Dashboard" },
+          { to: "/seller", icon: <FiHome size={18} />, label: "Dashboard" },
           { to: "/seller/add-product", icon: <FiPlus size={18} />, label: "Add Product" },
           { to: "/seller/my-products", icon: <FiBox size={18} />, label: "Products" },
           { to: "/seller/orders", icon: <FiClipboard size={18} />, label: "Orders" }
@@ -397,7 +397,7 @@ export default function MainLayout({ role = "buyer" }) {
                     ) : (
                       <>
                         <NavLink 
-                          to="/seller/dashboard" 
+                          to="/seller" 
                           className={({ isActive }) => `flex items-center gap-3 p-3 rounded-xl text-white ${isActive ? 'bg-white/20' : 'hover:bg-white/10'}`}
                           onClick={() => closeMobileMenu()}
                         >
@@ -533,7 +533,7 @@ export default function MainLayout({ role = "buyer" }) {
               className="flex items-center gap-2"
             >
               <Link 
-                to={isBuyer ? "/store" : "/seller/dashboard"} 
+                to={isBuyer ? "/store" : "/seller"} 
                 className="flex items-center gap-1 sm:gap-2 text-xl sm:text-2xl font-bold tracking-tight"
               >
                 <motion.div 
