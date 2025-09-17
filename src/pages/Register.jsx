@@ -198,6 +198,7 @@ export default function Register() {
                 name="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Create a strong password"
+                autocomplete="new-password"
                 value={formData.password}
                 onChange={handleChange}
                 onBlur={handleBlur}
@@ -242,6 +243,7 @@ export default function Register() {
                 type={showPasswordConfirm ? "text" : "password"}
                 placeholder="Confirm your password"
                 value={formData.passwordConfirm}
+                autocomplete="new-password"
                 onChange={handleChange}
                 onBlur={handleBlur}
                 required
