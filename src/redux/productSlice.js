@@ -1,12 +1,18 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api, { setAuthToken } from '../utils/api';
+import serializeFilters from '../utils/queryKey';
 
 export const fetchAllProducts = createAsyncThunk(
   'products/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-  const response = await api.get('/api/products');
-      return Array.isArray(response.data.data) ? response.data.data : [];
+  const response = await api.get('/api/products', { params: { fields: '_id,title,price,discountPercentage,image,extraImages,quantity,minimumOrderQuantity,averageRating,reviewsCount,brand,sku,description' } });
+
+      const d = response.data;
+      if (Array.isArray(d)) return d;
+      if (d && Array.isArray(d.data)) return d.data;
+      if (d && Array.isArray(d.products)) return d.products;
+      return [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch products");
     }
@@ -15,10 +21,33 @@ export const fetchAllProducts = createAsyncThunk(
 
 export const fetchFilteredProducts = createAsyncThunk(
   'products/fetchFiltered',
-  async (filters, { rejectWithValue }) => {
+  async (filters = {}, { rejectWithValue }) => {
     try {
-  const response = await api.get('/api/products/filtered', { params: filters });
-      return Array.isArray(response.data.products) ? response.data.products : [];
+    const params = { ...filters };
+
+    const { page, limit, ...cacheableFilters } = filters || {};
+    const cacheKey = serializeFilters({ ...cacheableFilters, fields: (filters && filters.fields) || '' });
+
+      if (!fetchFilteredProducts._cache) fetchFilteredProducts._cache = new Map();
+      const cache = fetchFilteredProducts._cache;
+
+
+      const now = Date.now();
+      const cached = cache.get(cacheKey);
+      const isPageOne = !params.page || Number(params.page) === 1;
+      if (isPageOne && cached && (now - cached.ts) < 2 * 60 * 1000) {
+        return cached.value;
+      }
+
+      const response = await api.get('/api/products/filtered', { params });
+      const payload = response.data || {};
+
+
+      if (isPageOne) {
+        try { cache.set(cacheKey, { value: payload, ts: Date.now() }); } catch(e){}
+      }
+
+      return payload;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch filtered products");
     }
@@ -56,7 +85,7 @@ export const fetchRelatedProducts = createAsyncThunk(
   async ({ category, excludeId }, { rejectWithValue }) => {
     try {
   const response = await api.get('/api/products/filtered', {
-        params: { category, limit: 4, exclude: excludeId }
+    params: { category, limit: 4, exclude: excludeId, fields: '_id,title,price,discountPercentage,image,extraImages,quantity,minimumOrderQuantity,averageRating,reviewsCount,brand,sku,description,category' }
       });
       return Array.isArray(response.data.products) ? response.data.products : [];
     } catch (error) {
@@ -86,7 +115,13 @@ export const fetchSellerSalesData = createAsyncThunk(
       const token = getState().auth.token;
       setAuthToken(token);
       const response = await api.get('/api/products/seller/sales-data');
-      return response.data;
+
+      const d = response.data;
+      if (Array.isArray(d)) return d;
+      if (d && Array.isArray(d.ordersSales)) return d.ordersSales;
+
+      if (d && d.ordersSales && Array.isArray(d.ordersSales.ordersSales)) return d.ordersSales.ordersSales;
+      return [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch sales data");
     }
@@ -100,7 +135,11 @@ export const fetchSellerPopularProducts = createAsyncThunk(
       const token = getState().auth.token;
       setAuthToken(token);
       const response = await api.get('/api/products/seller/popular');
-      return response.data;
+
+      const d = response.data;
+      if (Array.isArray(d)) return d;
+      if (d && Array.isArray(d.popularProducts)) return d.popularProducts;
+      return [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || "Failed to fetch popular products");
     }
@@ -119,6 +158,12 @@ const productSlice = createSlice({
     error: null,
     filters: {},
     isFiltered: false,
+
+    page: 1,
+    pages: 1,
+    total: 0,
+
+  requestedPage: null,
     sellerDashboardStats: {
       productsCount: 0,
       ordersCount: 0,
@@ -162,19 +207,64 @@ const productSlice = createSlice({
         state.error = action.payload;
       })
 
-      .addCase(fetchFilteredProducts.pending, (state) => {
+      .addCase(fetchFilteredProducts.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        try {
+          const reqPage = action?.meta?.arg && action.meta.arg.page ? Number(action.meta.arg.page) : 1;
+          state.requestedPage = reqPage;
+        } catch (e) { state.requestedPage = 1; }
       })
       .addCase(fetchFilteredProducts.fulfilled, (state, action) => {
         state.loading = false;
-        state.filteredProducts = Array.isArray(action.payload) ? action.payload : [];
+
+        state.requestedPage = null;
+        const payload = action.payload || {};
+    const products = Array.isArray(payload.products) ? payload.products : (Array.isArray(payload.data) ? payload.data : []);
+    try { } catch(e) {}
         state.isFiltered = true;
-        state.allProducts = Array.isArray(action.payload) ? action.payload : [];
+ const requestedArgPage = action && action.meta && action.meta.arg && typeof action.meta.arg.page !== 'undefined'
+          ? Number(action.meta.arg.page)
+          : undefined;
+        const page = (payload && typeof payload.page !== 'undefined')
+          ? Number(payload.page)
+          : (typeof requestedArgPage !== 'undefined' ? requestedArgPage : (state.filteredProducts && state.filteredProducts.length ? Number(state.page || 1) : 1));
+        let pages = 1;
+        const total = payload && (payload.total || payload.count) ? (Number(payload.total || payload.count) || 0) : (products.length || 0);
+        if (payload && typeof payload.pages !== 'undefined') {
+          pages = Number(payload.pages) || 1;
+        } else if (payload && payload.total && (payload.count || products.length)) {
+          const perPage = payload.count ? Number(payload.count) : (products.length || 1);
+          pages = perPage > 0 ? Math.max(1, Math.ceil(Number(payload.total) / perPage)) : 1;
+        } else {
+          pages = 1;
+        }
+
+        if (page > 1) {
+          const existingIds = new Set(state.filteredProducts.map(p => p._id));
+          const newItems = products.filter(p => !existingIds.has(p._id));
+          state.filteredProducts = state.filteredProducts.concat(newItems);
+        } else {
+          try { } catch (e) {}
+          state.filteredProducts = products;
+          state.allProducts = products;
+        }
+
+        state.page = page;
+        state.pages = pages;
+        state.total = total;
+        try {
+          const arg = action && action.meta && action.meta.arg ? action.meta.arg : {};
+          const { page: _p, limit: _l, ...appliedFilters } = arg;
+          state.filters = appliedFilters || {};
+        } catch (e) {
+          state.filters = state.filters || {};
+        }
       })
       .addCase(fetchFilteredProducts.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        state.requestedPage = null;
       })
 
       .addCase(fetchMyProducts.pending, (state) => {

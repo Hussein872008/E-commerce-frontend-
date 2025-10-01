@@ -38,6 +38,7 @@ export default function EditProduct() {
     extraImages: [],
     existingImage: "",
     existingExtraImages: [],
+    removedExistingImages: [],
     extraImagesPreviews: [],
   });
 
@@ -69,11 +70,11 @@ export default function EditProduct() {
       shippingInformation: p.shippingInformation || "",
       returnPolicy: p.returnPolicy || "",
       minimumOrderQuantity: p.minimumOrderQuantity || 1,
-      tags: Array.isArray(p.tags) ? p.tags : [] ,
-  existingImage: p.existingImage || "",
-  existingExtraImages: Array.isArray(p.existingExtraImages) ? p.existingExtraImages : [],
-  hasNewMainImage: Boolean(p.image),
-  newExtraImagesCount: Array.isArray(p.extraImages) ? p.extraImages.length : 0
+      tags: Array.isArray(p.tags) ? p.tags : [],
+      existingImage: p.existingImage || "",
+      existingExtraImages: Array.isArray(p.existingExtraImages) ? p.existingExtraImages : [],
+      hasNewMainImage: Boolean(p.image),
+      newExtraImagesCount: Array.isArray(p.extraImages) ? p.extraImages.length : 0
     });
   };
 
@@ -117,10 +118,17 @@ export default function EditProduct() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-  const res = await api.get('/api/products/categories', { headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
-        setCategories(res.data);
+        const res = await api.get('/api/products/categories', { headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
+
+        const payload = res.data;
+        const cats = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.categories)
+            ? payload.categories
+            : [];
+        setCategories(cats);
       } catch (err) {
-        console.error("Failed to load categories", err);
+
         setError("Failed to load categories");
       }
     };
@@ -131,38 +139,42 @@ export default function EditProduct() {
     const fetchProduct = async () => {
       try {
         setProductLoading(true);
-  const res = await api.get(`/api/products/${id}`, { headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
+        const res = await api.get(`/api/products/${id}`, { headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
 
-    const data = res.data;
 
-  const loaded = {
-      title: data.title ?? "",
-      description: data.description ?? "",
-      price: data.price ?? "",
-      discountPercentage: data.discountPercentage ?? 0,
-      quantity: data.quantity ?? 1,
-      category: data.category ?? "",
-      brand: data.brand ?? "",
-      sku: data.sku ?? "",
-      weight: data.weight ?? "",
-      dimensions: data.dimensions ?? { width: "", height: "", depth: "" },
-      warrantyInformation: data.warrantyInformation ?? "",
-      shippingInformation: data.shippingInformation ?? "",
-      returnPolicy: data.returnPolicy ?? "",
-      minimumOrderQuantity: data.minimumOrderQuantity ?? 1,
-      tags: data.tags ?? [],
-      image: null,
-      extraImages: [],
-      existingImage: data.image || "",
-      existingExtraImages: data.extraImages || [],
-      extraImagesPreviews: [],
-    };
+        const payload = res.data;
+        const data = payload?.product ?? payload?.data ?? payload;
 
-  setProduct(loaded);
-  setOriginalProduct(getComparableProduct(loaded));
-        
+        const loaded = {
+          title: data?.title ?? "",
+          description: data?.description ?? "",
+
+          price: typeof data?.price !== 'undefined' && data?.price !== null ? String(data.price) : "",
+          discountPercentage: data?.discountPercentage ?? 0,
+          quantity: data?.quantity ?? 1,
+          category: data?.category ?? "",
+          brand: data?.brand ?? "",
+          sku: data?.sku ?? "",
+          weight: data?.weight ?? "",
+          dimensions: data?.dimensions ?? { width: "", height: "", depth: "" },
+          warrantyInformation: data?.warrantyInformation ?? "",
+          shippingInformation: data?.shippingInformation ?? "",
+          returnPolicy: data?.returnPolicy ?? "",
+          minimumOrderQuantity: data?.minimumOrderQuantity ?? 1,
+          tags: data?.tags ?? [],
+          image: null,
+          extraImages: [],
+          existingImage: data?.image || "",
+          existingExtraImages: Array.isArray(data?.extraImages) ? data.extraImages : [],
+          removedExistingImages: [],
+          extraImagesPreviews: [],
+        };
+
+        setProduct(loaded);
+        setOriginalProduct(getComparableProduct(loaded));
+
       } catch (err) {
-        console.error("Failed to load product:", err);
+
         setError("⚠️ Failed to load product data");
         if (err.response?.status === 404) {
           navigate("/seller/my-products");
@@ -179,8 +191,8 @@ export default function EditProduct() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-  if (saved) setSaved(false);
-  setDirty(true);
+    if (saved) setSaved(false);
+    setDirty(true);
     if (name.startsWith("dimensions.")) {
       const dimensionField = name.split(".")[1];
       setProduct(prev => ({
@@ -191,12 +203,20 @@ export default function EditProduct() {
         }
       }));
     } else {
-      setProduct(prev => ({
-        ...prev,
-        [name]: name === "quantity" || name === "minimumOrderQuantity"
-          ? Math.max(1, parseInt(value) || 1)
-          : value
-      }));
+      if (name === 'price') {
+        const normalized = String(value).replace(/,/g, '.');
+        setProduct(prev => ({ ...prev, [name]: normalized }));
+      } else if (name === 'discountPercentage') {
+        const normalized = String(value).replace(/,/g, '.');
+        setProduct(prev => ({ ...prev, [name]: normalized }));
+      } else {
+        setProduct(prev => ({
+          ...prev,
+          [name]: name === "quantity" || name === "minimumOrderQuantity"
+            ? Math.max(1, parseInt(value) || 1)
+            : value
+        }));
+      }
     }
     if (name === 'minimumOrderQuantity') {
       const minVal = Number(value) || 0;
@@ -211,7 +231,7 @@ export default function EditProduct() {
   };
 
   const handleImageChange = (e) => {
-  if (saved) setSaved(false);
+    if (saved) setSaved(false);
     const { name, files } = e.target;
     if (!files || files.length === 0) return;
 
@@ -232,7 +252,7 @@ export default function EditProduct() {
         ...product,
         image: files[0]
       });
-  setDirty(true);
+      setDirty(true);
     } else if (name === "extraImages") {
       if (product.existingExtraImages.length + product.extraImagesPreviews.length + files.length > 5) {
         setError("You can add up to 5 images maximum");
@@ -248,15 +268,15 @@ export default function EditProduct() {
         extraImages: [...product.extraImages, ...Array.from(files)],
         extraImagesPreviews: [...product.extraImagesPreviews, ...newImagePreviews]
       });
-  setDirty(true);
+      setDirty(true);
     }
     setError("");
   };
 
-const handleRemoveExtraImage = async (index) => {
-  try {
-  if (saved) setSaved(false);
-  setDirty(true);
+  const handleRemoveExtraImage = async (index) => {
+
+    if (saved) setSaved(false);
+    setDirty(true);
     const isNewImage = index >= product.existingExtraImages.length;
     if (isNewImage) {
       const imageIndex = index - product.existingExtraImages.length;
@@ -268,36 +288,30 @@ const handleRemoveExtraImage = async (index) => {
         extraImages: prev.extraImages.filter((_, i) => i !== imageIndex),
         extraImagesPreviews: prev.extraImagesPreviews.filter((_, i) => i !== imageIndex),
       }));
-    } else {
-      const imageUrl = product.existingExtraImages[index];
-      setAuthToken(token);
-      await api.put(`/api/products/${id}/delete-image`, { imagePath: imageUrl });
-
-      setProduct(prev => ({
-        ...prev,
-        existingExtraImages: prev.existingExtraImages.filter((_, i) => i !== index),
-      }));
-
-      if (typeof toast !== 'undefined') {
-        toast.success("Image deleted successfully");
-      }
+      return;
     }
-  } catch (err) {
-    console.error("Failed to delete image:", err);
+
+
+    const imageUrl = product.existingExtraImages[index];
+    setProduct(prev => ({
+      ...prev,
+      existingExtraImages: prev.existingExtraImages.filter((_, i) => i !== index),
+      removedExistingImages: [...(prev.removedExistingImages || []), imageUrl]
+    }));
+
     if (typeof toast !== 'undefined') {
-      toast.error(err.response?.data?.error || "Failed to delete image");
+      toast.success("Image marked for removal. Changes will be applied when you save.");
     }
-  }
-};
+  };
 
   const removeMainImage = () => {
-  if (saved) setSaved(false);
+    if (saved) setSaved(false);
     setProduct(prev => ({
       ...prev,
       existingImage: "",
       image: null
     }));
-  setDirty(true);
+    setDirty(true);
   };
 
   const validateForm = () => {
@@ -341,17 +355,41 @@ const handleRemoveExtraImage = async (index) => {
     setLoading(true);
 
     try {
+
+      if (product.removedExistingImages && product.removedExistingImages.length > 0) {
+
+        setAuthToken(token);
+        for (const imgPath of product.removedExistingImages) {
+          try {
+            await api.put(`/api/products/${id}/delete-image`, { imagePath: imgPath }, { headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
+          } catch (singleErr) {
+
+          }
+        }
+      }
+
       const formData = new FormData();
       formData.append("title", product.title);
       formData.append("description", product.description);
-  formData.append("price", product.price);
+      const priceToSend = (typeof product.price === 'number') ? product.price.toFixed(2) : String(product.price);
+      formData.append("price", priceToSend);
       formData.append("discountPercentage", product.discountPercentage || 0);
       formData.append("quantity", product.quantity);
       formData.append("category", product.category);
       formData.append("brand", product.brand || "");
       formData.append("sku", product.sku || "");
-      formData.append("weight", product.weight || "");
-      formData.append("dimensions", JSON.stringify(product.dimensions));
+      if (typeof product.weight !== 'undefined' && product.weight !== null && String(product.weight).trim() !== '') {
+        const normalizedWeight = String(product.weight).replace(/,/g, '.');
+        const wnum = parseFloat(normalizedWeight);
+        if (!Number.isNaN(wnum)) formData.append("weight", String(wnum));
+      }
+      const dims = product.dimensions || {};
+      const normalizedDims = {
+        width: (() => { const v = String(dims.width || '').replace(/,/g, '.'); const n = parseFloat(v); return Number.isNaN(n) ? 0 : n; })(),
+        height: (() => { const v = String(dims.height || '').replace(/,/g, '.'); const n = parseFloat(v); return Number.isNaN(n) ? 0 : n; })(),
+        depth: (() => { const v = String(dims.depth || '').replace(/,/g, '.'); const n = parseFloat(v); return Number.isNaN(n) ? 0 : n; })(),
+      };
+      formData.append("dimensions", JSON.stringify(normalizedDims));
       formData.append("warrantyInformation", product.warrantyInformation || "");
       formData.append("shippingInformation", product.shippingInformation || "");
       formData.append("returnPolicy", product.returnPolicy || "");
@@ -366,15 +404,15 @@ const handleRemoveExtraImage = async (index) => {
         formData.append("extraImages", file);
       });
 
-  const res = await api.put(`/api/products/${id}`, formData, { headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${token}` }, withCredentials: true });
-
+      const res = await api.put(`/api/products/${id}`, formData, { headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${token}` }, withCredentials: true });
       setSuccessMsg("✅ Product updated successfully");
       setSaved(true);
+      setProduct(prev => ({ ...prev, removedExistingImages: [] }));
       setTimeout(() => {
         navigate("/seller/my-products");
       }, 1500);
     } catch (err) {
-      console.error(err);
+
       const message =
         err.response?.data?.message ||
         err.response?.data?.error ||
@@ -397,10 +435,10 @@ const handleRemoveExtraImage = async (index) => {
 
   if (productLoading) {
     return (
-      <div className={`max-w-6xl mx-auto p-6 pb-32 transition-all duration-300 ${isDarkMode
+      <div className={`max-w-6xl mx-auto p-6 pb-8 transition-all duration-300 ${isDarkMode
         ? 'bg-[#141E3E] text-gray-100 shadow-lg ring-1 ring-gray-700'
         : 'bg-white/95 backdrop-blur-sm rounded-xl shadow-xl ring-1 ring-slate-200/50 hover:shadow-2xl'
-      }`}>
+        }`}>
         <div className="animate-pulse space-y-6">
           <div className={`h-8 rounded ${isDarkMode ? 'bg-gray-800/60' : 'bg-gray-200'}`} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -420,7 +458,7 @@ const handleRemoveExtraImage = async (index) => {
   }
 
   return (
-    <div className={`max-w-6xl mx-auto p-4 pb-32 transition-all duration-200 ${isDarkMode ? 'bg-[#141E3E] text-gray-100 rounded-lg shadow-lg ring-1 ring-gray-700' : 'bg-white/80 rounded-lg shadow-md'}`}>
+    <div className={`max-w-6xl mx-auto p-4 pb-8 mt-8 sm:mt-12 transition-all duration-200 ${isDarkMode ? 'bg-[#141E3E] text-gray-100 rounded-lg shadow-lg ring-1 ring-gray-700' : 'bg-white/80 rounded-lg shadow-md'}`}>
       <div className="flex justify-between items-center mb-6">
         <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Edit Product</h2>
         <button
@@ -474,8 +512,8 @@ const handleRemoveExtraImage = async (index) => {
                 <label
                   htmlFor="title"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
-                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
+                    : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
                   Product Name (Required)
@@ -490,8 +528,8 @@ const handleRemoveExtraImage = async (index) => {
                   onBlur={handleBlur}
                   required
                   className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                    ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     }`}
                 />
                 {fieldErrors.title && <p className="text-sm text-red-500 mt-1">{fieldErrors.title}</p>}
@@ -504,8 +542,8 @@ const handleRemoveExtraImage = async (index) => {
                 <label
                   htmlFor="price"
                   className={`absolute left-8 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E] '
-                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E] '
+                    : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
                   Price (Required)
@@ -522,8 +560,8 @@ const handleRemoveExtraImage = async (index) => {
                   step="0.01"
                   required
                   className={`peer w-full p-3 pl-8 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                    ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     }`}
                 />
                 {fieldErrors.price && <p className="text-sm text-red-500 mt-1">{fieldErrors.price}</p>}
@@ -541,22 +579,23 @@ const handleRemoveExtraImage = async (index) => {
                   value={product.discountPercentage}
                   onChange={handleChange}
                   min="0"
-                  max="100"
+                  max="99"
+                  step="0.01"
                   className={`peer w-full p-3 pr-8 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                    ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     }`}
                 />
                 <label
-                          htmlFor="discountPercentage"
-                          className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                              ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
-                              : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                            } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
-                        >
-                          Discount Percentage (0-100)
-                        </label>
-                <div className={`absolute right-3 top-[34%] -translate-y-1/2 text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>%</div>
+                  htmlFor="discountPercentage"
+                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                    ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
+                    : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                >
+                  Discount Percentage (0-99)
+                </label>
+                <div className={`absolute right-3 top-[45%] -translate-y-1/2 text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>%</div>
               </div>
             </div>
 
@@ -572,15 +611,15 @@ const handleRemoveExtraImage = async (index) => {
                   min="1"
                   required
                   className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                    ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     }`}
                 />
                 <label
                   htmlFor="quantity"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
-                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
+                    : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
                   Available Quantity *
@@ -598,8 +637,8 @@ const handleRemoveExtraImage = async (index) => {
                   onBlur={handleBlur}
                   required
                   className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800'
+                    ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100'
+                    : 'bg-white/50 border-gray-300/50 text-gray-800'
                     }`}
                 >
                   <option value="">Select category</option>
@@ -611,14 +650,14 @@ const handleRemoveExtraImage = async (index) => {
                 </select>
                 {fieldErrors.category && <p className="text-sm text-red-500 mt-1">{fieldErrors.category}</p>}
                 <label
-                          htmlFor="category"
-                          className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                              ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
-                              : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                            } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
-                        >
-                          Category (Required)
-                        </label>
+                  htmlFor="category"
+                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                    ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
+                    : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                >
+                  Category (Required)
+                </label>
               </div>
             </div>
 
@@ -632,19 +671,19 @@ const handleRemoveExtraImage = async (index) => {
                   value={product.brand}
                   onChange={handleChange}
                   className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                    ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     }`}
                 />
                 <label
-                          htmlFor="brand"
-                          className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                              ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
-                              : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                            } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
-                        >
-                          Brand (Optional)
-                        </label>
+                  htmlFor="brand"
+                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                    ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
+                    : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                >
+                  Brand (Optional)
+                </label>
               </div>
             </div>
 
@@ -659,9 +698,11 @@ const handleRemoveExtraImage = async (index) => {
                   value={product.weight}
                   onChange={handleChange}
                   min="0"
+                  step="0.01"
+
                   className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                    ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     }`}
                 />
                 <label
@@ -669,7 +710,7 @@ const handleRemoveExtraImage = async (index) => {
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
                     ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
                     : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                  } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                    } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
                   Weight (g) (optional)
                 </label>
@@ -688,18 +729,18 @@ const handleRemoveExtraImage = async (index) => {
                     value={product.dimensions.width}
                     onChange={handleChange}
                     min="0"
-                    step="0.1"
+                    step="0.01"
                     className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
                       ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
-                    }`}
+                      }`}
                   />
                   <label
                     htmlFor="dimensions.width"
                     className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
                       ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]'
                       : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                      } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                   >Width</label>
                 </div>
                 <div className="relative group">
@@ -711,11 +752,11 @@ const handleRemoveExtraImage = async (index) => {
                     value={product.dimensions.height}
                     onChange={handleChange}
                     min="0"
-                    step="0.1"
+                    step="0.01"
                     className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
                       ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
-                    }`}
+                      }`}
                   />
                   <label htmlFor="dimensions.height" className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]' : 'text-gray-500 peer-focus:text-blue-600 bg-white'} peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}>Height</label>
                 </div>
@@ -728,11 +769,11 @@ const handleRemoveExtraImage = async (index) => {
                     value={product.dimensions.depth}
                     onChange={handleChange}
                     min="0"
-                    step="0.1"
+                    step="0.01"
                     className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
                       ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
-                    }`}
+                      }`}
                   />
                   <label htmlFor="dimensions.depth" className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]' : 'text-gray-500 peer-focus:text-blue-600 bg-white'} peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}>Depth</label>
                 </div>
@@ -751,7 +792,7 @@ const handleRemoveExtraImage = async (index) => {
                   className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
                     ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
-                  }`}
+                    }`}
                 />
                 <label htmlFor="warrantyInformation" className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]' : 'text-gray-500 peer-focus:text-blue-600 bg-white'} peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}>Warranty Information</label>
               </div>
@@ -769,7 +810,7 @@ const handleRemoveExtraImage = async (index) => {
                   className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
                     ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
-                  }`}
+                    }`}
                 />
                 <label htmlFor="shippingInformation" className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]' : 'text-gray-500 peer-focus:text-blue-600 bg-white'} peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}>Shipping Information</label>
               </div>
@@ -788,7 +829,7 @@ const handleRemoveExtraImage = async (index) => {
                   className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
                     ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
-                  }`}
+                    }`}
                 />
                 <label htmlFor="returnPolicy" className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]' : 'text-gray-500 peer-focus:text-blue-600 bg-white'} peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}>Return Policy</label>
               </div>
@@ -806,7 +847,7 @@ const handleRemoveExtraImage = async (index) => {
                   className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
                     ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
-                  }`}
+                    }`}
                   min="1"
                 />
                 <label htmlFor="minimumOrderQuantity" className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]' : 'text-gray-500 peer-focus:text-blue-600 bg-white'} peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}>Minimum Order Quantity</label>
@@ -829,7 +870,7 @@ const handleRemoveExtraImage = async (index) => {
                   className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
                     ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
-                  }`}
+                    }`}
                 />
                 <label htmlFor="tags" className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]' : 'text-gray-500 peer-focus:text-blue-600 bg-white'} peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}>Tags (comma separated) (optional)</label>
               </div>
@@ -848,7 +889,7 @@ const handleRemoveExtraImage = async (index) => {
                   className={`peer w-full p-3 rounded-lg transition-all duration-200 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
                     ? 'bg-[#141E3E]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
-                  }`}
+                    }`}
                 />
                 {fieldErrors.description && <p className="text-sm text-red-500 mt-1">{fieldErrors.description}</p>}
                 <label htmlFor="description" className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode ? 'text-gray-400 peer-focus:text-blue-400 bg-[#141E3E]' : 'text-gray-500 peer-focus:text-blue-600 bg-white'} peer-placeholder-shown:top-7 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}>
@@ -878,13 +919,14 @@ const handleRemoveExtraImage = async (index) => {
                     Required • Max 5MB • JPEG, PNG supported
                   </span>
                 </label>
-                
+
                 {product.existingImage || product.image ? (
                   <div className="relative inline-block group">
                     <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-[#141E3E]/50' : 'bg-white'} shadow-lg ring-1 ring-gray-900/5 transition duration-300 group-hover:shadow-xl`}>
                       <img
                         src={product.image ? URL.createObjectURL(product.image) : product.existingImage}
                         alt="Main preview"
+                        loading="lazy"
                         className="w-64 h-64 object-contain rounded-lg"
                       />
                       <button
@@ -902,23 +944,20 @@ const handleRemoveExtraImage = async (index) => {
                 ) : (
                   <div className="flex items-center justify-center w-full transition-all duration-300">
                     <label
-                      className={`group flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${
-                        isDarkMode 
+                      className={`group flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${isDarkMode
                           ? 'border-gray-700 hover:border-blue-500/50 hover:bg-gray-800'
                           : 'border-gray-300 hover:bg-gray-100/80 hover:border-blue-500/50'
-                      }`}
+                        }`}
                     >
                       <div className="flex flex-col items-center justify-center px-6 pt-5 pb-6 space-y-3">
-                        <div className={`rounded-full p-4 transition-colors duration-300 ${
-                          isDarkMode
+                        <div className={`rounded-full p-4 transition-colors duration-300 ${isDarkMode
                             ? 'bg-gray-800/80 group-hover:bg-gray-700'
                             : 'bg-gray-100 group-hover:bg-gray-200'
-                        }`}>
-                          <svg className={`w-8 h-8 transition-colors duration-300 ${
-                            isDarkMode
+                          }`}>
+                          <svg className={`w-8 h-8 transition-colors duration-300 ${isDarkMode
                               ? 'text-gray-400 group-hover:text-blue-400'
                               : 'text-gray-600 group-hover:text-blue-600'
-                          }`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            }`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                         </div>
@@ -964,6 +1003,7 @@ const handleRemoveExtraImage = async (index) => {
                             <img
                               src={img}
                               alt={`Extra image ${idx + 1}`}
+                              loading="lazy"
                               className="w-full h-32 object-contain rounded-lg"
                             />
                             <button
@@ -981,10 +1021,11 @@ const handleRemoveExtraImage = async (index) => {
                       ))}
                       {product.extraImagesPreviews.map((img, idx) => (
                         <div key={`new-${idx}`} className="relative group">
-                           <div className={`p-3 rounded-xl ${isDarkMode ? 'bg-[#141E3E]/50' : 'bg-white'} shadow-lg ring-1 ring-gray-900/5 transition duration-300 group-hover:shadow-xl`}>
+                          <div className={`p-3 rounded-xl ${isDarkMode ? 'bg-[#141E3E]/50' : 'bg-white'} shadow-lg ring-1 ring-gray-900/5 transition duration-300 group-hover:shadow-xl`}>
                             <img
                               src={img}
                               alt={`New image ${idx + 1}`}
+                              loading="lazy"
                               className="w-full h-32 object-contain rounded-lg"
                             />
                             <button
@@ -1006,23 +1047,20 @@ const handleRemoveExtraImage = async (index) => {
                   {product.existingExtraImages.length + product.extraImagesPreviews.length < 5 && (
                     <div className="flex items-center justify-center w-full transition-all duration-300">
                       <label
-                        className={`group flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${
-                          isDarkMode 
+                        className={`group flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${isDarkMode
                             ? 'border-gray-700 hover:border-blue-500/50 hover:bg-gray-800'
                             : 'border-gray-300 hover:bg-gray-100/80 hover:border-blue-500/50'
-                        }`}
+                          }`}
                       >
                         <div className="flex flex-col items-center justify-center px-6 pt-5 pb-6 space-y-3">
-                          <div className={`rounded-full p-3 transition-colors duration-300 ${
-                            isDarkMode
+                          <div className={`rounded-full p-3 transition-colors duration-300 ${isDarkMode
                               ? 'bg-gray-800/80 group-hover:bg-gray-700'
                               : 'bg-gray-100 group-hover:bg-gray-200'
-                          }`}>
-                            <svg className={`w-6 h-6 transition-colors duration-300 ${
-                              isDarkMode
+                            }`}>
+                            <svg className={`w-6 h-6 transition-colors duration-300 ${isDarkMode
                                 ? 'text-gray-400 group-hover:text-blue-400'
                                 : 'text-gray-600 group-hover:text-blue-600'
-                            }`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              }`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
                           </div>
@@ -1058,7 +1096,7 @@ const handleRemoveExtraImage = async (index) => {
             </button>
           )}
 
-            <div className="flex justify-end flex-1 space-x-4">
+          <div className="flex justify-end flex-1 space-x-4">
             <button
               type="button"
               onClick={() => navigate("/seller/my-products")}

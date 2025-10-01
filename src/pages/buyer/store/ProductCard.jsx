@@ -7,18 +7,21 @@ import { toast } from 'react-toastify';
 import api, { setAuthToken } from "../../../utils/api";
 import { updateCartStatus, fetchCart } from "../../../redux/cart.slice";
 import { isBuyer as isBuyerRole } from '../../../utils/role';
-import { incrementWishlistCount, decrementWishlistCount, fetchWishlistCount } from "../../../redux/wishlist.slice";
+import { incrementWishlistCount, decrementWishlistCount, fetchWishlistCount, setWishlistStatus } from "../../../redux/wishlist.slice";
 
 const ProductImage = memo(({ product, hovered, onLoad, onError }) => {
   const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   
   const handleError = useCallback(() => {
     setImageError(true);
+    setImageLoaded(false);
     onError();
   }, [onError]);
   
   const handleLoad = useCallback(() => {
     setImageError(false);
+    setImageLoaded(true);
     onLoad();
   }, [onLoad]);
   
@@ -28,11 +31,16 @@ const ProductImage = memo(({ product, hovered, onLoad, onError }) => {
 
   return (
     <div className="relative w-full h-full overflow-hidden">
+      {!imageLoaded && !imageError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      )}
       <img
         src={imageError ? "/placeholder-image.webp" : imageUrl}
         alt={product.title}
         className={`w-full h-full object-cover transition-all duration-700 ${
-          hovered ? "scale-110 rotate-1" : "scale-100"
+          imageLoaded ? (hovered ? "scale-110 rotate-1" : "scale-100") : "opacity-0"
         }`}
         loading="lazy"
         onLoad={handleLoad}
@@ -54,7 +62,7 @@ const ProductBadges = memo(({ product }) => {
         </span>
       )}
       
-      {product.quantity <= 0 && (
+      {(product.quantity <= 0) && (
         <span className="absolute bottom-3 left-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-10">
           Out of Stock
         </span>
@@ -70,6 +78,7 @@ const ProductBadges = memo(({ product }) => {
               <img
                 src={img}
                 alt={`Preview ${idx + 1}`}
+                loading="lazy"
                 className="w-full h-full object-cover"
               />
             </div>
@@ -216,37 +225,29 @@ const ProductActions = memo(({
 function ProductCard({ product }) {
   const { user, token, role } = useSelector((state) => state.auth);
   const darkMode = useSelector(state => state.theme.darkMode);
-  const [isWishlisted, setIsWishlisted] = useState(false);
+  const wishlistItems = useSelector(state => state.wishlist.wishlistItems || {});
+  const [isWishlisted, setIsWishlisted] = useState(Boolean(wishlistItems[product._id]));
   const [checkingWishlist, setCheckingWishlist] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [localProduct, setLocalProduct] = useState(product);
   const dispatch = useDispatch();
+  const p = localProduct || product;
   const { isInCart, items } = useSelector((state) => state.cart);
-  const isAddedToCart = isInCart[product._id] || false;
+  const isAddedToCart = isInCart[p._id] || false;
   const showRemoveOption = hovered && isAddedToCart;
   const isBuyer = isBuyerRole(role || user || null);
 
   const getCartItemId = useCallback(() => {
-    const cartItem = items.find(item => item.product?._id === product._id);
+    const cartItem = items.find(item => item.product?._id === p._id);
     return cartItem?._id;
-  }, [items, product._id]);
+  }, [items, p._id]);
 
-  const checkWishlistStatus = useCallback(async () => {
-    if (!user) return;
-    
-    setCheckingWishlist(true);
-    try {
-  setAuthToken(token);
-  const res = await api.get(`/api/wishlist/check/${product._id}`);
-      setIsWishlisted(Boolean(res.data?.isInWishlist));
-    } catch (err) {
-      console.error("Error checking wishlist:", err);
-    } finally {
-      setCheckingWishlist(false);
-    }
-  }, [user, token, product._id]);
+  useEffect(() => {
+    setIsWishlisted(Boolean(wishlistItems[p._id]));
+  }, [wishlistItems, p._id]);
 
   const handleWishlistToggle = useCallback(async (e) => {
     e?.preventDefault?.();
@@ -263,27 +264,29 @@ function ProductCard({ product }) {
     
     if (checkingWishlist) return;
     
-    const previousState = isWishlisted;
-    setIsWishlisted((prev) => !prev);
+  const previousState = isWishlisted;
+  const newState = !previousState;
+  setIsWishlisted(newState);
+  dispatch(setWishlistStatus({ productId: p._id, status: newState }));
+  if (newState) dispatch(incrementWishlistCount()); else dispatch(decrementWishlistCount());
     
     try {
       setAuthToken(token);
-      if (isWishlisted) {
-        dispatch(decrementWishlistCount());
-        await api.delete(`/api/wishlist/${product._id}`);
+      if (previousState) {
+        await api.delete(`/api/wishlist/${p._id}`);
       } else {
-        dispatch(incrementWishlistCount());
-        await api.post(`/api/wishlist`, { productId: product._id });
+        await api.post(`/api/wishlist`, { productId: p._id });
       }
       dispatch(fetchWishlistCount());
     } catch (err) {
-      setIsWishlisted(previousState);
-      if (isWishlisted) dispatch(incrementWishlistCount());
-      else dispatch(decrementWishlistCount());
+  setIsWishlisted(previousState);
+  dispatch(setWishlistStatus({ productId: p._id, status: previousState }));
+  if (previousState) dispatch(incrementWishlistCount());
+  else dispatch(decrementWishlistCount());
       console.error("Wishlist error:", err);
       toast.error(err.response?.data?.message || "Failed to update wishlist");
     }
-  }, [user, token, product._id, isWishlisted, checkingWishlist, dispatch]);
+  }, [user, token, p._id, isWishlisted, checkingWishlist, dispatch]);
 
   const handleAddToCart = useCallback(async (e) => {
     e?.preventDefault?.();
@@ -298,24 +301,25 @@ function ProductCard({ product }) {
       return;
     }
     
-    if (product.quantity <= 0) {
+    const currentQuantity = (localProduct || product).quantity;
+    if (currentQuantity <= 0) {
       toast.error("This product is out of stock");
       return;
     }
     
     setCartLoading(true);
     try {
-  const qtyToAdd = product.minimumOrderQuantity && product.minimumOrderQuantity > 0 ? product.minimumOrderQuantity : 1;
-  dispatch(updateCartStatus({ productId: product._id, isInCart: true }));
-  dispatch({ type: 'cart/addItemOptimistically', payload: { ...product, quantity: qtyToAdd } });
+  const qtyToAdd = (p.minimumOrderQuantity && p.minimumOrderQuantity > 0) ? p.minimumOrderQuantity : 1;
+  dispatch(updateCartStatus({ productId: p._id, isInCart: true }));
+  dispatch({ type: 'cart/addItemOptimistically', payload: { ...p, quantity: qtyToAdd } });
   setAuthToken(token);
-  const response = await api.post(`/api/cart/add`, { productId: product._id, quantity: qtyToAdd });
+  const response = await api.post(`/api/cart/add`, { productId: p._id, quantity: qtyToAdd });
       
       if (response.data?.success) {
         await dispatch(fetchCart());
       }
     } catch (err) {
-  dispatch(updateCartStatus({ productId: product._id, isInCart: false }));
+  dispatch(updateCartStatus({ productId: p._id, isInCart: false }));
       console.error("Error adding to cart:", err);
       const errorMsg = err.response?.data?.error || "Failed to add to cart";
       
@@ -327,7 +331,7 @@ function ProductCard({ product }) {
     } finally {
       setCartLoading(false);
     }
-  }, [user, token, product, dispatch]);
+  }, [user, token, p, dispatch]);
 
   const handleRemoveFromCart = useCallback(async (e) => {
     e?.preventDefault?.();
@@ -342,7 +346,7 @@ function ProductCard({ product }) {
       return;
     }
     
-    const cartItemId = getCartItemId();
+  const cartItemId = getCartItemId();
     if (!cartItemId) {
       toast.error("Product not found in cart");
       return;
@@ -350,25 +354,48 @@ function ProductCard({ product }) {
     
     setCartLoading(true);
     try {
-      dispatch(updateCartStatus({ productId: product._id, isInCart: false }));
+    dispatch(updateCartStatus({ productId: p._id, isInCart: false }));
   setAuthToken(token);
   await api.delete(`/api/cart/remove/${cartItemId}`);
       await dispatch(fetchCart());
     } catch (err) {
-      dispatch(updateCartStatus({ productId: product._id, isInCart: true }));
+      dispatch(updateCartStatus({ productId: p._id, isInCart: true }));
       console.error("Error removing product from cart:", err);
       toast.error(err.response?.data?.error || "Failed to remove from cart");
     } finally {
       setCartLoading(false);
     }
-  }, [user, token, product._id, getCartItemId, dispatch]);
+  }, [user, token, p._id, getCartItemId, dispatch]);
+
 
   useEffect(() => {
-    checkWishlistStatus();
-  }, [checkWishlistStatus]);
+    let mounted = true;
+    const needed = ['brand', 'category', 'description', 'quantity', 'extraImages', 'minimumOrderQuantity'];
+    const missing = needed.some(k => typeof product[k] === 'undefined' || product[k] === null);
+    if (!missing) {
+      setLocalProduct(product);
+      return;
+    }
 
-  const averageRating = product.averageRating || 0;
-  const reviewCount = product.reviewsCount || 0;
+    async function fetchMissing() {
+      try {
+        const fields = needed.concat(['_id','title','price','discountPercentage','image','averageRating','reviewsCount']).join(',');
+        const res = await api.get(`/api/products/${product._id}`, { params: { fields } });
+        if (res.data && res.data.product) {
+          if (!mounted) return;
+          setLocalProduct(prev => ({ ...prev, ...res.data.product }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch product fields for card:', err?.response?.data || err.message || err);
+      }
+    }
+
+      fetchMissing();
+      return () => { mounted = false; };
+    }, [product]);
+
+    const averageRating = (localProduct || product).averageRating || 0;
+    const reviewCount = (localProduct || product).reviewsCount || 0;
 
   const handleImageLoad = useCallback(() => {
     setImageLoaded(true);
@@ -393,7 +420,7 @@ function ProductCard({ product }) {
 
   return (
     <Link
-      to={`/product/${product._id}`}
+      to={`/product/${p._id}`}
       className="block"
       tabIndex={-1}
       style={{ textDecoration: "none" }}
@@ -417,20 +444,20 @@ function ProductCard({ product }) {
   <div className={`relative w-full aspect-square overflow-hidden ${darkMode ? 'bg-gradient-to-br from-gray-900 to-blue-900' : 'bg-gradient-to-br from-gray-50 to-gray-200'}` }>
           <div className={`w-full h-full transition-opacity duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}>
             <ProductImage 
-              product={product} 
+              product={p} 
               hovered={hovered}
               onLoad={handleImageLoad}
               onError={handleImageError}
             />
           </div>
           
-          <ProductBadges product={product} />
+          <ProductBadges product={p} />
         </div>
         
   <div className={`flex-1 flex flex-col px-4 py-3 relative z-10 ${darkMode ? 'text-gray-100' : ''}`}>
           <div className="flex items-center justify-between mb-1">
             <h2 className={`font-bold text-base leading-tight line-clamp-2 transition-colors duration-300 ${darkMode ? 'text-blue-200 hover:text-blue-400' : 'text-gray-900 hover:text-blue-600'}`}>
-              {product.title}
+              {p.title}
             </h2>
             {reviewCount > 0 && (
               <span className={`flex items-center gap-1 font-bold text-xs px-2 py-1 rounded-full shadow-sm ml-2 transform-gpu transition-transform duration-300 hover:scale-105 ${darkMode ? 'bg-gray-800 border border-amber-700 text-amber-400' : 'bg-white/90 border border-amber-300 text-amber-500'}`}>
@@ -440,14 +467,14 @@ function ProductCard({ product }) {
             )}
           </div>
           
-          <ProductPrice product={product} />
+          <ProductPrice product={p} />
           
           <div className="flex items-center gap-2 mb-2 text-xs flex-wrap">
-            {product.brand && (
-              <span className={`px-2 py-1 rounded-full font-medium transform-gpu transition-all duration-300 hover:scale-105 ${darkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700'}`}>{product.brand}</span>
+            {p.brand && (
+              <span className={`px-2 py-1 rounded-full font-medium transform-gpu transition-all duration-300 hover:scale-105 ${darkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-700'}`}>{p.brand}</span>
             )}
-            <span className={`px-2 py-1 rounded-full font-medium transform-gpu transition-all duration-300 hover:scale-105 ${darkMode ? 'bg-purple-900 text-purple-200' : 'bg-purple-50 text-purple-700'}`}>{product.category}</span>
-            {product.quantity > 0 ? (
+            <span className={`px-2 py-1 rounded-full font-medium transform-gpu transition-all duration-300 hover:scale-105 ${darkMode ? 'bg-purple-900 text-purple-200' : 'bg-purple-50 text-purple-700'}`}>{p.category}</span>
+            {(localProduct || product).quantity > 0 ? (
               <span className={`font-medium flex items-center ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
                 <span className={`w-2 h-2 rounded-full mr-1 animate-pulse ${darkMode ? 'bg-green-400' : 'bg-green-500'}`}></span>
                 In Stock
@@ -475,15 +502,15 @@ function ProductCard({ product }) {
             )}
           </div>
           
-          <p className={`text-xs mb-3 line-clamp-2 leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-            {product.description}
+            <p className={`text-xs mb-3 line-clamp-2 leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            {p.description}
           </p>
           
-          <ProductActions
+            <ProductActions
             isAddedToCart={isAddedToCart}
             showRemoveOption={showRemoveOption}
             cartLoading={cartLoading}
-            productQuantity={product.quantity}
+            productQuantity={p.quantity}
             onAddToCart={handleAddToCart}
             onRemoveFromCart={handleRemoveFromCart}
             isWishlisted={isWishlisted}

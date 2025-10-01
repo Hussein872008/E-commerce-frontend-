@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { FiTrendingUp, FiTrendingDown, FiEye, FiShoppingCart, FiPackage, FiDollarSign, FiUsers, FiStar, FiAlertTriangle, FiClock, FiCheckCircle } from 'react-icons/fi';
 import { fetchSellerDashboardStats, fetchSellerSalesData, fetchSellerPopularProducts } from '../../redux/productSlice';
 
@@ -32,13 +32,66 @@ export default function SellerDashboard() {
   
   const navigate = useNavigate();
   const stockAlertsRef = useRef(null);
+  const location = useLocation();
+  const [highlightedId, setHighlightedId] = useState(null);
+  const [highlightedSeverity, setHighlightedSeverity] = useState(null);
+  const timersRef = useRef([]);
+  const [animatedTotal, setAnimatedTotal] = useState(0);
+  const animatedTotalRef = useRef(0);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    const target = Number(sellerDashboardStats?.totalSales || 0);
+    const start = Number(animatedTotalRef.current || 0);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
+    const duration = 600; 
+    const startTime = performance.now();
+
+    function step(now) {
+      const elapsed = now - startTime;
+      const t = Math.min(1, elapsed / duration);
+      const ease = 1 - Math.pow(1 - t, 3);
+      const current = start + (target - start) * ease;
+      animatedTotalRef.current = current;
+      setAnimatedTotal(current);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      } else {
+        animatedTotalRef.current = target;
+        setAnimatedTotal(target);
+        rafRef.current = null;
+      }
+    }
+
+    if (Math.abs(target - start) < 0.01) {
+      animatedTotalRef.current = target;
+      setAnimatedTotal(target);
+      return;
+    }
+
+    rafRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [sellerDashboardStats?.totalSales]);
 
   const handleAlertsClick = () => {
     const alerts = sellerDashboardStats?.stockAlerts;
     if (Array.isArray(alerts) && alerts.length > 0) {
-  smoothScrollTo(stockAlertsRef.current, 96);
-      try { stockAlertsRef.current?.focus(); } catch (e) {}
-      return;
+      try {
+        const p = new URLSearchParams(location.search || '');
+        p.set('open', 'stockAlerts');
+        const newPath = location.pathname + (p.toString() ? `?${p.toString()}` : '');
+        navigate(newPath, { replace: false });
+        return;
+      } catch (e) {
+        smoothScrollTo(stockAlertsRef.current, 16);
+        try { stockAlertsRef.current?.focus(); } catch (e) {}
+        return;
+      }
     }
     navigate("/seller/orders");
   };
@@ -50,6 +103,67 @@ export default function SellerDashboard() {
       dispatch(fetchSellerPopularProducts());
     }
   }, [dispatch, token]);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(location.search || '');
+      const open = params.get('open');
+      const highlight = params.get('highlight');
+      const severity = params.get('severity');
+      if (open === 'stockAlerts') {
+        const alerts = sellerDashboardStats?.stockAlerts;
+        if (Array.isArray(alerts) && alerts.length > 0) {
+          const tMain = setTimeout(() => {
+            smoothScrollTo(stockAlertsRef.current, 16);
+            try { stockAlertsRef.current?.focus(); } catch (e) {}
+
+            if (highlight) {
+              setHighlightedId(String(highlight));
+              if (severity) setHighlightedSeverity(String(severity));
+              const tClearHighlight = setTimeout(() => {
+                setHighlightedId(null);
+                setHighlightedSeverity(null);
+              }, 6000);
+              timersRef.current.push(tClearHighlight);
+              const tScrollToEl = setTimeout(() => {
+                try {
+                  const el = document.getElementById(`stock-alert-${highlight}`);
+                  if (el) {
+                    smoothScrollTo(el, 40);
+                    try { el.focus(); } catch (e) {}
+                  }
+                } catch (e) {}
+              }, 300);
+              timersRef.current.push(tScrollToEl);
+            }
+            const clearDelay = highlight ? 6000 : 2000;
+            const tClearParams = setTimeout(() => {
+              try {
+                const p2 = new URLSearchParams(location.search || '');
+                p2.delete('open');
+                p2.delete('highlight');
+                p2.delete('severity');
+                const s2 = p2.toString();
+                const newPath = location.pathname + (s2 ? `?${s2}` : '');
+                if (newPath !== location.pathname + (location.search || '')) {
+                  navigate(newPath, { replace: true });
+                }
+              } catch (e) {}
+            }, clearDelay);
+            timersRef.current.push(tClearParams);
+          }, 220);
+          timersRef.current.push(tMain);
+        }
+      }
+    } catch (e) {}
+
+    return () => {
+      try {
+        timersRef.current.forEach((id) => clearTimeout(id));
+      } catch (e) {}
+      timersRef.current = [];
+    };
+  }, [sellerDashboardStats, location.search, navigate, location.pathname]);
 
   const chartData = Array.isArray(sellerSalesData)
     ? [...sellerSalesData].sort((a, b) => new Date(a.date) - new Date(b.date))
@@ -186,7 +300,7 @@ export default function SellerDashboard() {
               <div>
                 <p className={`text-base font-semibold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total Sales</p>
                  <h3 className="text-3xl font-extrabold text-purple-600 mt-2">
-                   ${Number(sellerDashboardStats.totalSales || 0).toFixed(2)}
+                   ${animatedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                  </h3>
               </div>
               <div className={`p-4 rounded-full ${isDarkMode ? 'bg-purple-900/50' : 'bg-purple-100'}`}>
@@ -276,26 +390,38 @@ export default function SellerDashboard() {
               Stock Alerts
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-               {sellerDashboardStats.stockAlerts.map((product) => (
-                <div key={product._id} className={`flex items-center p-4 border rounded-xl transition ${isDarkMode ? 'bg-red-900/20 border-red-700/30 hover:bg-red-900/40' : 'bg-red-50 border-red-200 hover:bg-red-100'}`}>
-                  <img
-                    src={product.image}
-                    alt={product.title}
-                    className="w-16 h-16 rounded object-cover mr-3 shadow"
-                  />
-                  <div>
-                    <h4 className={`font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{product.title}</h4>
-                    <p className="text-sm text-red-500 font-semibold">Remaining: {product.quantity}</p>
-                    <button
-                      onClick={() => navigate(`/seller/edit-product/${product._id}`)}
-                      className="mt-2 text-sm text-blue-500 hover:text-blue-400 font-semibold underline"
-                      aria-label={`Update stock for ${product.title}`}
-                    >
-                      Update Stock
-                    </button>
+              {sellerDashboardStats.stockAlerts.map((product) => {
+                const isHighlighted = highlightedId && String(product._id) === String(highlightedId);
+                const highlightClasses = isHighlighted ? (highlightedSeverity === 'warning'
+                  ? 'ring-4 ring-red-400/60 shadow-lg scale-[1.02] animate-pulse'
+                  : 'ring-4 ring-yellow-300/60 shadow-lg scale-[1.01]') : '';
+
+                return (
+                  <div
+                    id={`stock-alert-${product._id}`}
+                    key={product._id}
+                    className={`flex items-center p-4 border rounded-xl transition ${isDarkMode ? 'bg-red-900/20 border-red-700/30 hover:bg-red-900/40' : 'bg-red-50 border-red-200 hover:bg-red-100'} ${highlightClasses}`}
+                  >
+                    <img
+                      src={product.image}
+                      alt={product.title}
+                      loading="lazy"
+                      className="w-16 h-16 rounded object-cover mr-3 shadow"
+                    />
+                    <div>
+                      <h4 className={`font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{product.title}</h4>
+                      <p className="text-sm text-red-500 font-semibold">Remaining: {product.quantity}</p>
+                      <button
+                        onClick={() => navigate(`/seller/edit-product/${product._id}`)}
+                        className="mt-2 text-sm text-blue-500 hover:text-blue-400 font-semibold underline"
+                        aria-label={`Update stock for ${product.title}`}
+                      >
+                        Update Stock
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -320,7 +446,7 @@ export default function SellerDashboard() {
                 return (
                   <button
                     key={product._id}
-                    onClick={() => navigate(`/seller/my-products?highlight=${product._id}`)}
+                    onClick={() => product._id && navigate(`/seller/my-products?highlight=${product._id}`)}
                     title={`View ${product.title} in My Products`}
                     aria-label={`View ${product.title} in My Products`}
                     className={`w-full text-left flex items-center p-4 border rounded-xl transition ${isDarkMode ? 'bg-yellow-900/20 border-yellow-700/30 hover:bg-yellow-900/40' : 'bg-yellow-50 border-gray-200 hover:bg-yellow-100'}`}
@@ -328,6 +454,7 @@ export default function SellerDashboard() {
                     <img
                       src={imgSrc}
                       alt={product.title}
+                      loading="lazy"
                       onError={(e) => { e.target.src = "/placeholder.png"; }}
                       className="w-16 h-16 rounded object-cover mr-3 shadow"
                     />

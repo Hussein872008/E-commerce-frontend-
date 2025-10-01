@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchCart, clearCart } from '../../redux/cart.slice';
 import { Link, useNavigate } from 'react-router-dom';
@@ -56,6 +56,22 @@ const Checkout = () => {
     setCardInfo((prev) => ({ ...prev, [name]: value }));
     let error = '';
     if (name === 'cardNumber' && value && !/^[0-9]{13,19}$/.test(value)) error = 'Card number must be 13-19 digits';
+    if (name === 'cvv' && value && !/^\d{3}$/.test(value)) error = 'CVV must be 3 digits';
+    if (name === 'expiryDate' && value) {
+      const parts = value.split('-');
+      if (parts.length === 2) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        const now = new Date();
+        const nowY = now.getFullYear();
+        const nowM = now.getMonth() + 1;
+        if (!(y > nowY || (y === nowY && m > nowM))) {
+          error = 'Card expiry must be later than current month';
+        }
+      } else {
+        error = 'Invalid expiry format';
+      }
+    }
     setPaymentErrors(prev => ({ ...prev, [name]: error }));
   };
 
@@ -63,6 +79,38 @@ const Checkout = () => {
   const validatePostalCode = (code) => {
     return !code || /^\d{5,6}$/.test(code);
   };
+
+  const validateCVV = (cvv) => /^\d{3}$/.test(cvv || '');
+
+  const isExpiryValid = (expiry) => {
+    if (!expiry) return false;
+    const parts = expiry.split('-');
+    if (parts.length !== 2) return false;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (!y || !m) return false;
+    const now = new Date();
+    const nowY = now.getFullYear();
+    const nowM = now.getMonth() + 1;
+    return (y > nowY) || (y === nowY && m > nowM);
+  };
+
+  const nowForMin = new Date();
+  const minExpiry = `${nowForMin.getFullYear()}-${String(nowForMin.getMonth() + 1).padStart(2, '0')}`;
+
+  const isStep1Valid = useMemo(() => {
+    if (!shippingInfo.address || !shippingInfo.city || !shippingInfo.phone) return false;
+    if (!/^[0-9]{10,15}$/.test(shippingInfo.phone)) return false;
+    if (shippingInfo.postalCode && !/^[0-9]{5,6}$/.test(shippingInfo.postalCode)) return false;
+    return true;
+  }, [shippingInfo]);
+
+  const isStep2Valid = useMemo(() => {
+    if (paymentMethod === 'cash') return true;
+    return validateCardNumber(cardInfo.cardNumber) && isExpiryValid(cardInfo.expiryDate) && validateCVV(cardInfo.cvv);
+  }, [paymentMethod, cardInfo]);
+
+  const nextDisabled = (currentStep === 1 && !isStep1Valid) || (currentStep === 2 && !isStep2Valid);
 
   const handleNextStep = () => {
     if (currentStep === 1) {
@@ -79,6 +127,10 @@ const Checkout = () => {
       const errors = {};
       if (!cardInfo.cardNumber) errors.cardNumber = 'Card number is required';
       if (cardInfo.cardNumber && !/^[0-9]{13,19}$/.test(cardInfo.cardNumber)) errors.cardNumber = 'Card number must be 13-19 digits';
+      if (!cardInfo.expiryDate) errors.expiryDate = 'Expiry date is required';
+      else if (!isExpiryValid(cardInfo.expiryDate)) errors.expiryDate = 'Card expiry must be later than current month';
+      if (!cardInfo.cvv) errors.cvv = 'CVV is required';
+      else if (!validateCVV(cardInfo.cvv)) errors.cvv = 'CVV must be 3 digits';
       setPaymentErrors(errors);
       if (Object.keys(errors).length > 0) return;
     }
@@ -213,7 +265,7 @@ const Checkout = () => {
                     name="address" 
                     value={shippingInfo.address} 
                     onChange={handleInputChange} 
-                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300'}`} 
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${shippingErrors.address ? 'border-red-500' : (darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300')}`} 
                     required 
                     placeholder="Enter your full address"
                   />
@@ -228,7 +280,7 @@ const Checkout = () => {
                       name="city" 
                       value={shippingInfo.city} 
                       onChange={handleInputChange} 
-                      className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300'}`} 
+                      className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${shippingErrors.city ? 'border-red-500' : (darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300')}`} 
                       required 
                       placeholder="City"
                     />
@@ -242,7 +294,7 @@ const Checkout = () => {
                       name="postalCode" 
                       value={shippingInfo.postalCode} 
                       onChange={handleInputChange} 
-                      className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300'}`} 
+                      className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${shippingErrors.postalCode ? 'border-red-500' : (darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300')}`} 
                       placeholder="Optional"
                     />
                     {shippingErrors.postalCode && <div className="text-red-500 text-xs mt-1">{shippingErrors.postalCode}</div>}
@@ -256,7 +308,10 @@ const Checkout = () => {
                     name="phone" 
                     value={shippingInfo.phone} 
                     onChange={handleInputChange} 
-                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300'}`} 
+                    inputMode="numeric" 
+                    pattern="[0-9]*" 
+                    maxLength={15}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${shippingErrors.phone ? 'border-red-500' : (darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300')}`} 
                     required 
                     placeholder="Phone number for contact"
                   />
@@ -312,7 +367,10 @@ const Checkout = () => {
                           placeholder="Card Number (digits only)" 
                           value={cardInfo.cardNumber} 
                           onChange={handleCardInputChange} 
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300'}`} 
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={19}
+                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${paymentErrors.cardNumber ? 'border-red-500' : (darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300')}`} 
                         />
                         {paymentErrors.cardNumber && <div className="text-red-500 text-xs mt-1">{paymentErrors.cardNumber}</div>}
                       </div>
@@ -324,7 +382,8 @@ const Checkout = () => {
                           placeholder="Expiry Date (MM/YY)" 
                           value={cardInfo.expiryDate} 
                           onChange={handleCardInputChange} 
-                          className={`p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300'}`} 
+                          min={minExpiry}
+                          className={`p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${paymentErrors.expiryDate ? 'border-red-500' : (darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300')}`} 
                         />
                         <input 
                           type="text" 
@@ -332,7 +391,10 @@ const Checkout = () => {
                           placeholder="CVV" 
                           value={cardInfo.cvv} 
                           onChange={handleCardInputChange} 
-                          className={`p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300'}`} 
+                          inputMode="numeric"
+                          pattern="\\d*"
+                          maxLength={3}
+                          className={`p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none transition-all ${paymentErrors.cvv ? 'border-red-500' : (darkMode ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-white border-gray-300')}`} 
                         />
                       </div>
                     </motion.div>
@@ -420,6 +482,7 @@ const Checkout = () => {
                       <img 
                         src={item.product.image} 
                         alt={item.product.title} 
+                        loading="lazy"
                         className="w-12 h-12 object-cover rounded" 
                         onError={e => { e.target.src = '/placeholder-image.webp'; }} 
                       />
@@ -463,7 +526,8 @@ const Checkout = () => {
             {currentStep < 3 ? (
               <button 
                 onClick={handleNextStep} 
-                className="w-full sm:w-auto px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all duration-200 shadow-md hover:shadow-lg"
+                disabled={nextDisabled}
+                className={`w-full sm:w-auto px-6 py-3 rounded-lg transition-all duration-200 shadow-md flex items-center justify-center ${nextDisabled ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600 hover:shadow-lg'}`}
               >
                 Next
               </button>

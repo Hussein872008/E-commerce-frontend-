@@ -1,27 +1,43 @@
 import { io } from 'socket.io-client';
 import store from '../redux/store';
-import { addNotification, updateUnreadCount } from '../redux/notificationSlice';
+import { addNotification, updateUnreadCount, updateNotifications } from '../redux/notificationSlice';
+import { normalizeUser, resolveUserId } from './user';
 
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL;
+const rawApiBase = import.meta.env.VITE_API_BASE_URL;
+const rawSocketBase = import.meta.env.VITE_SOCKET_URL;
+
+const API_BASE = rawApiBase ? String(rawApiBase).replace(/\/$/, '') : (typeof window !== 'undefined' ? window.location.origin : import.meta.env.VITE_API_BASE_URL);
+const recentNotificationIds = new Map();
+
+const PRUNE_AFTER_MS = 15 * 1000;
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, ts] of recentNotificationIds.entries()) {
+    if (now - ts > PRUNE_AFTER_MS) recentNotificationIds.delete(id);
+  }
+}, PRUNE_AFTER_MS);
+
+let SOCKET_URL;
+if (rawSocketBase) {
+  SOCKET_URL = String(rawSocketBase).replace(/\/$/, '');
+} else if (rawApiBase) {
+  SOCKET_URL = API_BASE;
+} else if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+  SOCKET_URL = import.meta.env.VITE_API_BASE_URL;
+} else {
+  SOCKET_URL = API_BASE;
+}
 
 let socket;
 
 const handleNotification = (newNotification, dispatch) => {
   if (!newNotification) return;
 
-    
-  dispatch(addNotification({ 
-    ...newNotification, 
-    isNew: true 
+
+  dispatch(addNotification({
+    ...newNotification,
+    isNew: true
   }));
-  
-  try {
-    const audio = new Audio(newNotification.type === 'order' ? '/new-order.mp3' : '/notification.mp3');
-    audio.volume = 0.5;
-    audio.play().catch(() => {});
-  } catch (error) {
-  console.warn('Could not play notification sound:', error);
-  }
 };
 
 export const initializeSocket = (dispatch) => {
@@ -44,13 +60,17 @@ export const initializeSocket = (dispatch) => {
     });
 
     socket.on('connect', () => {
-      console.info('[Socket] connected', socket.id);
-      const userId = store.getState().auth.user?._id;
-      if (userId) {
-        console.info('[Socket] emitting join for user', userId);
+      if (process.env.NODE_ENV !== 'production') {
+        const shortId = socket.id ? (String(socket.id).slice(-8)) : 'unknown';
+      }
+  const userId = resolveUserId(store.getState().auth.user);
+  if (userId) {
+        if (process.env.NODE_ENV !== 'production') {
+          const shortUser = String(userId).slice(-6);
+        }
         socket.emit('join', userId);
       } else {
-        console.info('[Socket] no authenticated user to join room');
+        if (process.env.NODE_ENV !== 'production') {} 
       }
     });
 
@@ -66,45 +86,80 @@ export const initializeSocket = (dispatch) => {
       }
     });
 
-    socket.on('notificationUpdate', (data) => {
-      console.info('[Socket] notificationUpdate received', data && data.newNotification ? data.newNotification._id : null, data && data.unreadCount);
-      const { newNotification, unreadCount } = data || {};
-      if (newNotification) {
-        handleNotification(newNotification, dispatch);
+    socket.on('unreadCount', (count) => {
+      if (process.env.NODE_ENV !== 'production') {
       }
-      if (typeof unreadCount === 'number') {
-        dispatch(updateUnreadCount(unreadCount));
-      }
+      if (typeof count === 'number') dispatch(updateUnreadCount(count));
     });
 
     socket.on('newNotification', (notification) => {
-      console.info('[Socket] newNotification received', notification && (notification._id || notification.relatedId));
+      if (process.env.NODE_ENV !== 'production') {
+      }
+      try {
+        const id = notification && (notification._id || notification.relatedId);
+        if (id) {
+          if (recentNotificationIds.has(id)) return;
+          recentNotificationIds.set(id, Date.now());
+        }
+      } catch (e) {}
       handleNotification(notification, dispatch);
     });
 
-    socket.on('newOrder', (orderData) => {
+    socket.on('initialNotifications', (notifications) => {
+      try {
+        if (!Array.isArray(notifications)) return;
+        dispatch(updateNotifications(notifications));
+        const unread = notifications.filter(n => !n.read).length;
+        dispatch(updateUnreadCount(unread));
+        if (process.env.NODE_ENV !== 'production');
+      } catch (e) {
+        console.error('[Socket] failed to apply initialNotifications', e);
+      }
+    });
+
+  socket.on('newOrder', (orderData) => {
+      try {
+        if (orderData && orderData.notification && orderData.notification._id) {
+          handleNotification(orderData.notification, dispatch);
+          return;
+        }
+      } catch (e) {}
+
+
       const notification = {
         type: 'order',
-        message: `New Order: ${orderData.orderNumber}`,
+        message: `New Order: #${orderData.order?._id?.substring(0, 8) || 'N/A'}`,
         data: orderData,
         read: false,
         createdAt: new Date().toISOString(),
         _id: Date.now().toString(),
-        relatedId: orderData._id
+        relatedId: orderData.order?._id
       };
+    
       handleNotification(notification, dispatch);
     });
     
-    setInterval(() => {
-      if (!socket.connected) {
-        socket.connect();
-      }
-    }, 3000);
+
+    socket.on('notification.created', (notification) => {
+      if (process.env.NODE_ENV !== 'production');
+      try {
+        const id = notification && (notification._id || notification.relatedId);
+        if (id) {
+          if (recentNotificationIds.has(id)) return;
+          recentNotificationIds.set(id, Date.now());
+        }
+      } catch (e) {}
+      handleNotification(notification, dispatch);
+    });
+
+    socket.on('notification.unreadCount', (count) => {
+      if (process.env.NODE_ENV !== 'production');
+      if (typeof count === 'number') dispatch(updateUnreadCount(count));
+    });
 
     if (process.env.NODE_ENV !== 'production') {
-      ['notificationUpdate', 'highlightOrder', 'initialNotifications'].forEach(event => {
-        socket.on(event, (data) => {
-        });
+      ['unreadCount', 'highlightOrder', 'initialNotifications', 'notification.created', 'notification.unreadCount'].forEach(event => {
+        socket.on(event, (data) => {});
       });
     }
   }
@@ -124,17 +179,18 @@ try {
       } catch (e) {
       }
       const s = initializeSocket(dispatch || (store && store.dispatch));
-      console.info('[__socketDebugger] initialize called, socket:', s && s.id);
+      if (process.env.NODE_ENV !== 'production') ;
       return s;
     };
 
     window.__socketDebugger.getSocket = () => socket;
 
     window.__socketDebugger.getStatus = () => {
+      const auth = store.getState().auth || null;
       return {
         connected: !!(socket && socket.connected),
-        id: socket && socket.id,
-        auth: store.getState().auth || null
+        id: socket && (socket.id ? String(socket.id).slice(-8) : null),
+        auth: auth ? { user: auth.user ? { _id: auth.user._id ? String(auth.user._id).slice(-6) : null, name: auth.user.name } : null } : null
       };
     };
 
@@ -143,8 +199,8 @@ try {
         const token = localStorage.getItem('token');
         const user = JSON.parse(localStorage.getItem('user') || 'null');
         if (!token || !user) throw new Error('No token or user in localStorage');
-        const userId = user.id || user._id;
-        const res = await fetch(`http://localhost:5000/api/debug/room/${userId}/sockets`, {
+        const userId = resolveUserId(user);
+        const res = await fetch(`${API_BASE}/api/debug/room/${userId}/sockets`, {
           method: 'GET',
           headers: { Authorization: 'Bearer ' + token }
         });
@@ -157,12 +213,13 @@ try {
 
     window.__socketDebugger.sendTestOrderDelivered = async (orderId) => {
       try {
-        const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('user') || 'null');
-        if (!token || !user) throw new Error('No token or user in localStorage');
-        const userId = user.id || user._id;
-        const body = { recipientId: userId, orderId: orderId || ('TEST_ORDER_' + Date.now()) };
-        const res = await fetch('http://localhost:5000/api/debug/order-delivered', {
+  const token = localStorage.getItem('token');
+  const raw = JSON.parse(localStorage.getItem('user') || 'null');
+  const user = raw ? normalizeUser(raw) : null;
+  if (!token || !user) throw new Error('No token or user in localStorage');
+  const userId = resolveUserId(user);
+  const body = { recipientId: userId, orderId: orderId || ('TEST_ORDER_' + Date.now()) };
+        const res = await fetch(`${API_BASE}/api/debug/order-delivered`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
           body: JSON.stringify(body)

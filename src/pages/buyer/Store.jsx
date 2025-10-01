@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from "react-redux";
 import { FiSearch, FiFilter, FiLoader } from "react-icons/fi";
 import api from "../../utils/api";
 import { debounce } from 'lodash';
-import { fetchAllProducts, fetchFilteredProducts, resetFilters } from "../../redux/productSlice";
+import { fetchFilteredProducts, resetFilters } from "../../redux/productSlice";
 import { fetchCart } from '../../redux/cart.slice';
 import CategoryFilter from "./store/CategoryFilter";
 import RatingFilter from "./store/RatingFilter";
@@ -13,27 +14,46 @@ import ProductCard from "./store/ProductCard";
 
 export default function Store() {
   const dispatch = useDispatch();
-  const { allProducts, filteredProducts, loading, error, isFiltered } = useSelector((state) => state.products);
+  const { allProducts, filteredProducts, loading, error, isFiltered, page, pages, requestedPage } = useSelector((state) => state.products);
+  const reduxFilters = useSelector((state) => state.products.filters || {});
   const isDarkMode = useSelector(state => state.theme.darkMode);
 
-  const [searchInput, setSearchInput] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || "");
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || "");
   const [categories, setCategories] = useState([]);
   const [filters, setFilters] = useState({ 
-    category: "", 
-    minRating: 0, 
-    sortBy: "-createdAt",
-    minPrice: "",
-    maxPrice: ""
+    category: searchParams.get('category') || "", 
+    minRating: Number(searchParams.get('minRating') || 0), 
+    sortBy: searchParams.get('sort') || "-createdAt",
+    minPrice: searchParams.get('minPrice') || "",
+    maxPrice: searchParams.get('maxPrice') || "",
+    tags: searchParams.get('tags') || "",
+    brand: searchParams.get('brand') || ""
   });
   const [showFilters, setShowFilters] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [filteredRequestAll, setFilteredRequestAll] = useState(false);
+  const filteredRequestAllRef = useRef(false);
+  const sentinelRef = useRef(null);
 
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        await dispatch(fetchAllProducts());
         await dispatch(fetchCart());
+        const paramsObj = Object.fromEntries([...searchParams.entries()]);
+        if (Object.keys(paramsObj).length > 0) {
+          const params = { ...paramsObj, page: 1, limit: 12 };
+          params.fields = '_id,title,price,discountPercentage,image,extraImages,quantity,minimumOrderQuantity,averageRating,reviewsCount,brand,sku,description';
+          filteredRequestAllRef.current = false;
+          setFilteredRequestAll(false);
+          await dispatch(fetchFilteredProducts(params));
+        } else {
+          const params = { page: 1, limit: 12, fields: '_id,title,price,discountPercentage,image,extraImages,quantity,minimumOrderQuantity,averageRating,reviewsCount,brand,sku,description' };
+          filteredRequestAllRef.current = false;
+          setFilteredRequestAll(false);
+          await dispatch(fetchFilteredProducts(params));
+        }
       } catch (err) {
       }
       setDataLoaded(true);
@@ -46,8 +66,15 @@ export default function Store() {
     const fetchCategories = async () => {
       try {
         const response = await api.get('/api/products/categories');
-        setCategories(Array.isArray(response.data) ? response.data : []);
+        if (Array.isArray(response.data)) {
+          setCategories(response.data);
+        } else if (response.data && Array.isArray(response.data.categories)) {
+          setCategories(response.data.categories);
+        } else {
+          setCategories([]);
+        }
       } catch (err) {
+        console.error('Failed to load categories', err);
         setCategories([]);
       }
     };
@@ -61,11 +88,13 @@ export default function Store() {
   }, [searchInput]);
 
   useEffect(() => {
-    if (searchInput.trim() === "") {
+      if (searchInput.trim() === "") {
       setSearchTerm("");
       if (dataLoaded) {
         dispatch(resetFilters());
-        dispatch(fetchAllProducts());
+          dispatch(fetchFilteredProducts({ page: 1, limit: 12, fields: '_id,title,price,discountPercentage,image,extraImages,quantity,minimumOrderQuantity,averageRating,reviewsCount,brand,sku,description' }));
+          filteredRequestAllRef.current = false;
+          setFilteredRequestAll(false);
       }
     }
   }, [searchInput, dataLoaded, dispatch]);
@@ -78,22 +107,38 @@ export default function Store() {
       (filters.minRating && filters.minRating > 0) ||
       (filters.sortBy && filters.sortBy !== "-createdAt") ||
       (filters.minPrice && filters.minPrice > 0) ||
-      (filters.maxPrice && filters.maxPrice > 0)
+      (filters.maxPrice && filters.maxPrice > 0) ||
+      (filters.tags && filters.tags.length > 0) ||
+      (filters.brand && filters.brand.length > 0)
     );
-    if (!hasActiveFilters) {
-      dispatch(fetchAllProducts());
+      if (!hasActiveFilters) {
+      dispatch(resetFilters());
+      dispatch(fetchFilteredProducts({ page: 1, limit: 12, fields: '_id,title,price,discountPercentage,image,extraImages,quantity,minimumOrderQuantity,averageRating,reviewsCount,brand,sku,description' }));
+      try { setSearchParams({}); } catch (e) {}
       return;
     }
     const params = {
       search: searchTerm || undefined,
       category: filters.category || undefined,
       minRating: filters.minRating || undefined,
-      sortBy: filters.sortBy || undefined,
+      sort: filters.sortBy || undefined,
       minPrice: filters.minPrice || undefined,
-      maxPrice: filters.maxPrice || undefined
+      maxPrice: filters.maxPrice || undefined,
+      tags: filters.tags || undefined,
+      brand: filters.brand || undefined,
+      page: 1,
+      limit: 12
     };
-    dispatch(fetchFilteredProducts(params));
-  }, [dispatch, searchTerm, filters, dataLoaded]);
+    const urlParams = {};
+    Object.keys(params).forEach(k => { if (params[k] !== undefined && k !== 'page' && k !== 'limit') urlParams[k] = params[k]; });
+    try { setSearchParams(urlParams); } catch (e) {}
+
+  params.fields = '_id,title,price,discountPercentage,image,extraImages,quantity,minimumOrderQuantity,averageRating,reviewsCount,brand,sku,description';
+    filteredRequestAllRef.current = false;
+    setFilteredRequestAll(false);
+    const resp = dispatch(fetchFilteredProducts(params));
+ }, [dispatch, searchTerm, filters, dataLoaded]);
+
 
   useEffect(() => {
     applyFilters();
@@ -104,7 +149,25 @@ export default function Store() {
     return Array.isArray(source) ? source : [];
   }, [isFiltered, filteredProducts, allProducts]);
 
+
+
   const handleFilterChange = (name, value) => {
+      if (name === 'minRating' && Number(value) === 0) {
+      setFilters(prev => ({ ...prev, [name]: 0 }));
+      dispatch(resetFilters());
+      try { setSearchParams({}); } catch (e) {}
+  dispatch(fetchFilteredProducts({ page: 1, limit: 12, fields: '_id,title,price,discountPercentage,image,extraImages,quantity,minimumOrderQuantity,averageRating,reviewsCount,brand,sku,description' }));
+      return;
+    }
+    if (name === 'category' && (!value || value === '')) {
+      setFilters(prev => ({ ...prev, category: '' }));
+      dispatch(resetFilters());
+      try { setSearchParams({}); } catch (e) {}
+  dispatch(fetchFilteredProducts({ page: 1, limit: 12, fields: '_id,title,price,discountPercentage,image,extraImages,quantity,minimumOrderQuantity,averageRating,reviewsCount,brand,sku,description' }));
+      filteredRequestAllRef.current = false;
+      setFilteredRequestAll(false);
+      return;
+    }
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
@@ -119,7 +182,9 @@ export default function Store() {
       maxPrice: ""
     });
     dispatch(resetFilters());
-    dispatch(fetchAllProducts());
+  dispatch(fetchFilteredProducts({ page: 1, limit: 12, fields: '_id,title,price,discountPercentage,image,extraImages,quantity,minimumOrderQuantity,averageRating,reviewsCount,brand,sku,description' }));
+    filteredRequestAllRef.current = false;
+    setFilteredRequestAll(false);
   };
 
   const activeFilterCount = useMemo(() => {
@@ -158,6 +223,41 @@ export default function Store() {
       </div>
     );
   }
+
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    let observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+              const current = page || 1;
+          const totalPages = pages || 1;
+          if (!loading && current < totalPages) {
+            const next = current + 1;
+            const params = { page: next, limit: 12 };
+            if (searchTerm && String(searchTerm).trim().length > 0) params.search = searchTerm.trim();
+            if (filters.category) params.category = filters.category;
+            if (filters.minRating && Number(filters.minRating) > 0) params.minRating = Number(filters.minRating);
+            if (filters.sortBy) params.sort = filters.sortBy;
+            if (filters.minPrice) params.minPrice = filters.minPrice;
+            if (filters.maxPrice) params.maxPrice = filters.maxPrice;
+            if (filters.tags) params.tags = filters.tags;
+            if (filters.brand) params.brand = filters.brand;
+            params.fields = '_id,title,price,discountPercentage,image,extraImages,quantity,minimumOrderQuantity,averageRating,reviewsCount,brand,sku,description';
+            try {} catch (e) {}
+            dispatch(fetchFilteredProducts(params));
+            if (next >= totalPages) {
+              try { observer.disconnect(); } catch (e) {}
+            }
+          } else if (!loading && current >= totalPages) {
+            try { observer.disconnect(); } catch (e) {}
+          }
+        }
+      });
+    }, { rootMargin: '400px' });
+
+    observer.observe(sentinelRef.current);
+    return () => { observer.disconnect(); };
+  }, [dispatch, sentinelRef, dataLoaded, page, pages, searchTerm, filters, loading]);
 
   return (
     <div
@@ -261,7 +361,7 @@ export default function Store() {
             <button
               type="button"
               onClick={handleResetFilters}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              className="px-4 py-2 text-gray-500 hover:text-gray-700 transition-colors"
             >
               Reset All
             </button>
@@ -276,10 +376,8 @@ export default function Store() {
         </div>
       )}
       <div className={`mb-4 flex justify-between items-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-        {displayedProducts.length > 0 && (
-          <span>Showing {displayedProducts.length} products</span>
-        )}
-        {isFiltered && (
+
+        {activeFilterCount > 0 && (
           <button 
             type="button"
             onClick={handleResetFilters}
@@ -309,16 +407,46 @@ export default function Store() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {displayedProducts.map(product => (
-              <ProductCard key={product._id} product={product} />
-            ))}
-          </div>
-          {loading && (
-            <div className="flex justify-center mt-6">
-              <FiLoader className={`animate-spin text-2xl ${isDarkMode ? 'text-green-300' : 'text-green-600'}`} />
+          <div className="relative">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {displayedProducts.map(product => (
+                <ProductCard key={product._id} product={product} />
+              ))}
             </div>
-          )}
+            <div ref={sentinelRef} className="w-full h-4" aria-hidden="true" />
+
+{(() => {
+              const current = page || 1;
+                const pendingPage = typeof requestedPage !== 'undefined' && requestedPage !== null ? Number(requestedPage) : current;
+                if (loading && pendingPage <= 1 && (isFiltered || (searchTerm && searchTerm.length > 0))) {
+                return (
+                  <div className="absolute inset-0 bg-white/60 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center z-40">
+                    <div className="flex flex-col items-center gap-2">
+                      <FiLoader className={`animate-spin text-4xl ${isDarkMode ? 'text-green-300' : 'text-green-600'}`} />
+                      <span className={`${isDarkMode ? 'text-gray-200' : 'text-gray-700'} text-sm`}>Loading results…</span>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+          </div>
+          {(() => {
+            const pendingPage = typeof requestedPage !== 'undefined' && requestedPage !== null ? Number(requestedPage) : (page || 1);
+            if (loading && pendingPage > 1) {
+              return (
+                <div className="flex justify-center mt-6" aria-live="polite" aria-busy="true">
+                  <div className={`flex items-center gap-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <FiLoader className={`animate-spin text-xl ${isDarkMode ? 'text-green-300' : 'text-green-600'}`} />
+                    <span>Loading more…</span>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
         </>
       )}
     </div>

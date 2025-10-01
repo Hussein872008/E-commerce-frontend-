@@ -56,7 +56,7 @@ export const markNotificationAsRead = createAsyncThunk(
       const response = await api.patch(`/api/notifications/${notificationId}/read`);
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || error.message || { message: String(error) });
     }
   }
 );
@@ -68,7 +68,7 @@ export const markAllNotificationsAsRead = createAsyncThunk(
       const response = await api.patch('/api/notifications/mark-all-read');
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      return rejectWithValue(error.response?.data || error.message || { message: String(error) });
     }
   }
 );
@@ -81,8 +81,8 @@ const initialState = {
   error: null,
   lastFetched: null,
   toastNotifications: [],
-  highlightedOrderId: null,
   lastNotification: null,
+  pendingReadIds: [],
   isConnected: false
 };
 
@@ -96,7 +96,7 @@ export const createNotificationSlice = () => createSlice({
       
       if (!exists) {
         state.notifications.unshift(notification);
-        state.lastNotification = notification;
+    state.lastNotification = notification;
         
         if (!notification.read) {
           state.unreadCount += 1;
@@ -130,9 +130,7 @@ export const createNotificationSlice = () => createSlice({
         notification => notification._id !== action.payload
       );
     },
-    setHighlightedOrder: (state, action) => {
-      state.highlightedOrderId = action.payload;
-    },
+
     updateNotifications: (state, action) => {
       state.notifications = action.payload;
     }
@@ -167,12 +165,38 @@ export const createNotificationSlice = () => createSlice({
         state.error = action.payload?.message || 'Failed to fetch notifications';
       })
       
-      .addCase(markNotificationAsRead.fulfilled, (state, action) => {
-        const notification = state.notifications.find(n => n._id === action.meta.arg);
+      .addCase(markNotificationAsRead.pending, (state, action) => {
+
+        const id = action.meta.arg;
+        if (!id) return;
+        const notification = state.notifications.find(n => n._id === id);
         if (notification && !notification.read) {
           notification.read = true;
           state.unreadCount = Math.max(0, state.unreadCount - 1);
         }
+
+        if (!state.pendingReadIds.includes(id)) state.pendingReadIds.push(id);
+
+        state.toastNotifications = state.toastNotifications.filter(t => t._id !== id);
+      })
+      .addCase(markNotificationAsRead.fulfilled, (state, action) => {
+        const id = action.meta.arg;
+
+        state.pendingReadIds = state.pendingReadIds.filter(x => x !== id);
+
+        state.toastNotifications = state.toastNotifications.filter(t => t._id !== id);
+      })
+      .addCase(markNotificationAsRead.rejected, (state, action) => {
+        const id = action.meta.arg;
+
+        try {
+          const notification = state.notifications.find(n => n._id === id);
+          if (notification && notification.read) {
+            notification.read = false;
+            state.unreadCount = state.unreadCount + 1;
+          }
+        } catch (e) {}
+        state.pendingReadIds = state.pendingReadIds.filter(x => x !== id);
       })
       
       .addCase(markAllNotificationsAsRead.fulfilled, (state) => {
@@ -238,7 +262,6 @@ export const initializeNotifications = (userId) => {
           console.warn('[Notifications] Failed to fetch notifications during initialize (likely unauthenticated):', err?.message || err);
         }
       } else {
-        console.info('[Notifications] Skipping fetchNotifications — no token present');
       }
     } catch (e) {
       console.error('[Notifications] initializeNotifications error:', e);
@@ -250,7 +273,7 @@ export const initializeNotifications = (userId) => {
       if (currentSocket) {
         try {
           currentSocket.off('initialNotifications');
-          currentSocket.off('notificationUpdate');
+          currentSocket.off('unreadCount');
           currentSocket.off('connect');
           currentSocket.off('disconnect');
           currentSocket.disconnect();
@@ -267,5 +290,5 @@ export const refreshNotifications = () => (dispatch) => {
 };
 
 const slice = createNotificationSlice();
-export const { addNotification, updateUnreadCount, clearNotifications, removeToastNotification, setHighlightedOrder } = slice.actions;
+export const { addNotification, updateUnreadCount, clearNotifications, removeToastNotification, updateNotifications } = slice.actions;
 export default slice.reducer;

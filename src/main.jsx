@@ -14,61 +14,7 @@ import setupAxiosInterceptors from './redux/setupAxiosInterceptors';
 import { verifyToken } from './redux/authSlice';
 import { initializeNotifications } from './redux/notificationSlice';
 
-function insertRuntimeCssOverrides() {
-  try {
-  const css = `
-/* Override SWAL2 keyframes that use margin-top (layout thrash) with transform-based animations */
-@keyframes swal2-animate-error-x-mark{0%{transform:translateY(10px) scale(.4);opacity:0}40%{transform:translateY(-6px) scale(1.05);opacity:1}to{transform:translateY(0) scale(1);opacity:1}}
-@keyframes swal2-animate-success-line-long{0%{transform:translateY(0) scale(.6);opacity:0}65%{transform:translateY(0) scale(.6);opacity:0}84%{transform:translateY(0) scale(1.02)}100%{transform:translateY(0) scale(1);opacity:1}}
-@keyframes swal2-animate-success-line-tip{0%{transform:translateY(0) scale(.6);opacity:0}54%{transform:translateY(0) scale(.6);opacity:0}70%{transform:translateY(0) scale(1.02)}84%{transform:translateY(0) scale(1)}100%{transform:translateY(0) scale(1);opacity:1}}
-.swal2-icon { zoom: unset !important; transform-origin: center; }
-html, :host, body { -webkit-text-size-adjust: 100%; -moz-text-size-adjust: 100%; text-size-adjust: 100%; }
-/* Note: global user-select rules removed to allow normal text caret and selection. */
-`;
 
-    const ATTR = 'data-runtime-overrides';
-
-    function createStyle() {
-      const existing = document.head.querySelector(`style[${ATTR}]`);
-      if (existing) return existing;
-      const s = document.createElement('style');
-      s.setAttribute(ATTR, 'swal2-overrides');
-      s.textContent = css;
-      document.head.appendChild(s);
-      return s;
-    }
-
-    createStyle();
-
-    const observer = new MutationObserver((mutations) => {
-      let shouldReinsert = false;
-      for (const m of mutations) {
-        for (const node of m.addedNodes) {
-          if (node.nodeType === 1) {
-            const tag = node.tagName.toLowerCase();
-            if (tag === 'style' || (tag === 'link' && node.rel === 'stylesheet')) {
-              shouldReinsert = true;
-              break;
-            }
-          }
-        }
-        if (shouldReinsert) break;
-      }
-      if (shouldReinsert) {
-        const existing = document.head.querySelector(`style[${ATTR}]`);
-        if (existing) existing.remove();
-        createStyle();
-      }
-    });
-
-    observer.observe(document.head, { childList: true, subtree: false });
-    try {
-      (window.__runtimeCssOverrides = window.__runtimeCssOverrides || []).push(observer);
-    } catch (e) {
-    }
-  } catch (e) {
-  }
-}
 
 function Root() {
   const dispatch = useDispatch();
@@ -133,4 +79,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 );
 
-insertRuntimeCssOverrides();

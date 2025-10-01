@@ -24,4 +24,10 @@ const store = configureStore({
   devTools: process.env.NODE_ENV !== 'production',
 });
 
+try {
+  if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    window.__store = store;
+  }
+} catch (e) {}
+
 export default store;

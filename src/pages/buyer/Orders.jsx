@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo, memo, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   FiPackage,
   FiClock,
@@ -33,7 +33,6 @@ import {
   selectOrdersError,
   selectOrdersStats
 } from "../../redux/orders.slice";
-import "../../styles/highlight.css";
 
 
 
@@ -196,7 +195,7 @@ const OrderDetailsModal = ({ order, onClose, onCancel, darkMode }) => {
         <div className={`flex justify-between items-center border-b p-6 sticky top-0 z-10 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <h2 className="text-xl font-semibold flex items-center">
             <FiPackage className="mr-2" />
-            Order Details #{order?._id?.substring(0, 8) || "N/A"}
+            Order Details #{order?._id || "N/A"}
           </h2>
           <button 
             onClick={onClose} 
@@ -343,37 +342,61 @@ export default function Orders() {
 
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [highlightedOrderId, setHighlightedOrderId] = useState(null);
 
   const orderRefs = useRef(new Map());
+  const highlightTimerRef = useRef(null);
+  const location = useLocation();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const orderId = params.get('highlight');
-    if (orderId) {
-      setHighlightedOrderId(orderId);
+    const params = new URLSearchParams(location.search || '');
+    const highlight = params.get('highlight');
+    if (!highlight) return;
 
-      setTimeout(() => {
-        const el = orderRefs.current.get(orderId);
-        if (el && el.scrollIntoView) {
-          try {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          } catch (e) {
-            el.scrollIntoView();
+    let mounted = true;
+
+    const doHighlight = async () => {
+      let target = highlight;
+
+      if (!/^[0-9a-fA-F]{24}$/.test(target) && /^[0-9a-fA-F]{6,24}$/.test(target)) {
+        try {
+          const res = await dispatch(searchOrders({ page: 1, limit: 100, search: target }));
+          if (searchOrders.fulfilled.match(res)) {
+            const payload = res.payload || {};
+            const found = Array.isArray(payload.orders) ? payload.orders.find(o => String(o._id).startsWith(target)) : (payload.items || []).find(o => String(o._id).startsWith(target));
+            if (found) target = String(found._id);
           }
+        } catch (e) {
         }
-      }, 300);
+      }
 
-      const clearHighlight = setTimeout(() => {
-        setHighlightedOrderId(null);
-        const newUrl = new URL(window.location.href);
-        newUrl.searchParams.delete('highlight');
-        window.history.replaceState({}, '', newUrl);
-      }, 3000);
+      if (!mounted) return;
 
-      return () => clearTimeout(clearHighlight);
-    }
-  }, []);
+      const el = orderRefs.current.get(target) || document.getElementById(`order-${target}`);
+      if (el && typeof el.scrollIntoView === 'function') {
+        try {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('highlight-order');
+          el.classList.add('highlight-persistent');
+          if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+          highlightTimerRef.current = setTimeout(() => {
+            try {
+              el.classList.remove('highlight-order');
+              el.classList.remove('highlight-persistent');
+            } catch (e) {}
+            try {
+              const cur = new URL(window.location.href);
+              cur.searchParams.delete('highlight');
+              window.history.replaceState({}, '', cur.toString());
+            } catch (e) {}
+          }, 4200);
+        } catch (e) {}
+      }
+    };
+
+    doHighlight();
+
+    return () => { mounted = false; if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current); };
+  }, [location.search, orders, dispatch]);
 
   const debugMode = useMemo(() => {
     try {
@@ -420,7 +443,6 @@ export default function Orders() {
 
   useEffect(() => {
     try {
-      console.log('OrdersPage debug', { searchParams, orders, stats });
     } catch (e) {
     }
   }, [searchParams, orders, stats]);
@@ -577,45 +599,45 @@ export default function Orders() {
                     <option value="Cancelled">Cancelled</option>
                   </select>
                 </div>
-                {searchParams.status && hasAnyOrders && (
-                  <div className="mt-3 md:mt-0 md:ml-4">
-                    <button
-                      onClick={() => setSearchParams({ ...searchParams, status: '', page: 1 })}
-                      className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-gray-600 border-gray-500 text-white hover:bg-gray-700' : 'bg-white border-gray-300 hover:bg-gray-50'}`}
-                    >
-                      Reset filter
-                    </button>
-                  </div>
-                )}
               </div>
 
               {loading ? (
                 <OrderLoadingSkeleton />
-              ) : !hasAnyOrders ? (
-                <div className={`text-center py-12 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                  <FiPackage className="mx-auto text-4xl mb-4 text-gray-500" />
-                  <h3 className="text-lg font-medium mb-2">
-                    {searchParams.status ? `No orders for "${searchParams.status}"` : 'No orders found'}
-                  </h3>
-                  <p className={`mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {searchParams.status ? `There are no orders with status "${searchParams.status}".` : "You haven't placed any orders yet."}
-                  </p>
-                  <div className="flex items-center justify-center space-x-3">
-                    {searchParams.status ? (
+              ) : (searchParams.status && Array.isArray(displayedOrders) && displayedOrders.length === 0) ? (
+                <div className={`w-full p-8 rounded-xl border ${darkMode ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-100 text-gray-800'}`}>
+                  <div className="max-w-xl mx-auto text-center">
+                    <div className={`mx-auto mb-4 w-20 h-20 flex items-center justify-center rounded-full ${darkMode ? 'bg-yellow-900/30' : 'bg-yellow-50'}`}>
+                      <FiPackage className={`text-3xl ${darkMode ? 'text-yellow-300' : 'text-yellow-500'}`} />
+                    </div>
+                    <h3 className={`text-2xl font-semibold mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>No orders for "{searchParams.status}"</h3>
+                    <p className={`mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>We couldn't find any orders with the status <strong className={darkMode ? 'text-gray-100' : 'text-gray-800'}>"{searchParams.status}"</strong>. Try resetting the filter to see all orders.</p>
+                    <div className="flex items-center justify-center gap-3">
                       <button
                         onClick={() => setSearchParams({ ...searchParams, status: '', page: 1 })}
-                        className={`px-4 py-2 rounded-lg border ${darkMode ? 'bg-gray-600 border-gray-500 text-white hover:bg-gray-700' : 'bg-white border-gray-300 hover:bg-gray-50'}`}
+                        className={`px-4 py-2 rounded-lg font-medium ${darkMode ? 'bg-gray-700 border border-gray-600 text-white hover:bg-gray-600' : 'bg-white border border-gray-200 text-gray-800 hover:bg-gray-50'}`}
                       >
                         Reset filter
                       </button>
-                    ) : null}
-                    <Link
-                      to="/products"
-                      className={searchParams.status ? 'hidden' : 'px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center transition-colors'}
-                    >
-                      <FiShoppingBag className="mr-2" />
-                      Start Shopping
-                    </Link>
+                    </div>
+                  </div>
+                </div>
+              ) : !hasAnyOrders ? (
+                <div className={`w-full p-8 rounded-xl border ${darkMode ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-white border-gray-100 text-gray-800'}`}>
+                  <div className="max-w-xl mx-auto text-center">
+                    <div className={`mx-auto mb-4 w-20 h-20 flex items-center justify-center rounded-full ${darkMode ? 'bg-blue-900/20' : 'bg-blue-50'}`}>
+                      <FiPackage className={`text-3xl ${darkMode ? 'text-blue-300' : 'text-blue-600'}`} />
+                    </div>
+                    <h3 className="text-2xl font-semibold mb-2">No orders found</h3>
+                    <p className={`mb-6 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>You don't have any orders yet. Start shopping to create your first order.</p>
+                    <div className="flex items-center justify-center gap-3">
+                      <Link
+                        to="/products"
+                        className={`px-4 py-2 rounded-lg font-medium ${darkMode ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                      >
+                        <FiShoppingBag className="mr-2" />
+                        Start Shopping
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -629,15 +651,10 @@ export default function Orders() {
                       transition={{ duration: 0.3 }}
                       whileHover={{ y: -4, boxShadow: '0 10px 20px rgba(0,0,0,0.08)' }}
                       style={{
-                        backgroundColor: highlightedOrderId === order._id 
-                          ? darkMode 
-                            ? 'rgba(59, 130, 246, 0.3)'
-                            : 'rgba(59, 130, 246, 0.1)'
-                          : 'transparent',
-                        transition: 'background-color 3s ease-out'
+                        transition: 'background-color 0.3s ease-out'
                       }}
                       className={`rounded-xl overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'} ${
-                        highlightedOrderId === order._id ? 'ring-2 ring-blue-500 ring-opacity-50' : 'shadow-lg'
+                        'shadow-lg'
                       }`}
                     >
                       <div className={`p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -651,6 +668,7 @@ export default function Orders() {
                           >
                             {order.items?.[0]?.product?.image ? (
                               <img
+                                loading="lazy"
                                 src={formatImageUrl(order.items[0].product.image)}
                                 alt={order.items[0].product?.title || 'Order thumbnail'}
                                 className="h-10 w-10 object-cover rounded-md mr-3 border transform transition-transform duration-200 hover:scale-110"
@@ -663,7 +681,7 @@ export default function Orders() {
                             )}
 
                             <div>
-                              <p className="font-medium">Order #{order._id.substring(0, 8)}</p>
+                              <p className="font-medium">Order #{order._id}</p>
                               <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                                 {formatDate(order.createdAt)}
                               </p>

@@ -69,9 +69,10 @@ export default function AdminDashboard() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [userPage, setUserPage] = useState(1);
   const [productSearchTerm, setProductSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
   const [currentProductPage, setCurrentProductPage] = useState(1);
+  const [debounceTimer, setDebounceTimer] = useState(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const itemsPerPage = 10;
 
@@ -80,13 +81,12 @@ export default function AdminDashboard() {
       try {
         await dispatch(fetchAdminStats());
         await Promise.all([
-          dispatch(fetchAllUsers()),
+          dispatch(fetchAllUsers({ page: 1, limit: itemsPerPage })),
           dispatch(fetchAllOrders()),
           dispatch(fetchRecentOrders()),
-          dispatch(fetchAllProducts())
+          dispatch(fetchAllProducts({ page: 1, limit: itemsPerPage }))
         ]);
       } catch (err) {
-        console.error('Failed to load data:', err);
         toast.error('Failed to load dashboard data');
       }
     };
@@ -101,39 +101,19 @@ export default function AdminDashboard() {
     }
   }, [error, dispatch]);
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = (user.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.role || "").toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter ? user.role === roleFilter : true;
-    return matchesSearch && matchesRole;
-  });
+  const totalPages = Math.ceil((adminState.usersTotal || 0) / itemsPerPage);
+  const paginatedUsers = users;
 
-  const filteredProducts = products.filter(product => 
-    product.title.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(productSearchTerm.toLowerCase())
-  );
-
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-  const paginatedUsers = filteredUsers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const totalProductPages = Math.ceil(filteredProducts.length / itemsPerPage);
-  const paginatedProducts = filteredProducts.slice(
-    (currentProductPage - 1) * itemsPerPage,
-    currentProductPage * itemsPerPage
-  );
-
+  const totalProductPages = Math.ceil((adminState.productsTotal || 0) / itemsPerPage);
+  const paginatedProducts = products; 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     if (tab === 'users' && users.length === 0) {
-      dispatch(fetchAllUsers());
+      dispatch(fetchAllUsers({ page: 1, limit: itemsPerPage }));
     } else if (tab === 'orders' && orders.length === 0) {
       dispatch(fetchAllOrders());
     } else if (tab === 'products' && products.length === 0) {
-      dispatch(fetchAllProducts());
+      dispatch(fetchAllProducts({ page: 1, limit: itemsPerPage }));
     }
   };
 
@@ -151,6 +131,7 @@ export default function AdminDashboard() {
           .unwrap()
           .then(() => {
             toast.success('User deleted successfully');
+            dispatch(fetchAllUsers({ search: searchTerm, role: roleFilter, page: userPage, limit: itemsPerPage }));
           })
           .catch((err) => {
             toast.error(`Failed to delete user: ${err.message}`);
@@ -173,6 +154,7 @@ export default function AdminDashboard() {
           .unwrap()
           .then(() => {
             toast.success('Product deleted successfully');
+            dispatch(fetchAllProducts({ search: productSearchTerm, page: currentProductPage, limit: itemsPerPage }));
           })
           .catch((err) => {
             toast.error(`Failed to delete product: ${err.message}`);
@@ -191,6 +173,26 @@ export default function AdminDashboard() {
         toast.error(`Failed to update order status: ${err.message}`);
       });
   };
+
+  useEffect(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    const t = setTimeout(() => {
+      setUserPage(1);
+      dispatch(fetchAllUsers({ search: searchTerm, role: roleFilter, page: 1, limit: itemsPerPage }));
+    }, 300);
+    setDebounceTimer(t);
+    return () => clearTimeout(t);
+  }, [searchTerm, roleFilter, dispatch]);
+
+  useEffect(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    const t = setTimeout(() => {
+      setCurrentProductPage(1);
+      dispatch(fetchAllProducts({ search: productSearchTerm, page: 1, limit: itemsPerPage }));
+    }, 300);
+    setDebounceTimer(t);
+    return () => clearTimeout(t);
+  }, [productSearchTerm, dispatch]);
 
   const userRolesData = [
     { name: 'Buyers', value: stats.userRoles?.buyer || 0 },
@@ -589,7 +591,11 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between mt-4">
                   <button 
                     disabled={currentPage===1} 
-                    onClick={() => setCurrentPage(p => p - 1)} 
+                    onClick={() => {
+                      const newPage = Math.max(1, userPage - 1);
+                      setUserPage(newPage);
+                      dispatch(fetchAllUsers({ search: searchTerm, role: roleFilter, page: newPage, limit: itemsPerPage }));
+                    }} 
                     className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-all ${currentPage===1 ?
                       'bg-slate-100 text-slate-400 cursor-not-allowed' :
                       'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 shadow-sm'}`}
@@ -599,10 +605,14 @@ export default function AdminDashboard() {
                     </svg>
                     Previous
                   </button>
-                  <div className="text-sm text-slate-600">Page {currentPage} of {totalPages}</div>
+                  <div className="text-sm text-slate-600">Page {userPage} of {totalPages}</div>
                   <button 
-                    disabled={currentPage===totalPages} 
-                    onClick={()=>setCurrentPage(p=>p+1)} 
+                    disabled={userPage===totalPages} 
+                    onClick={()=>{
+                      const newPage = Math.min(totalPages, userPage + 1);
+                      setUserPage(newPage);
+                      dispatch(fetchAllUsers({ search: searchTerm, role: roleFilter, page: newPage, limit: itemsPerPage }));
+                    }} 
                     className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-all ${currentPage===totalPages?
                       'bg-slate-100 text-slate-400 cursor-not-allowed' :
                       'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 shadow-sm'}`}
@@ -653,7 +663,7 @@ export default function AdminDashboard() {
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden">
                                 {p.images?.[0] ? (
-                                  <img src={p.images[0]} alt={p.title} className="w-full h-full object-cover" />
+                                  <img src={p.images[0]} alt={p.title} loading="lazy" className="w-full h-full object-cover" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-slate-400">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -707,10 +717,14 @@ export default function AdminDashboard() {
                     </svg>
                     Previous
                   </button>
-                  <div className="text-sm text-slate-600">Page {currentProductPage} of {totalProductPages}</div>
+                    <div className="text-sm text-slate-600">Page {currentProductPage} of {totalProductPages}</div>
                   <button 
                     disabled={currentProductPage===totalProductPages} 
-                    onClick={()=>setCurrentProductPage(p=>p+1)} 
+                    onClick={()=>{
+                      const newPage = Math.min(totalProductPages, currentProductPage + 1);
+                      setCurrentProductPage(newPage);
+                      dispatch(fetchAllProducts({ search: productSearchTerm, page: newPage, limit: itemsPerPage }));
+                    }} 
                     className={`px-3 py-1.5 rounded text-sm flex items-center gap-1 transition-all ${currentProductPage===totalProductPages?
                       'bg-slate-100 text-slate-400 cursor-not-allowed' :
                       'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 shadow-sm'}`}
@@ -920,8 +934,8 @@ export default function AdminDashboard() {
                     <div key={item._id} className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-md bg-slate-200 overflow-hidden">
-                          {item.product?.images?.[0] ? (
-                            <img src={item.product.images[0]} alt={item.product.title} className="w-full h-full object-cover" />
+                            {item.product?.images?.[0] ? (
+                            <img src={item.product.images[0]} alt={item.product.title} loading="lazy" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-400">
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

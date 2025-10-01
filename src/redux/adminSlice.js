@@ -4,10 +4,17 @@ import api from '../utils/api';
 
 export const fetchAllUsers = createAsyncThunk(
   'admin/fetchAllUsers',
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-  const response = await api.get('/api/users');
-      return response.data.users;
+      const response = await api.get('/api/users', { params });
+      const data = response.data || {};
+      return {
+        users: data.users || [],
+        total: data.total || (data.users ? data.users.length : 0),
+        page: data.page || 1,
+        pages: data.pages || 1,
+        limit: data.limit || params.limit || 10
+      };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
@@ -103,10 +110,17 @@ export const updateSellerOrderStatus = createAsyncThunk(
 
 export const fetchAllProducts = createAsyncThunk(
   'admin/fetchAllProducts',
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-  const response = await api.get('/api/products');
-      return response.data.products || response.data.data;
+      const response = await api.get('/api/products', { params });
+      const data = response.data || {};
+      return {
+        products: data.products || data.data || [],
+        total: data.total || data.count || (data.products ? data.products.length : 0),
+        page: data.page || 1,
+        pages: data.pages || 1,
+        limit: data.limit || params.limit || 20
+      };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
@@ -145,6 +159,12 @@ const adminSlice = createSlice({
   initialState: {
     users: [],
     products: [],
+    usersTotal: 0,
+    usersPage: 1,
+    usersPages: 1,
+    productsTotal: 0,
+    productsPage: 1,
+    productsPages: 1,
     orders: [],
     recentOrders: [],
     sellerOrders: [],
@@ -167,7 +187,10 @@ const adminSlice = createSlice({
       })
       .addCase(fetchAllUsers.fulfilled, (state, action) => {
         state.loading = false;
-        state.users = action.payload;
+        state.users = action.payload.users || [];
+        state.usersTotal = action.payload.total || 0;
+        state.usersPage = action.payload.page || 1;
+        state.usersPages = action.payload.pages || 1;
       })
       .addCase(fetchAllUsers.rejected, (state, action) => {
         state.loading = false;
@@ -313,7 +336,10 @@ const adminSlice = createSlice({
       })
       .addCase(fetchAllProducts.fulfilled, (state, action) => {
         state.loading = false;
-        state.products = action.payload;
+        state.products = action.payload.products || [];
+        state.productsTotal = action.payload.total || 0;
+        state.productsPage = action.payload.page || 1;
+        state.productsPages = action.payload.pages || 1;
       })
       .addCase(fetchAllProducts.rejected, (state, action) => {
         state.loading = false;

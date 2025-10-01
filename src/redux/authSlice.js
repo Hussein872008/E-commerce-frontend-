@@ -1,19 +1,22 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api, { setAuthToken } from '../utils/api';
+import { normalizeUser, resolveUserId } from '../utils/user';
 
 const resolveRoleFromUser = (user) => {
   if (!user) return null;
   return user.role || user.activeRole || (Array.isArray(user.roles) && user.roles.length ? user.roles[0] : null);
 }
 
-const initialState = {
-  user: JSON.parse(localStorage.getItem('user')) || null,
+  const storedUserRaw = JSON.parse(localStorage.getItem('user')) || null;
+  const storedUser = normalizeUser(storedUserRaw);
+  const initialState = {
+  user: storedUser,
   token: localStorage.getItem('token') || null,
   isAuthenticated: !!localStorage.getItem('token'),
   isLoading: false,
   error: null,
   success: null,
-  role: resolveRoleFromUser(JSON.parse(localStorage.getItem('user')))
+  role: resolveRoleFromUser(storedUser)
 };
 
 const handleApiError = (error, defaultMessage) => {
@@ -39,11 +42,11 @@ export const refreshToken = createAsyncThunk(
   'auth/refreshToken',
   async (_, { rejectWithValue }) => {
     try {
-  const storedRefresh = localStorage.getItem('refreshToken');
-  const body = storedRefresh ? { refreshToken: storedRefresh } : {};
-  const { data } = await api.post('/api/auth/refresh-token', body, { withCredentials: true });
-      if (data?.token) localStorage.setItem('token', data.token);
-      if (data?.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+  const { data } = await api.post('/api/auth/refresh-token', {}, { withCredentials: true });
+      if (data?.token) {
+        localStorage.setItem('token', data.token);
+        setAuthToken(data.token);
+      }
       return data.token;
     } catch (err) {
       return rejectWithValue(handleApiError(err, 'Token refresh failed'));
@@ -67,9 +70,12 @@ export const registerUser = createAsyncThunk(
         return rejectWithValue(response.data.message || 'Registration failed');
       }
 
-  const { token, user, refreshToken } = response.data;
-  if (token) localStorage.setItem('token', token);
-  if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+  const { token, user: rawUser } = response.data;
+  const user = normalizeUser(rawUser);
+  if (token) {
+    localStorage.setItem('token', token);
+    setAuthToken(token);
+  }
   localStorage.setItem('user', JSON.stringify(user));
 
   return { token, user, role: resolveRoleFromUser(user) };
@@ -89,9 +95,12 @@ export const loginUser = createAsyncThunk(
         return rejectWithValue(response.data.message || 'Login failed');
       }
 
-  const { token, user, refreshToken } = response.data;
-  if (token) localStorage.setItem('token', token);
-  if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+  const { token, user: rawUser } = response.data;
+  const user = normalizeUser(rawUser);
+  if (token) {
+    localStorage.setItem('token', token);
+    setAuthToken(token);
+  }
   localStorage.setItem('user', JSON.stringify(user));
 
   return { token, user, role: resolveRoleFromUser(user) };
@@ -115,7 +124,9 @@ export const verifyToken = createAsyncThunk(
         throw new Error('Invalid user data');
       }
 
-  return { user: response.data.user, role: resolveRoleFromUser(response.data.user) };
+  const user = normalizeUser(response.data.user);
+  localStorage.setItem('user', JSON.stringify(user));
+  return { user, role: resolveRoleFromUser(user) };
     } catch (error) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -169,10 +180,11 @@ export const updateProfile = createAsyncThunk(
         return rejectWithValue(response.data.message || 'Update failed');
       }
 
-      const updatedUser = {
-        ...JSON.parse(localStorage.getItem('user')),
+      const raw = JSON.parse(localStorage.getItem('user') || 'null');
+      const updatedUser = normalizeUser({
+        ...(raw || {}),
         name: updates.name,
-      };
+      });
       localStorage.setItem('user', JSON.stringify(updatedUser));
 
       return updatedUser;
@@ -235,7 +247,6 @@ const authSlice = createSlice({
   reducers: {
     logout: (state) => {
       localStorage.removeItem('token');
-  localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
       state.user = null;
       state.token = null;
@@ -264,9 +275,10 @@ const authSlice = createSlice({
       .addCase(registerUser.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
+    state.user = action.payload.user;
+    state.token = action.payload.token;
   state.role = resolveRoleFromUser(action.payload.user);
+    try { if (action.payload.token) { setAuthToken(action.payload.token); } } catch(e) {}
         state.success = 'Registration successful';
         state.error = null;
       })
@@ -277,9 +289,10 @@ const authSlice = createSlice({
       })
       .addCase(switchRoleUser.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload;
-        state.role = resolveRoleFromUser(action.payload);
-        localStorage.setItem('user', JSON.stringify(action.payload));
+        const normalized = normalizeUser(action.payload);
+        state.user = normalized;
+        state.role = resolveRoleFromUser(normalized);
+        localStorage.setItem('user', JSON.stringify(normalized));
         state.success = 'Role switched successfully';
         state.error = null;
       })
@@ -302,9 +315,10 @@ const authSlice = createSlice({
       .addCase(loginUser.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
+    state.user = action.payload.user;
+    state.token = action.payload.token;
   state.role = resolveRoleFromUser(action.payload.user);
+    try { if (action.payload.token) { setAuthToken(action.payload.token); } } catch(e) {}
         state.success = 'Login successful';
         state.error = null;
       })
@@ -321,8 +335,9 @@ const authSlice = createSlice({
       .addCase(verifyToken.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user;
+    state.user = action.payload.user;
   state.role = resolveRoleFromUser(action.payload.user);
+    try { if (state.token) setAuthToken(state.token); } catch(e) {}
         state.error = null;
       })
       .addCase(verifyToken.rejected, (state, action) => {
@@ -337,7 +352,9 @@ const authSlice = createSlice({
       })
       .addCase(updateProfile.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload;
+        const normalized = normalizeUser(action.payload);
+        state.user = normalized;
+        localStorage.setItem('user', JSON.stringify(normalized));
         state.success = 'Profile updated successfully';
         state.error = null;
       })

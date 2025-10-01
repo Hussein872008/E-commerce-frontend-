@@ -11,7 +11,7 @@ import NotificationsPanel from "./NotificationsPanel";
 import NotificationToastContainer from "./NotificationToast";
 
 import { toggleDarkMode } from "../redux/themeSlice";
-import { fetchWishlistCount } from "../redux/wishlist.slice";
+import { fetchWishlistCount, fetchWishlist } from "../redux/wishlist.slice";
 import { fetchCart } from "../redux/cart.slice";
 import { initializeNotifications, removeToastNotification, refreshNotifications } from "../redux/notificationSlice";
 
@@ -65,6 +65,7 @@ export default function MainLayout({ role = "buyer" }) {
   useEffect(() => {
     if (user && token) {
       dispatch(fetchWishlistCount());
+      dispatch(fetchWishlist());
       dispatch(fetchCart());
     }
   }, [user, token, dispatch]);
@@ -72,7 +73,10 @@ export default function MainLayout({ role = "buyer" }) {
   useEffect(() => {
     if (user?._id) {
       dispatch(initializeNotifications(user._id));
-      const interval = setInterval(() => dispatch(refreshNotifications()), 30000);
+const interval = setInterval(() => {
+        const panelOpen = !!document.querySelector('[data-notifications-panel-open]');
+        if (!panelOpen) dispatch(refreshNotifications());
+      }, 120000);
       return () => clearInterval(interval);
     }
   }, [user, dispatch, role]);
@@ -210,6 +214,7 @@ export default function MainLayout({ role = "buyer" }) {
   const NavButton = ({ to, children, title, label, isCollapsed = false }) => (
     <NavLink
       to={to}
+      end={to === '/seller'}
       className={({ isActive }) =>
         `px-3 py-2.5 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 group ${
           isActive
@@ -320,7 +325,7 @@ export default function MainLayout({ role = "buyer" }) {
                     {isBuyer ? <FaStore size={24} /> : <FiBox size={24} />}
                   </div>
                   <span className="text-xl font-bold text-white">
-                    {isBuyer ? 'Our Store' : 'Seller Panel'}
+                    {isBuyer ? "Hussein's Store" : 'Seller Panel'}
                   </span>
                 </div>
                 <button 
@@ -398,6 +403,7 @@ export default function MainLayout({ role = "buyer" }) {
                       <>
                         <NavLink 
                           to="/seller" 
+                          end
                           className={({ isActive }) => `flex items-center gap-3 p-3 rounded-xl text-white ${isActive ? 'bg-white/20' : 'hover:bg-white/10'}`}
                           onClick={() => closeMobileMenu()}
                         >
@@ -552,7 +558,7 @@ export default function MainLayout({ role = "buyer" }) {
                     ? 'bg-gradient-to-r from-blue-300 to-purple-300' 
                     : 'bg-gradient-to-r from-white to-blue-100'
                 }`}>
-                  {isBuyer ? 'Our Store' : 'Seller Panel'}
+                  {isBuyer ? "Hussein's Store" : 'Seller Panel'}
                 </span>
               </Link>
             </motion.div>
@@ -686,8 +692,8 @@ export default function MainLayout({ role = "buyer" }) {
             </div>
           </div>
         </div>
-<div className="hidden sm:block container mx-auto px-2 py-6">
-  <div className="flex flex-wrap justify-center gap-60">
+<div className="hidden md:block container mx-auto px-2 py-6 overflow-x-auto">
+  <div className="flex justify-center gap-72 flex-nowrap">
     {Object.entries(footerLinks).map(([title, links], idx) => (
       <motion.div 
         key={title} 
@@ -695,7 +701,7 @@ export default function MainLayout({ role = "buyer" }) {
         whileInView={{ opacity: 1, y: 0 }} 
         transition={{ duration: 0.5, delay: idx * 0.05 }} 
         viewport={{ once: true }}
-        className="w-[200px] text-left"
+        className={`w-[200px] text-left ${title === 'Support' ? 'md:hidden lg:block' : ''}`}
       >
         <h3 className="font-semibold text-lg mb-4 pb-2 border-b border-gray-600">
           {title}
@@ -732,11 +738,9 @@ export default function MainLayout({ role = "buyer" }) {
               <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-blue-600/30 text-blue-300' : 'bg-blue-500/20 text-blue-400'}`}>
                 {isBuyer ? <FaStore className="text-2xl" /> : <FiBox className="text-2xl" />}
               </div>
-              <span className="text-lg font-bold">{isBuyer ? 'Our Store' : 'Seller Panel'}</span>
+              <span className="text-lg font-bold">{isBuyer ? "Hussein's Store" : 'Seller Panel'}</span>
             </div>
-            <p className="text-sm opacity-80">
-              {isBuyer ? 'Your one-stop shop for quality products.' : 'Powerful tools to manage your online store.'}
-            </p>
+            
             <div className="flex gap-3">
               {socialLinks.map((s, idx) => (
                 <motion.a 

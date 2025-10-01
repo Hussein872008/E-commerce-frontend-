@@ -13,6 +13,7 @@ import {
     incrementWishlistCount,
     decrementWishlistCount,
 } from '../../redux/wishlist.slice';
+import { setWishlistStatus } from '../../redux/wishlist.slice';
 import { removeFromCart } from '../../redux/cart.slice';
 import { fetchWishlistCount } from '../../redux/wishlist.slice';
 
@@ -43,6 +44,37 @@ import { isBuyer as isBuyerRole } from '../../utils/role';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 
+function LightboxImage({ src, alt, onError }) {
+    const [loaded, setLoaded] = useState(false);
+    const [err, setErr] = useState(false);
+
+    useEffect(() => {
+        setLoaded(false);
+        setErr(false);
+    }, [src]);
+
+    return (
+        <div className="relative flex items-center justify-center">
+            {!loaded && !err && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div>
+                </div>
+            )}
+            <img
+                src={src}
+                alt={alt}
+                loading="lazy"
+                className={`max-w-full max-h-screen object-contain ${loaded ? 'opacity-100' : 'opacity-0'}`}
+                onLoad={() => setLoaded(true)}
+                onError={(e) => { setErr(true); if (onError) onError(e); }}
+            />
+            {err && (
+                <div className="p-4 text-center text-sm text-red-500">Failed to load image</div>
+            )}
+        </div>
+    );
+}
+
 export default function ProductDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -60,7 +92,8 @@ export default function ProductDetails() {
     const [mainImage, setMainImage] = useState("");
     const [quantity, setQuantity] = useState(1);
     const [activeTab, setActiveTab] = useState("description");
-    const [isWishlisted, setIsWishlisted] = useState(false);
+    const wishlistItems = useSelector(state => state.wishlist.wishlistItems || {});
+    const [isWishlisted, setIsWishlisted] = useState(Boolean(wishlistItems[id]));
     const [priceAlert, setPriceAlert] = useState(false);
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [currentSlide, setCurrentSlide] = useState(0);
@@ -108,7 +141,7 @@ export default function ProductDetails() {
             const failedSrc = src || e?.target?.getAttribute?.('src') || e?.target?.src;
 
             if (failedImageSrcsRef.current.has(failedSrc)) {
-                try { e.target.src = '/placeholder-image.webp'; } catch (err) {}
+                try { e.target.src = '/placeholder-image.webp'; } catch (err) { }
                 if (isThumbnail) setThumbnailsLoading(false);
                 else setImageLoading(false);
                 return;
@@ -123,7 +156,7 @@ export default function ProductDetails() {
                 setImageLoading(false);
             }
 
-            try { e.target.src = '/placeholder-image.webp'; } catch (err) {}
+            try { e.target.src = '/placeholder-image.webp'; } catch (err) { }
         } catch (err) {
             if (isThumbnail) setThumbnailsLoading(false);
             else setImageLoading(false);
@@ -225,10 +258,10 @@ export default function ProductDetails() {
                     api.get(`/api/reviews/average/${id}`),
                     token ? api.get('/api/cart') : Promise.resolve(null)
                 ]);
-
-                setProduct(productRes.data);
-                setMainImage(productRes.data.image);
-                setQuantity(productRes.data.minimumOrderQuantity && productRes.data.minimumOrderQuantity > 0 ? productRes.data.minimumOrderQuantity : 1);
+                const maybeProduct = productRes.data?.product ?? productRes.data;
+                setProduct(maybeProduct);
+                setMainImage(maybeProduct?.image || '');
+                setQuantity(maybeProduct?.minimumOrderQuantity && maybeProduct.minimumOrderQuantity > 0 ? maybeProduct.minimumOrderQuantity : 1);
                 setReviews(reviewsRes.data?.reviews || []);
                 setAverageRatingData({
                     average: averageRes.data.averageRating || 0,
@@ -243,8 +276,8 @@ export default function ProductDetails() {
 
                 await dispatch(fetchRelatedProducts(productRes.data.category));
 
-               if (currentUser && token) {
-                    await fetchWishlistStatus(id);
+                if (currentUser && token) {
+                    setIsWishlisted(Boolean(wishlistItems[id]));
                     try {
                         if (token) setAuthToken(token);
                         const subsRes = await api.get('/api/notifications/subscriptions/my-subscriptions');
@@ -275,18 +308,9 @@ export default function ProductDetails() {
         }
     }, [dispatch, product?.category, product?._id]);
 
-    const fetchWishlistStatus = async (productId) => {
-        try {
-            if (token) setAuthToken(token);
-            const wishlistRes = await api.get(`/api/wishlist/check/${productId}`);
-            setIsWishlisted(wishlistRes.data.isInWishlist);
-        } catch (error) {
-            console.warn("Could not check wishlist status:", error);
-            if (error.response?.status === 403) {
-                toast.error("You don't have permission to check wishlist");
-            }
-        }
-    };
+    useEffect(() => {
+        setIsWishlisted(Boolean(wishlistItems[id]));
+    }, [wishlistItems, id]);
 
     const handleTabChange = (tab) => {
         setActiveTab(tab);
@@ -725,14 +749,13 @@ export default function ProductDetails() {
         }
 
         try {
-            setIsWishlisted(!isWishlisted);
-            if (isWishlisted) {
-                dispatch(decrementWishlistCount());
-            } else {
-                dispatch(incrementWishlistCount());
-            }
+            const previous = isWishlisted;
+            const next = !previous;
+            setIsWishlisted(next);
+            dispatch(setWishlistStatus({ productId: product._id, status: next }));
+            if (next) dispatch(incrementWishlistCount()); else dispatch(decrementWishlistCount());
 
-            if (isWishlisted) {
+            if (previous) {
                 if (token) setAuthToken(token);
                 await api.delete(`/api/wishlist/${product._id}`);
             } else {
@@ -742,13 +765,10 @@ export default function ProductDetails() {
 
             dispatch(fetchWishlistCount());
         } catch (err) {
-            setIsWishlisted(isWishlisted);
-            if (isWishlisted) {
-                dispatch(incrementWishlistCount());
-            } else {
-                dispatch(decrementWishlistCount());
-            }
-
+            const rollback = !isWishlisted;
+            setIsWishlisted(rollback);
+            dispatch(setWishlistStatus({ productId: product._id, status: rollback }));
+            if (rollback) dispatch(incrementWishlistCount()); else dispatch(decrementWishlistCount());
             console.error("Wishlist error:", err);
             toast.error(err.response?.data?.message || "Failed to update wishlist");
         }
@@ -804,6 +824,13 @@ export default function ProductDetails() {
         ...(product.extraImages || [])
     ].filter(img => img) : [];
 
+    const displayMinQty = product && product.minimumOrderQuantity && Number(product.minimumOrderQuantity) > 0
+        ? Number(product.minimumOrderQuantity)
+        : 1;
+    const displayMaxQty = Number.isFinite(Number(product?.quantity))
+        ? Math.min(Number(product.quantity), 10)
+        : 10;
+
     const openLightbox = (index) => {
         setCurrentSlide(index);
         setLightboxOpen(true);
@@ -829,53 +856,59 @@ export default function ProductDetails() {
     const darkMode = useSelector(state => state.theme.darkMode);
     if (loading || productsLoading) {
         return (
-            <div className={`container mx-auto px-4 py-8 max-w-7xl ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-blue-100' : ''}`}>
-                <div className="mb-6">
-                    <Skeleton height={30} width={150} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                </div>
-                <div className={`rounded-xl shadow-lg overflow-hidden ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-white'}`}>
-                    <div className="flex flex-col lg:flex-row">
-                        <div className="lg:w-1/2 p-6">
-                            <div className={`mb-4 h-96 flex items-center justify-center rounded-lg overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                                <Skeleton height={384} width="100%" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                            </div>
-                            <div className="grid grid-cols-4 gap-3 mt-4">
-                                {[...Array(4)].map((_, i) => (
-                                    <div key={`thumb-skeleton-${i}`} className="h-24">
-                                        <Skeleton height={96} width="100%" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="lg:w-1/2 p-6">
-                            <div className="flex justify-between mb-4">
-                                <Skeleton width={100} height={24} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                                <div className="flex space-x-2">
-                                    <Skeleton circle width={32} height={32} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                                    <Skeleton circle width={32} height={32} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+            <div className="flex items-center justify-center min-h-screen">
+                <div
+                    className={`container  sm:px-4 py-4 sm:py-8 max-w-7xl relative ${darkMode
+                            ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-blue-100'
+                            : ''
+                        }`}
+                >                <div className="mb-6">
+                        <Skeleton height={30} width={150} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                    </div>
+                    <div className={`rounded-xl shadow-lg overflow-hidden ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' : 'bg-white'}`}>
+                        <div className="flex flex-col lg:flex-row">
+                            <div className="lg:w-1/2 p-6">
+                                <div className={`mb-4 h-96 flex items-center justify-center rounded-lg overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                                    <Skeleton height={384} width="100%" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                </div>
+                                <div className="grid grid-cols-4 gap-3 mt-4">
+                                    {[...Array(4)].map((_, i) => (
+                                        <div key={`thumb-skeleton-${i}`} className="h-24">
+                                            <Skeleton height={96} width="100%" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
-                            <Skeleton height={36} width="80%" className="mb-4" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                            <Skeleton height={24} width="40%" className="mb-4" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                            <Skeleton height={24} width="30%" className="mb-6" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                            <div className="flex items-center mb-6 space-x-4">
-                                <Skeleton height={40} width={120} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                                <Skeleton height={40} width="100%" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                                {[...Array(4)].map((_, i) => (
-                                    <div key={`spec-skeleton-${i}`} className={`flex items-center p-3 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                                        <Skeleton circle width={24} height={24} className="mr-2" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                                        <div>
-                                            <Skeleton width={80} height={16} className="mb-1" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                                            <Skeleton width={120} height={16} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                                        </div>
+                            <div className="lg:w-1/2 p-6">
+                                <div className="flex justify-between mb-4">
+                                    <Skeleton width={100} height={24} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                    <div className="flex space-x-2">
+                                        <Skeleton circle width={32} height={32} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                        <Skeleton circle width={32} height={32} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
                                     </div>
-                                ))}
-                            </div>
-                            <div className="mb-6">
-                                <Skeleton height={24} width={120} className="mb-4" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
-                                <Skeleton count={4} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                </div>
+                                <Skeleton height={36} width="80%" className="mb-4" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                <Skeleton height={24} width="40%" className="mb-4" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                <Skeleton height={24} width="30%" className="mb-6" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                <div className="flex items-center mb-6 space-x-4">
+                                    <Skeleton height={40} width={120} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                    <Skeleton height={40} width="100%" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                                    {[...Array(4)].map((_, i) => (
+                                        <div key={`spec-skeleton-${i}`} className={`flex items-center p-3 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                                            <Skeleton circle width={24} height={24} className="mr-2" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                            <div>
+                                                <Skeleton width={80} height={16} className="mb-1" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                                <Skeleton width={120} height={16} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mb-6">
+                                    <Skeleton height={24} width={120} className="mb-4" baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                    <Skeleton count={4} baseColor={darkMode ? '#222' : undefined} highlightColor={darkMode ? '#333' : undefined} />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -913,7 +946,7 @@ export default function ProductDetails() {
     }
 
     return (
-        <div className={`container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-7xl relative
+        <div className={`container mx-auto px-2 sm:px-4 py-4 sm:py-8 mt-8 sm:mt-12 max-w-7xl relative
             ${darkMode ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-blue-100' : 'bg-gradient-to-br from-blue-50 via-indigo-100 to-purple-50 text-gray-800'}
         `}>
             {lightboxOpen && (
@@ -931,11 +964,10 @@ export default function ProductDetails() {
                         <FaChevronLeft />
                     </button>
 
-                    <div className="max-w-full max-h-full">
-                        <img
+                    <div className="max-w-full max-h-full relative">
+                        <LightboxImage
                             src={getSafeSrc(allImages[currentSlide])}
                             alt={`Product ${currentSlide + 1}`}
-                            className="max-w-full max-h-screen object-contain"
                             onError={(e) => handleImgOnError(e, allImages[currentSlide], false)}
                         />
                     </div>
@@ -967,7 +999,6 @@ export default function ProductDetails() {
                 <FaArrowLeft className="mr-2" /> Back to Store
             </button>
 
-            {/* Prominent seller banner (moved here so it's clearly visible) */}
             {!isBuyer && !isBannerDismissed && (
                 <div className="mb-4">
                     <div className={`rounded-md p-3 border ${darkMode ? 'bg-yellow-900/30 border-yellow-800 text-yellow-200' : 'bg-yellow-50 border-yellow-200 text-yellow-800'} flex items-start gap-3`} role="status" aria-live="polite">
@@ -988,7 +1019,7 @@ export default function ProductDetails() {
                             <div className="mt-1 text-sm">
                                 To shop or use buyer-only features—like adding items to the cart, saving to a wishlist, posting reviews, or receiving product notifications—please switch to a Buyer account.
                             </div>
-                           
+
                         </div>
                     </div>
                 </div>
@@ -1009,6 +1040,7 @@ export default function ProductDetails() {
                             <img
                                 src={getSafeSrc(mainImage)}
                                 alt={product.title}
+                                loading="lazy"
                                 className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                                 style={{ backgroundColor: 'transparent' }}
                                 onLoad={() => setImageLoading(false)}
@@ -1033,9 +1065,10 @@ export default function ProductDetails() {
                                             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-green-600"></div>
                                         </div>
                                     )}
-                                        <img
+                                    <img
                                         src={getSafeSrc(product.image)}
                                         alt="Main"
+                                        loading="lazy"
                                         className={`w-full h-full object-contain ${thumbnailsLoading ? 'opacity-0' : 'opacity-100'}`}
                                         style={{ backgroundColor: 'transparent' }}
                                         onLoad={() => setThumbnailsLoading(false)}
@@ -1059,6 +1092,7 @@ export default function ProductDetails() {
                                         <img
                                             src={getSafeSrc(img)}
                                             alt={`${product.title} ${index + 1}`}
+                                            loading="lazy"
                                             className={`w-full h-full object-contain ${thumbnailsLoading ? 'opacity-0' : 'opacity-100'}`}
                                             style={{ backgroundColor: 'transparent' }}
                                             onLoad={() => setThumbnailsLoading(false)}
@@ -1094,10 +1128,10 @@ export default function ProductDetails() {
                                 >
                                     <FaHeart
                                         className={`w-5 h-5 ${isWishlisted
-                                                ? "text-pink-500 drop-shadow-sm"
-                                                : darkMode
-                                                    ? "text-slate-400"
-                                                    : "text-gray-400"
+                                            ? "text-pink-500 drop-shadow-sm"
+                                            : darkMode
+                                                ? "text-slate-400"
+                                                : "text-gray-400"
                                             }`}
                                     />
                                 </motion.button>
@@ -1127,8 +1161,8 @@ export default function ProductDetails() {
                                     <motion.span animate={triggerBellEffect ? { rotate: [0, -18, 18, -8, 0], scale: [1, 1.08, 1] } : { scale: 1 }} transition={{ duration: 0.6 }}>
                                         <FaBell
                                             className={`w-5 h-5 ${isSubscribed
-                                                    ? "text-yellow-400 drop-shadow-sm"
-                                                    : "text-gray-400"
+                                                ? "text-yellow-400 drop-shadow-sm"
+                                                : "text-gray-400"
                                                 }`}
                                         />
                                     </motion.span>
@@ -1235,10 +1269,10 @@ export default function ProductDetails() {
                                         <li>Save {Math.round(product.discountPercentage)}% compared to original price</li>
                                     )}
                                     {product.warrantyInformation && (
-                                        <li>Comes with {product.warrantyInformation} warranty</li>
+                                        <li>Comes with {product.warrantyInformation}</li>
                                     )}
                                     {product.returnPolicy && (
-                                        <li>{product.returnPolicy} return policy</li>
+                                        <li>{product.returnPolicy}</li>
                                     )}
                                     {product.shippingInformation && (
                                         <li>{product.shippingInformation}</li>
@@ -1247,79 +1281,93 @@ export default function ProductDetails() {
                             </div>
                         )}
                         <div className="flex items-center mb-6 space-x-4">
-                            <div className={`flex items-center border rounded-lg overflow-hidden transition-all ${darkMode ? 'border-blue-900 hover:border-blue-400' : 'hover:border-blue-400 border-blue-200'}`}>
-                                <button
-                                    className={`px-3 py-2 transition-colors flex items-center justify-center ${darkMode ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                                    onClick={() => {
-                                        const minQty = product.minimumOrderQuantity || 1;
-                                        const maxQty = Math.min(product.quantity, 10);
-                                        if (quantity <= minQty) {
-                                            setQtyWarning(`Minimum order quantity for this product is ${minQty}`);
-                                            return;
-                                        }
-                                        setQtyWarning("");
-                                        setQuantity(prev => prev - 1);
-                                    }}
-                                    disabled={quantity <= (product.minimumOrderQuantity || 1) || isAddedToCart}
-                                    aria-label="Decrease quantity"
+                            <div className="flex items-center">
+                                <div
+                                    className={`flex items-center border rounded-lg overflow-hidden transition-all ${darkMode
+                                            ? 'border-blue-900 hover:border-blue-400'
+                                            : 'hover:border-blue-400 border-blue-200'
+                                        }`}
                                 >
-                                    <FaMinus />
-                                </button>
-                                <input
-                                    id="product-quantity"
-                                    name="quantity"
-                                    type="number"
-                                    min={product.minimumOrderQuantity || 1}
-                                    max={Math.min(product.quantity, 10)}
-                                    value={quantity}
-                                    disabled={!isBuyer || isAddedToCart}
-                                    onChange={e => {
-                                        const val = parseInt(e.target.value, 10);
-                                        const minQty = product.minimumOrderQuantity || 1;
-                                        const maxQty = Math.min(product.quantity, 10);
-                                        if (isNaN(val)) return;
-                                        if (val < minQty) {
-                                            setQtyWarning(`Minimum order quantity for this product is ${minQty}`);
-                                            setQuantity(val);
-                                            return;
-                                        }
-                                        if (val > maxQty) {
-                                            if (product.quantity < 10) {
-                                                setQtyWarning(`Maximum available quantity for this product is ${product.quantity}`);
-                                            } else {
-                                                setQtyWarning('Maximum per order is 10');
+                                    <button
+                                        type="button"
+                                        className={`px-3 py-2 transition-colors flex items-center justify-center ${darkMode
+                                                ? 'bg-blue-900 text-blue-200 hover:bg-blue-800'
+                                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                            }`}
+                                        onClick={() => {
+                                            const minQty = displayMinQty;
+                                            if (quantity <= minQty) {
+                                                setQtyWarning(`Minimum order quantity for this product is ${minQty}`);
+                                                return;
                                             }
-                                            setQuantity(val);
-                                            return;
-                                        }
-                                        setQtyWarning("");
-                                        setQuantity(val);
-                                    }}
-                                    className={`px-2 py-1 border-x text-center w-24 font-semibold text-lg select-none ${darkMode ? 'border-blue-800' : 'border-blue-200'} ${darkMode ? 'text-blue-100 bg-blue-950' : 'text-gray-900 bg-white'}`}
-                                    aria-label="Quantity input"
-                                />
-                                <button
-                                    className={`px-3 py-2 transition-colors flex items-center justify-center ${darkMode ? 'bg-blue-900 text-blue-200 hover:bg-blue-800' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                                    onClick={() => {
-                                        const maxQty = Math.min(product.quantity, 10);
-                                        if (quantity >= maxQty) {
-                                            if (product.quantity < 10) {
-                                                setQtyWarning(`Maximum available quantity for this product is ${product.quantity}`);
-                                            } else {
-                                                setQtyWarning('Maximum per order is 10');
+                                            setQtyWarning("");
+                                            setQuantity(prev => prev - 1);
+                                        }}
+                                        disabled={quantity <= displayMinQty || isAddedToCart}
+                                        aria-label="Decrease quantity"
+                                    >
+                                        <FaMinus />
+                                    </button>
+
+                                    <input
+                                        id="product-quantity"
+                                        name="quantity"
+                                        type="number"
+                                        min={displayMinQty}
+                                        max={displayMaxQty}
+                                        value={quantity}
+                                        disabled={!isBuyer || isAddedToCart}
+                                        onChange={e => {
+                                            const val = parseInt(e.target.value, 10);
+                                            if (isNaN(val)) return;
+
+                                            if (val < displayMinQty) {
+                                                setQtyWarning(`Minimum order quantity for this product is ${displayMinQty}`);
+                                                setQuantity(val);
+                                                return;
                                             }
-                                            return;
-                                        }
-                                        setQtyWarning("");
-                                        setQuantity(prev => prev + 1);
-                                    }}
-                                    disabled={quantity >= Math.min(product.quantity, 10) || isAddedToCart || !isBuyer}
-                                    aria-label="Increase quantity"
-                                >
-                                    <FaPlus />
-                                </button>
-                                <div className={`w-full min-h-[1.5em] mt-2 text-sm text-center transition-all duration-200 ${qtyWarning ? 'text-red-600' : 'text-transparent'}`} role="alert">
-                                    {qtyWarning ? qtyWarning : '.'}
+
+                                            if (val > displayMaxQty) {
+                                                if (product.quantity < 10) {
+                                                    setQtyWarning(`Maximum available quantity for this product is ${product.quantity}`);
+                                                } else {
+                                                    setQtyWarning('Maximum per order is 10');
+                                                }
+                                                setQuantity(val);
+                                                return;
+                                            }
+
+                                            setQtyWarning("");
+                                            setQuantity(val);
+                                        }}
+                                        className={`px-2 py-1 border-x text-center w-20 font-semibold text-lg select-none ${darkMode ? 'border-blue-800 text-blue-100 bg-blue-950' : 'border-blue-200 text-gray-900 bg-white'
+                                            }`}
+                                        aria-label="Quantity input"
+                                    />
+
+                                    <button
+                                        type="button"
+                                        className={`px-3 py-2 transition-colors flex items-center justify-center ${darkMode
+                                                ? 'bg-blue-900 text-blue-200 hover:bg-blue-800'
+                                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                            }`}
+                                        onClick={() => {
+                                            if (quantity >= displayMaxQty) {
+                                                if (product.quantity < 10) {
+                                                    setQtyWarning(`Maximum available quantity for this product is ${product.quantity}`);
+                                                } else {
+                                                    setQtyWarning('Maximum per order is 10');
+                                                }
+                                                return;
+                                            }
+                                            setQtyWarning("");
+                                            setQuantity(prev => prev + 1);
+                                        }}
+                                        disabled={quantity >= displayMaxQty || isAddedToCart || !isBuyer}
+                                        aria-label="Increase quantity"
+                                    >
+                                        <FaPlus />
+                                    </button>
                                 </div>
                             </div>
 
@@ -1365,7 +1413,15 @@ export default function ProductDetails() {
                                     </>
                                 )}
                             </button>
-                            
+
+                        </div>
+
+                        <div
+                            className={`w-full min-h-[1.5em] mt-2 text-sm text-center transition-all duration-200 ${qtyWarning ? 'text-red-600' : 'text-transparent'
+                                }`}
+                            role="alert"
+                        >
+                            {qtyWarning ? qtyWarning : '.'}
                         </div>
 
                         <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">

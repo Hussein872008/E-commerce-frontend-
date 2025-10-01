@@ -42,6 +42,12 @@ function Profile({ open = false, onClose = () => {} }) {
     newPassword: "",
     confirmPassword: "",
   });
+  useEffect(() => {
+    if (editMode) {
+      const initialName = (user && (user.name || user.username)) || (currentUser && (currentUser.name || currentUser.username)) || '';
+      setFormData(prev => ({ ...prev, name: initialName }));
+    }
+  }, [editMode, user, currentUser]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteEmail, setDeleteEmail] = useState("");
   const dispatch = useDispatch();
@@ -678,7 +684,6 @@ function Profile({ open = false, onClose = () => {} }) {
                           <div className="mt-1 flex items-center gap-3">
                             <p className={`capitalize ${darkMode ? 'text-blue-100' : 'text-gray-900'}`}>{user.role}</p>
                             <div>
-                              {/* Styled role-switch control: pill with icon + label; adapts to dark/light */}
                               <button
                                 disabled={isAuthLoading}
                                 aria-label={`Switch role (current: ${user.role})`}

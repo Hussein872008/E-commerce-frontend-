@@ -7,17 +7,14 @@ export default function ScrollToTop({ behavior = 'smooth' }) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    try {
-      const key = 'mainlayoutFirstLoadDone';
-      const first = !sessionStorage.getItem(key);
-      if (first) {
+try {
+      setTimeout(() => {
         try {
           window.scrollTo({ top: 0, behavior });
         } catch (e) {
           window.scrollTo(0, 0);
         }
-        sessionStorage.setItem(key, '1');
-      }
+      }, 0);
     } catch (e) {
       try {
         window.scrollTo({ top: 0, behavior });

@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import api, { setAuthToken } from '../../utils/api';
-import { Pagination } from "@mui/material";
 import Swal from 'sweetalert2';
 import { 
   FiSearch, FiFilter, FiArrowUp, FiArrowDown, FiGrid, FiList, 
@@ -18,8 +17,26 @@ export default function MyProducts() {
   const [forceRefresh, setForceRefresh] = useState(false);
   const [error, setError] = useState("");
   const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const frQuery = searchParams.get('forceRefresh');
+    const frState = location?.state?.forceRefresh;
+    const fr = (frQuery === '1' || frQuery === 'true') || frState === 1 || frState === '1' || frState === true || frState === 'true';
+    if (fr) {
+      setForceRefresh(true);
+
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('forceRefresh');
+      const qs = newParams.toString();
+      const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+
+      navigate(newUrl, { replace: true, state: null });
+    }
+  }, []);
   const [highlightedProduct, setHighlightedProduct] = useState(null);
   const highlightTimeout = useRef(null);
+
+  const sentinelRef = useRef(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [categories, setCategories] = useState([]);
@@ -38,50 +55,250 @@ export default function MyProducts() {
     lowStock: 0,
     outOfStock: 0
   });
+
+  const [globalTotal, setGlobalTotal] = useState(0);
+  const [globalTotalLoaded, setGlobalTotalLoaded] = useState(false);
+
+  const [globalStats, setGlobalStats] = useState({ inStock: 0, lowStock: 0, outOfStock: 0 });
+  const [globalStatsLoaded, setGlobalStatsLoaded] = useState(false);
   const { token } = useSelector((state) => state.auth);
   const isDarkMode = useSelector((state) => state.theme.darkMode);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const productsPerPage = 8;
+  const productsPerPage = 16;
+
+
+  const normalizeCategories = (cr) => {
+    if (!cr) return [];
+    if (Array.isArray(cr)) {
+      if (cr.length === 0) return [];
+      if (typeof cr[0] === 'string') return Array.from(new Set(cr.filter(Boolean)));
+      if (typeof cr[0] === 'object') return Array.from(new Set(cr.map(c => (c?.name || c?.title || c?.label || c?._id || String(c))).filter(Boolean)));
+      return Array.from(new Set(cr.map(String).filter(Boolean)));
+    }
+    if (cr && Array.isArray(cr.categories)) return Array.from(new Set(cr.categories.filter(Boolean)));
+    if (cr && typeof cr === 'object') {
+      return Array.from(new Set(Object.keys(cr).map(k => {
+        const v = cr[k];
+        if (v && typeof v === 'object') return v?.name || v?.title || k;
+        return k;
+      }).filter(Boolean)));
+    }
+    return [];
+  }
+
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const s = params.get('search') || '';
+      const cat = params.get('category') || '';
+      const min = params.get('minPrice') || '';
+      const max = params.get('maxPrice') || '';
+      const stock = params.get('stockFilter') || 'all';
+      const status = params.get('statusFilter') || 'all';
+      const sb = params.get('sortBy') || 'createdAt';
+      const so = params.get('sortOrder') || 'desc';
+      const page = Number(params.get('page')) || 1;
+
+      if (s) setSearchTerm(s);
+      if (cat) setSelectedCategory(cat);
+      if (min || max) setPriceRange({ min, max });
+      setStockFilter(stock);
+      setStatusFilter(status);
+      setSortBy(sb);
+      setSortOrder(so);
+      setCurrentPage(page);
+    } catch (e) {
+    }
+  }, []);
+
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams();
+      if (searchTerm) params.set('search', searchTerm);
+      if (selectedCategory) params.set('category', selectedCategory);
+      if (priceRange.min) params.set('minPrice', priceRange.min);
+      if (priceRange.max) params.set('maxPrice', priceRange.max);
+      if (stockFilter && stockFilter !== 'all') params.set('stockFilter', stockFilter);
+      if (statusFilter && statusFilter !== 'all') params.set('statusFilter', statusFilter);
+      if (sortBy) params.set('sortBy', sortBy);
+      if (sortOrder) params.set('sortOrder', sortOrder);
+      if (currentPage && currentPage > 1) params.set('page', String(currentPage));
+
+      const qs = params.toString();
+      const desired = window.location.pathname + (qs ? `?${qs}` : '');
+      const current = window.location.pathname + window.location.search;
+      if (desired !== current) {
+        navigate(desired, { replace: true });
+      }
+    } catch (e) {}
+  }, [searchTerm, selectedCategory, priceRange, stockFilter, statusFilter, sortBy, sortOrder, currentPage]);
+
+
+  useEffect(() => {
+    const fetchGlobalTotal = async () => {
+      if (!token) return;
+      try {
+        setAuthToken(token);
+        const res = await api.get(`/api/products/seller/my-products`, {
+          params: {
+            page: 1,
+            limit: 1
+          }
+        });
+        const totalAll = res.data?.total || 0;
+        setGlobalTotal(totalAll);
+        setGlobalTotalLoaded(true);
+      } catch (err) {
+
+      }
+    };
+    fetchGlobalTotal();
+  }, [token, forceRefresh]);
+
+
+  useEffect(() => {
+    const fetchGlobalStats = async () => {
+      if (!token) return;
+      try {
+        setAuthToken(token);
+
+        const [inRes, lowRes, outRes] = await Promise.all([
+          api.get(`/api/products/seller/my-products`, { params: { page: 1, limit: 1, stockFilter: 'inStock' } }),
+          api.get(`/api/products/seller/my-products`, { params: { page: 1, limit: 1, stockFilter: 'lowStock' } }),
+          api.get(`/api/products/seller/my-products`, { params: { page: 1, limit: 1, stockFilter: 'outOfStock' } })
+        ]);
+        setGlobalStats({
+          inStock: inRes.data?.total || 0,
+          lowStock: lowRes.data?.total || 0,
+          outOfStock: outRes.data?.total || 0
+        });
+        setGlobalStatsLoaded(true);
+      } catch (err) {
+
+      }
+    };
+    fetchGlobalStats();
+  }, [token, forceRefresh]);
+
+
+  const HIGHLIGHT_DURATION = 4000;
+
+  useEffect(() => {
+    const normalizeHighlight = (v) => {
+      if (v === null || v === undefined) return null;
+      if (typeof v === 'string') {
+        if (v === '' || v === 'undefined' || v === 'null') return null;
+      }
+      return v;
+    };
+
+    const rawQuery = searchParams.get('highlight');
+    const highlightQuery = normalizeHighlight(rawQuery);
+    const highlightState = normalizeHighlight(location?.state?.highlight);
+    const highlightId = highlightQuery || highlightState;
+
+
+    if (!highlightId) return;
+
+
+    if (products.length === 0) return;
+
+
+    const productIndex = products.findIndex(p => p._id === highlightId);
+
+    if (productIndex !== -1) {
+      setHighlightedProduct(highlightId);
+      setTimeout(() => {
+        const element = document.getElementById(`product-${highlightId}`);
+        if (element) {
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }
+      }, 100);
+
+      return;
+    }
+ (async () => {
+      if (!token || !highlightQuery) {
+        if (!token || !highlightQuery) {
+          const newParams = new URLSearchParams(searchParams);
+          newParams.delete('highlight');
+          const qs = newParams.toString();
+          const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+          navigate(newUrl, { replace: true, state: null });
+        }
+        return;
+      }
+
+      try {
+        setAuthToken(token);
+        const res = await api.get(`/api/products/${highlightId}`);
+        const fetched = res.data?.data || res.data?.product || res.data;
+        if (fetched && (fetched._id || fetched.id)) {
+          const pid = fetched._id || fetched.id;
+          const normalized = {
+            ...fetched,
+            _id: pid,
+            image: fetched.image?.startsWith('http')
+              ? fetched.image
+              : (() => {
+                  const img = fetched.image?.split('/').pop();
+                  const base = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '';
+                  return img ? `${base}/uploads/${img}` : '/placeholder-image.webp';
+                })()
+          };
+
+          setProducts(prev => [normalized, ...prev]);
+          setHighlightedProduct(pid);
+          setTimeout(() => {
+            const element = document.getElementById(`product-${pid}`);
+            if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+
+          return;
+        }
+      } catch (err) {
+      }
+
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('highlight');
+      const qs = newParams.toString();
+      const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+      navigate(newUrl, { replace: true, state: null });
+    })();
+  }, [products, searchParams, navigate, token, location]);
 
   useEffect(() => {
     if (highlightTimeout.current) {
       clearTimeout(highlightTimeout.current);
+      highlightTimeout.current = null;
     }
 
-    const highlightId = searchParams.get('highlight');
-    
-    if (highlightId && products.length > 0) {
-      setHighlightedProduct(highlightId);
-      
-      const productIndex = products.findIndex(p => p._id === highlightId);
-      if (productIndex !== -1) {
-        setTimeout(() => {
-          const element = document.getElementById(`product-${highlightId}`);
-          if (element) {
-            element.scrollIntoView({
-              behavior: 'smooth',
-              block: 'center'
-            });
-          }
-        }, 100);
-        
-        highlightTimeout.current = setTimeout(() => {
-          setHighlightedProduct(null);
-          const newParams = new URLSearchParams(searchParams);
-          newParams.delete('highlight');
-          navigate(`?${newParams.toString()}`, { replace: true });
-        }, 3000);
-      }
-    }
+    if (!highlightedProduct) return;
+
+    highlightTimeout.current = setTimeout(() => {
+      setHighlightedProduct(null);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('highlight');
+      const qs = newParams.toString();
+      const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+      navigate(newUrl, { replace: true, state: null });
+      highlightTimeout.current = null;
+    }, HIGHLIGHT_DURATION);
 
     return () => {
       if (highlightTimeout.current) {
         clearTimeout(highlightTimeout.current);
+        highlightTimeout.current = null;
       }
     };
-  }, [products, searchParams, navigate]);
+  }, [highlightedProduct, searchParams, navigate]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -106,26 +323,28 @@ export default function MyProducts() {
 
       const cacheKey = 'seller_my_products_cache';
       try {
-        const raw = sessionStorage.getItem(cacheKey);
-        if (raw && !forceRefresh) {
-          const parsed = JSON.parse(raw);
-          if (parsed && parsed.params && JSON.stringify(parsed.params) === JSON.stringify(currentParams)) {
-            setProducts(parsed.products || []);
-            setCategories(parsed.categories || []);
-            setTotalPages(parsed.totalPages || 1);
-            setStats(parsed.stats || { total: 0, inStock: 0, lowStock: 0, outOfStock: 0 });
-            setLoading(false);
-            return;
+        if (currentPage === 1 && !forceRefresh) {
+          const raw = sessionStorage.getItem(cacheKey);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.params && JSON.stringify(parsed.params) === JSON.stringify(currentParams)) {
+              setProducts(parsed.products || []);
+              setCategories(normalizeCategories(parsed.categories || parsed.categoriesData || []));
+              setTotalPages(parsed.totalPages || 1);
+              setStats(parsed.stats || { total: 0, inStock: 0, lowStock: 0, outOfStock: 0 });
+              setLoading(false);
+              return;
+            }
           }
         }
       } catch (e) {
-        console.warn('Cache read failed', e);
+
       }
 
       try {
  const isFirstLoad = initialLoad && products.length === 0;
-        if (isFirstLoad) setLoading(true);
-        else setProductsLoading(true);
+         if (isFirstLoad) setLoading(true);
+         else setProductsLoading(true);
         
         setAuthToken(token);
         const [productsRes, categoriesRes] = await Promise.all([
@@ -146,33 +365,55 @@ export default function MyProducts() {
           api.get(`/api/products/categories`)
         ]);
 
-        const productsData = productsRes.data?.products || [];
-        const totalProducts = productsRes.data?.total || 0;
+  const productsData = productsRes.data?.products || [];
+  const totalProducts = productsRes.data?.total || 0;
         
         let categoriesData = [];
-        if (Array.isArray(categoriesRes.data)) {
-          categoriesData = categoriesRes.data;
-        } else if (categoriesRes.data && typeof categoriesRes.data === 'object') {
-          categoriesData = Object.keys(categoriesRes.data);
+        const cr = categoriesRes?.data;
+        if (Array.isArray(cr)) {
+          if (cr.length === 0) {
+            categoriesData = [];
+          } else if (typeof cr[0] === 'string') {
+            categoriesData = cr;
+          } else if (typeof cr[0] === 'object') {
+            categoriesData = cr.map(c => (c?.name || c?.title || c?.label || c?._id || String(c)));
+          } else {
+            categoriesData = cr.map(String);
+          }
+        } else if (cr && Array.isArray(cr.categories)) {
+          categoriesData = cr.categories;
+        } else if (cr && typeof cr === 'object') {
+          categoriesData = Object.keys(cr).map(k => {
+            const v = cr[k];
+            if (v && typeof v === 'object') return v?.name || v?.title || k;
+            return k;
+          });
         }
+        categoriesData = Array.from(new Set((categoriesData || []).filter(Boolean)));
 
-        setProducts(productsData.map(product => ({
+        const normalized = productsData.map(product => ({
           ...product,
-          image: product.image?.startsWith('http') 
-            ? product.image 
+          image: product.image?.startsWith('http')
+            ? product.image
             : (() => {
                 const img = product.image?.split('/').pop();
                 const base = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '';
                 return img ? `${base}/uploads/${img}` : '/placeholder-image.webp';
               })()
-        })));
-        
+        }));
+
+        if (currentPage > 1) {
+          setProducts(prev => [...prev, ...normalized]);
+        } else {
+          setProducts(normalized);
+        }
+
         setTotalPages(Math.ceil(totalProducts / productsPerPage));
         setCategories(categoriesData);
         
-        const inStockCount = productsData.filter(p => p.quantity > 5).length;
-        const lowStockCount = productsData.filter(p => p.quantity > 0 && p.quantity <= 5).length;
-        const outOfStockCount = productsData.filter(p => p.quantity === 0).length;
+  const inStockCount = productsData.filter(p => p.quantity > 5).length;
+  const lowStockCount = productsData.filter(p => p.quantity > 0 && p.quantity <= 5).length;
+  const outOfStockCount = productsData.filter(p => p.quantity === 0).length;
         
         setStats({
           total: totalProducts,
@@ -186,32 +427,27 @@ export default function MyProducts() {
         }
 
         try {
-          const cachePayload = {
-            params: currentParams,
-            products: productsData.map(product => ({
-              ...product,
-              image: product.image?.startsWith('http') ? product.image : (() => {
-                const img = product.image?.split('/').pop();
-                const base = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '';
-                return img ? `${base}/uploads/${img}` : '/placeholder-image.webp';
-              })()
-            })),
-            categories: categoriesData,
-            totalPages: Math.ceil(totalProducts / productsPerPage),
-            stats: {
-              total: totalProducts,
-              inStock: inStockCount,
-              lowStock: lowStockCount,
-              outOfStock: outOfStockCount
-            },
-            timestamp: Date.now()
-          };
-          sessionStorage.setItem(cacheKey, JSON.stringify(cachePayload));
+          if (currentPage === 1) {
+            const cachePayload = {
+              params: currentParams,
+              products: normalized,
+              categories: categoriesData,
+              totalPages: Math.ceil(totalProducts / productsPerPage),
+              stats: {
+                total: totalProducts,
+                inStock: inStockCount,
+                lowStock: lowStockCount,
+                outOfStock: outOfStockCount
+              },
+              timestamp: Date.now()
+            };
+            sessionStorage.setItem(cacheKey, JSON.stringify(cachePayload));
+          }
         } catch (e) {
-          console.warn('Cache save failed', e);
+
         }
       } catch (err) {
-        console.error("Fetch error:", err);
+
         if (err.response?.status !== 404) {
           setError(err.response?.data?.error || "Failed to load data");
         }
@@ -227,6 +463,22 @@ export default function MyProducts() {
 
     fetchData();
   }, [token, currentPage, searchTerm, selectedCategory, sortBy, sortOrder, priceRange, stockFilter, statusFilter, forceRefresh]);
+
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          if (!productsLoading && currentPage < totalPages) {
+            setCurrentPage((p) => Number(p) + 1);
+          }
+        }
+      });
+    }, { rootMargin: '400px' });
+
+    observer.observe(sentinelRef.current);
+    return () => { try { observer.disconnect(); } catch (e) {} };
+  }, [sentinelRef, productsLoading, currentPage, totalPages]);
 
   const handleDelete = async (productId) => {
     const result = await Swal.fire({
@@ -285,7 +537,9 @@ export default function MyProducts() {
   };
 
   const handlePageChange = (event, page) => {
-    setCurrentPage(page);
+
+    const p = Number(page) || 1;
+    setCurrentPage(p);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -305,6 +559,9 @@ export default function MyProducts() {
     setStockFilter("all");
     setStatusFilter("all");
     setCurrentPage(1);
+    try {
+      navigate(window.location.pathname, { replace: true });
+    } catch (e) {}
   };
 
   const getStockStatus = (quantity) => {
@@ -354,7 +611,7 @@ export default function MyProducts() {
               </div>
               <div>
                 <p className={`${isDarkMode ? 'text-gray-300' : 'text-sm text-gray-500'}`}>Total Products</p>
-                <p className={`text-xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{stats.total}</p>
+                <p className={`text-xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{globalTotalLoaded ? globalTotal : stats.total}</p>
               </div>
             </div>
           </div>
@@ -366,7 +623,7 @@ export default function MyProducts() {
               </div>
               <div>
                 <p className={`${isDarkMode ? 'text-gray-300' : 'text-sm text-gray-500'}`}>In Stock</p>
-                <p className={`text-xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{stats.inStock}</p>
+                <p className={`text-xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{globalStatsLoaded ? globalStats.inStock : stats.inStock}</p>
               </div>
             </div>
           </div>
@@ -378,7 +635,7 @@ export default function MyProducts() {
               </div>
               <div>
                 <p className={`${isDarkMode ? 'text-gray-300' : 'text-sm text-gray-500'}`}>Low Stock</p>
-                <p className={`text-xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{stats.lowStock}</p>
+                <p className={`text-xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{globalStatsLoaded ? globalStats.lowStock : stats.lowStock}</p>
               </div>
             </div>
           </div>
@@ -390,7 +647,7 @@ export default function MyProducts() {
               </div>
               <div>
                 <p className={`${isDarkMode ? 'text-gray-300' : 'text-sm text-gray-500'}`}>Out of Stock</p>
-                <p className={`text-xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{stats.outOfStock}</p>
+                <p className={`text-xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{globalStatsLoaded ? globalStats.outOfStock : stats.outOfStock}</p>
               </div>
             </div>
           </div>
@@ -622,7 +879,7 @@ export default function MyProducts() {
                   Clear all filters
                 </button>
                 <div className="text-sm text-gray-500">
-                  {products.length} products found
+                  {stats.total} products found
                 </div>
               </div>
             </div>
@@ -689,6 +946,7 @@ export default function MyProducts() {
                       <img
                         src={product.image}
                         alt={product.title}
+                        loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         onError={(e) => {
                           e.target.src = "/placeholder-image.webp";
@@ -734,7 +992,6 @@ export default function MyProducts() {
               )}
             </div>
           ) : (
-            /* List View */
             <div className={`${isDarkMode ? 'bg-gray-800/60 border-gray-700/30' : 'bg-white border-gray-100'} rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border overflow-hidden`}>
               <div className="overflow-x-auto">
                 {productsLoading ? (
@@ -795,6 +1052,7 @@ export default function MyProducts() {
                                   className="h-12 w-12 rounded-lg object-cover border border-gray-200"
                                   src={product.image}
                                   alt={product.title}
+                                  loading="lazy"
                                   onError={(e) => { e.target.src = "/placeholder-image.webp"; }}
                                 />
                               </div>
@@ -846,32 +1104,18 @@ export default function MyProducts() {
             </div>
           )}
 
-          {totalPages > 1 && (
+          {(currentPage < totalPages) && (
             <div className="mt-8 flex justify-center">
-              <Pagination
-                count={totalPages}
-                page={currentPage}
-                onChange={handlePageChange}
-                color="primary"
-                sx={{
-                  '& .MuiPaginationItem-root': {
-                    borderRadius: '10px',
-                    margin: '0 4px',
-                    '&:hover': {
-                      backgroundColor: '#e0e7ff'
-                    }
-                  },
-                  '& .Mui-selected': {
-                    backgroundColor: '#4f46e5',
-                    color: 'white',
-                    '&:hover': {
-                      backgroundColor: '#4338ca'
-                    }
-                  }
-                }}
-              />
+              <button
+                onClick={() => setCurrentPage((p) => Number(p) + 1)}
+                disabled={productsLoading}
+                className={`px-6 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-md ${productsLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+              >
+                {productsLoading ? 'Loading...' : 'Show more'}
+              </button>
             </div>
           )}
+          <div ref={sentinelRef} aria-hidden="true" className="w-full h-4" />
         </>
       )}
 

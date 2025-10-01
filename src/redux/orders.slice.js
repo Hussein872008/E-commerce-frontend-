@@ -33,10 +33,14 @@ const processOrderItems = (items) => {
             _id: item._id,
             status: normalizeStatus(item.status || item.state || item.statusText || ''),
             trackingNumber: item.trackingNumber || 'Unknown',
-            buyer: item.buyer && typeof item.buyer === 'object' ? {
-                name: item.buyer.name ? item.buyer.name : 'Unknown',
-                email: item.buyer.email ? item.buyer.email : 'Unknown'
-            } : { name: 'Unknown', email: 'Unknown' },
+            buyer: {
+                name: (item.buyerName && item.buyerName !== '-') ? item.buyerName : (
+                    item.buyer && typeof item.buyer === 'object' && item.buyer.name && item.buyer.name !== '-' ? item.buyer.name : 'Unknown'
+                ),
+                email: (item.buyerEmail && item.buyerEmail !== '-') ? item.buyerEmail : (
+                    item.buyer && typeof item.buyer === 'object' && item.buyer.email && item.buyer.email !== '-' ? item.buyer.email : 'Unknown'
+                )
+            },
             items: Array.isArray(item.items) ? item.items.map(i => ({
                 ...i,
                 product: i.product ? {

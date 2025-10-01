@@ -54,6 +54,80 @@ export default function AddProduct() {
   const { token } = useSelector((state) => state.auth);
   const isDarkMode = useSelector((state) => state.theme.darkMode);
 
+  const isFilled = (name) => {
+    try {
+      if (name.includes('.')) {
+        const [parent, child] = name.split('.');
+        const v = formData[parent] && formData[parent][child];
+        return v !== undefined && v !== null && String(v).trim() !== '';
+      }
+      const v = formData[name];
+      return v !== undefined && v !== null && String(v).trim() !== '';
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const sanitizeDecimal = (raw) => {
+    if (raw === undefined || raw === null) return '';
+    let v = String(raw).replace(/,/g, '.');
+    v = v.replace(/[^0-9.]/g, '');
+    const parts = v.split('.');
+    if (parts.length <= 1) return parts[0];
+    return parts.shift() + '.' + parts.join('');
+  };
+
+  const sanitizeInteger = (raw) => {
+    if (raw === undefined || raw === null) return '';
+    return String(raw).replace(/\D/g, '');
+  };
+
+  const handleKeyDownInteger = (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key;
+    if (k.length > 1) return;
+    if (!/[0-9]/.test(k)) {
+      e.preventDefault();
+    }
+  };
+
+  const handleKeyDownDecimal = (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key;
+    if (k.length > 1) return;
+    if (!/[0-9.,]/.test(k)) {
+      e.preventDefault();
+      return;
+    }
+    if ((k === '.' || k === ',') && e.target && String(e.target.value || '').includes('.')) {
+      e.preventDefault();
+    }
+  };
+
+  const handlePasteNumeric = (e) => {
+    const raw = (e.clipboardData || window.clipboardData).getData('text') || '';
+    const name = e.target.name;
+    if (name === 'quantity' || name === 'minimumOrderQuantity') {
+      const s = sanitizeInteger(raw);
+      e.preventDefault();
+      const n = s === '' ? '' : Math.max(1, parseInt(s, 10));
+      setFormData(prev => ({ ...prev, [name]: n }));
+      return;
+    }
+
+    if (name && name.startsWith('dimensions.')) {
+      const [, child] = name.split('.');
+      const s = sanitizeDecimal(raw);
+      e.preventDefault();
+      setFormData(prev => ({ ...prev, dimensions: { ...prev.dimensions, [child]: s } }));
+      return;
+    }
+
+    const s = sanitizeDecimal(raw);
+    e.preventDefault();
+    setFormData(prev => ({ ...prev, [name]: s }));
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -61,16 +135,28 @@ export default function AddProduct() {
         setError("");
         const [categoriesRes, countsRes] = await Promise.all([
           api.get('/api/products/categories', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: [] })),
-          api.get('/api/products/category-counts', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({}))
+          api.get('/api/products/category-counts', { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: {} }))
         ]);
+
         let categoriesData = [];
-        if (Array.isArray(categoriesRes.data)) {
+        if (categoriesRes && Array.isArray(categoriesRes.data)) {
           categoriesData = categoriesRes.data;
-        } else if (categoriesRes.data && typeof categoriesRes.data === 'object') {
-          categoriesData = Object.keys(categoriesRes.data);
+        } else if (categoriesRes && categoriesRes.data && Array.isArray(categoriesRes.data.categories)) {
+          categoriesData = categoriesRes.data.categories;
+        } else if (categoriesRes && categoriesRes.data && Array.isArray(categoriesRes.data.data)) {
+          categoriesData = categoriesRes.data.data;
         }
         setCategories(categoriesData);
-        setCategoryCounts(countsRes.data || {});
+
+        let countsObj = {};
+        if (countsRes && countsRes.data && typeof countsRes.data === 'object') {
+          if (countsRes.data.counts && typeof countsRes.data.counts === 'object') {
+            countsObj = countsRes.data.counts;
+          } else {
+            countsObj = countsRes.data;
+          }
+        }
+        setCategoryCounts(countsObj || {});
       } catch (err) {
         console.error("Error loading data:", err);
         setCategories([]);
@@ -101,29 +187,39 @@ export default function AddProduct() {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-  if (saved) setSaved(false);
+    if (saved) setSaved(false);
 
     if (name.startsWith("dimensions.")) {
       const dimensionField = name.split(".")[1];
+      const sanitized = sanitizeDecimal(value);
       setFormData(prev => ({
         ...prev,
         dimensions: {
           ...prev.dimensions,
-          [dimensionField]: value
+          [dimensionField]: sanitized
         }
       }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: name === "quantity" || name === "minimumOrderQuantity"
-          ? Math.max(1, parseInt(value) || 1)
-          : value
-      }));
+      return;
     }
+
+    if (name === 'quantity' || name === 'minimumOrderQuantity') {
+      const sanitized = sanitizeInteger(value);
+      const n = sanitized === '' ? '' : Math.max(1, parseInt(sanitized, 10));
+      setFormData(prev => ({ ...prev, [name]: n }));
+      return;
+    }
+
+    if (name === 'price' || name === 'weight' || name === 'discountPercentage') {
+      const sanitized = sanitizeDecimal(value);
+      setFormData(prev => ({ ...prev, [name]: sanitized }));
+      return;
+    }
+
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleImageChange = (e) => {
-  if (saved) setSaved(false);
+    if (saved) setSaved(false);
     const file = e.target.files[0];
     if (!file) return;
 
@@ -141,7 +237,7 @@ export default function AddProduct() {
   const handleMainDrop = (e) => {
     e.preventDefault();
     setIsDraggingMain(false);
-  if (saved) setSaved(false);
+    if (saved) setSaved(false);
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
 
@@ -157,7 +253,7 @@ export default function AddProduct() {
   };
 
   const handleExtraImagesChange = (e) => {
-  if (saved) setSaved(false);
+    if (saved) setSaved(false);
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
@@ -188,7 +284,7 @@ export default function AddProduct() {
   const handleExtraDrop = (e) => {
     e.preventDefault();
     setIsDraggingExtra(false);
-  if (saved) setSaved(false);
+    if (saved) setSaved(false);
     const files = Array.from(e.dataTransfer?.files || []);
     if (files.length === 0) return;
 
@@ -217,13 +313,13 @@ export default function AddProduct() {
   };
 
   const removeMainImage = () => {
-  if (saved) setSaved(false);
-  setFormData(prev => ({ ...prev, image: null }));
-  setImagePreview("");
+    if (saved) setSaved(false);
+    setFormData(prev => ({ ...prev, image: null }));
+    setImagePreview("");
   };
 
   const removeExtraImage = (index) => {
-  if (saved) setSaved(false);
+    if (saved) setSaved(false);
     const newFiles = [...formData.extraImages];
     const newPreviews = [...extraImagesPreviews];
 
@@ -360,6 +456,12 @@ export default function AddProduct() {
     setError("");
     setSuccess("");
 
+    if (activeSection !== 'images') {
+      setActiveSection('images');
+      setError('Please review images and then press Add Product to submit.');
+      return;
+    }
+
     if (!formData.title || formData.title.trim() === '') {
       setError("Product title is required");
       return;
@@ -397,7 +499,28 @@ export default function AddProduct() {
         'minimumOrderQuantity', 'tags'
       ];
 
+      const priceToSend = (typeof formData.price === 'number') ? formData.price.toFixed(2) : String(formData.price);
+
       basicFields.forEach(field => {
+        if (field === 'price') {
+          if (priceToSend !== undefined && priceToSend !== null && String(priceToSend).trim() !== '') {
+            formDataToSend.append('price', priceToSend);
+          }
+          return;
+        }
+
+        if (field === 'weight') {
+          const raw = formData.weight;
+          if (typeof raw !== 'undefined' && raw !== null && String(raw).trim() !== '') {
+            const normalized = String(raw).replace(/,/g, '.');
+            const n = parseFloat(normalized);
+            if (!Number.isNaN(n)) {
+              formDataToSend.append('weight', String(n));
+            }
+          }
+          return;
+        }
+
         const val = formData[field];
         if (val !== undefined && val !== null) {
           if (typeof val === 'string') {
@@ -416,7 +539,13 @@ export default function AddProduct() {
         return 'SKU-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
       }
       formDataToSend.append('sku', generateUniqueSku());
-      formDataToSend.append('dimensions', JSON.stringify(formData.dimensions || {}));
+      const dims = formData.dimensions || {};
+      const normalizedDims = {
+        width: (() => { const v = String(dims.width || '').replace(/,/g, '.'); const n = parseFloat(v); return Number.isNaN(n) ? 0 : n; })(),
+        height: (() => { const v = String(dims.height || '').replace(/,/g, '.'); const n = parseFloat(v); return Number.isNaN(n) ? 0 : n; })(),
+        depth: (() => { const v = String(dims.depth || '').replace(/,/g, '.'); const n = parseFloat(v); return Number.isNaN(n) ? 0 : n; })(),
+      };
+      formDataToSend.append('dimensions', JSON.stringify(normalizedDims));
 
       if (formData.image) {
         formDataToSend.append('image', formData.image);
@@ -439,9 +568,10 @@ export default function AddProduct() {
       if (response.status === 201) {
         setSuccess("✅ Product added successfully!");
         setSaved(true);
+        const newId = response.data?.data?._id || response.data?.product?._id || response.data?._id || '';
         setTimeout(() => {
-          window.location.replace('/seller/my-products');
-        }, 1500);
+          if (newId) navigate(`/seller/my-products?highlight=${newId}&forceRefresh=1`);
+        }, 800);
       }
 
     } catch (err) {
@@ -471,15 +601,15 @@ export default function AddProduct() {
   }, [imagePreview, extraImagesPreviews]);
 
   return (
-    <div className={`w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 transition-all duration-300 pb-28 ${isDarkMode
-        ? 'bg-gradient-to-br from-[#131C34] via-blue-950 to-purple-950 text-gray-100 shadow-lg ring-1 ring-gray-700'
-        : 'bg-white/95 backdrop-blur-sm rounded-xl shadow-xl ring-1 ring-slate-200/50 hover:shadow-2xl'
+    <div className={`add-product-form w-full max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-4 md:py-6 mt-4 transition-all duration-150 ${activeSection === 'images' ? 'pb-8' : (activeSection === 'details' ? 'pb-6' : 'pb-12')} overflow-auto min-h-[calc(100vh-64px)] ${isDarkMode
+      ? 'bg-gradient-to-br from-[#172553] via-blue-950 to-purple-950 text-gray-100 shadow-lg ring-1 ring-gray-700'
+      : 'bg-white/15 backdrop-blur-sm rounded-xl shadow-xl ring-1 ring-slate-200/50 hover:shadow-2xl'
       }`}>
-  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h2 className={`text-3xl font-bold ${isDarkMode
-              ? 'text-white'
-              : 'bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'
+            ? 'text-white'
+            : 'bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'
             }`}>
             Add New Product
           </h2>
@@ -488,10 +618,11 @@ export default function AddProduct() {
           </p>
         </div>
         <button
+          type="button"
           onClick={() => navigate("/seller/my-products")}
-          className={`flex items-center gap-2 px-3 py-2 transition-all duration-200 rounded-lg ${isDarkMode
-              ? 'text-white/90 hover:text-white/100 hover:bg-gray-800/50 hover:shadow-md'
-              : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50 hover:shadow-md'
+          className={`flex items-center gap-2 px-3 py-2  rounded-lg ${isDarkMode
+            ? 'text-white/50 hover:text-white/100 '
+            : 'text-blue-600 hover:text-blue-800 '
             }`}>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
@@ -501,9 +632,9 @@ export default function AddProduct() {
       </div>
 
       {error && (
-        <div className={`p-4 mb-6 rounded-lg flex justify-between items-center shadow-sm animate-fade-in ${isDarkMode
-            ? 'bg-red-900/30 border border-red-700/30'
-            : 'bg-red-50 border border-red-100'
+        <div className={`p-4 mb-6 rounded-lg flex justify-between items-center shadow-sm transition-opacity duration-150 ${isDarkMode
+          ? 'bg-red-900/30 border border-red-700/30'
+          : 'bg-red-50 border border-red-100'
           }`}>
           <div className="flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 mr-2 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`} viewBox="0 0 20 20" fill="currentColor">
@@ -512,10 +643,11 @@ export default function AddProduct() {
             <span className={isDarkMode ? 'text-red-400' : 'text-red-700'}>{error}</span>
           </div>
           <button
+            type="button"
             onClick={() => setError("")}
             className={`rounded-full p-1 transition-colors ${isDarkMode
-                ? 'text-red-400 hover:text-red-300 hover:bg-red-800/50'
-                : 'text-red-700 hover:text-red-800 hover:bg-red-100'
+              ? 'text-red-400 hover:text-red-300 hover:bg-red-800/50'
+              : 'text-red-700 hover:text-red-800 hover:bg-red-100'
               }`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -526,9 +658,9 @@ export default function AddProduct() {
       )}
 
       {success && (
-        <div className={`p-4 mb-6 rounded-lg flex justify-between items-center shadow-sm animate-fade-in ${isDarkMode
-            ? 'bg-green-900/30 border border-green-700/30'
-            : 'bg-green-50 border border-green-100'
+        <div className={`p-4 mb-6 rounded-lg flex justify-between items-center shadow-sm transition-opacity duration-150 ${isDarkMode
+          ? 'bg-green-900/30 border border-green-700/30'
+          : 'bg-green-50 border border-green-100'
           }`}>
           <div className="flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 mr-2 ${isDarkMode ? 'text-green-400' : 'text-green-500'}`} viewBox="0 0 20 20" fill="currentColor">
@@ -537,10 +669,11 @@ export default function AddProduct() {
             <span className={isDarkMode ? 'text-green-400' : 'text-green-700'}>{success}</span>
           </div>
           <button
+            type="button"
             onClick={() => setSuccess("")}
             className={`rounded-full p-1 transition-colors ${isDarkMode
-                ? 'text-green-400 hover:text-green-300 hover:bg-green-800/50'
-                : 'text-green-700 hover:text-green-800 hover:bg-green-100'
+              ? 'text-green-400 hover:text-green-300 hover:bg-green-800/50'
+              : 'text-green-700 hover:text-green-800 hover:bg-green-100'
               }`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -550,55 +683,58 @@ export default function AddProduct() {
         </div>
       )}
 
-      <div className={`mb-6 border-b ${isDarkMode ? 'border-gray-700/30' : 'border-gray-200'}`}>
-        <div ref={tabsRef} className="flex gap-1 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+  <div className={`mb-6 border-b ${isDarkMode ? 'border-gray-700/30' : 'border-gray-200'}`}>
+  <div ref={tabsRef} className="flex gap-1 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
           <button
+            type="button"
             onClick={() => setActiveSection("basic")}
             data-active={activeSection === 'basic'}
-            className={`flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 flex items-center gap-2 ${activeSection === "basic"
-                ? isDarkMode
-                  ? "bg-blue-900/30 text-blue-400 border-b-2 border-blue-400"
-                  : "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
-                : isDarkMode
-                  ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            className={`flex-shrink-0 px-4 md:px-6 py-3 font-medium text-base md:text-sm rounded-t-lg transition-all duration-300 flex items-center gap-2 ${activeSection === "basic"
+              ? isDarkMode
+                ? "bg-blue-900/30 text-blue-400 border-b-2 border-blue-400"
+                : "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
+              : isDarkMode
+                ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
               }`}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             Basic Information
           </button>
           <button
+            type="button"
             onClick={() => handleChangeSection("details")}
             data-active={activeSection === 'details'}
-            className={`flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 flex items-center gap-2 ${activeSection === "details"
-                ? isDarkMode
-                  ? "bg-blue-900/30 text-blue-400 border-b-2 border-blue-400"
-                  : "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
-                : isDarkMode
-                  ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            className={`flex-shrink-0 px-4 md:px-6 py-3 font-medium text-base md:text-sm rounded-t-lg transition-all duration-300 flex items-center gap-2 ${activeSection === "details"
+              ? isDarkMode
+                ? "bg-blue-900/30 text-blue-400 border-b-2 border-blue-400"
+                : "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
+              : isDarkMode
+                ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
               }`}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             Product Details
           </button>
           <button
+            type="button"
             onClick={() => handleChangeSection("images")}
             data-active={activeSection === 'images'}
-            className={`flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 flex items-center gap-2 ${activeSection === "images"
-                ? isDarkMode
-                  ? "bg-blue-900/30 text-blue-400 border-b-2 border-blue-400"
-                  : "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
-                : isDarkMode
-                  ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            className={`flex-shrink-0 px-4 md:px-6 py-3 font-medium text-base md:text-sm rounded-t-lg transition-all duration-300 flex items-center gap-2 ${activeSection === "images"
+              ? isDarkMode
+                ? "bg-blue-900/30 text-blue-400 border-b-2 border-blue-400"
+                : "bg-blue-50 text-blue-600 border-b-2 border-blue-600"
+              : isDarkMode
+                ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/50"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
               }`}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             Images
@@ -606,9 +742,9 @@ export default function AddProduct() {
         </div>
       </div>
 
-  <form onSubmit={handleSubmit} className="space-y-8 relative">
+      <form onSubmit={handleSubmit} className="space-y-8 relative">
         {(activeSection === "basic") && (
-          <div className={`grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-in ${isDarkMode ? '' : ''}`}>
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 transition-opacity duration-150 ${isDarkMode ? '' : ''}`}>
             <div className="md:col-span-2">
               <h3 className={`text-lg font-semibold mb-4 flex items-center ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
@@ -628,17 +764,17 @@ export default function AddProduct() {
                   value={formData.title}
                   onChange={handleChange}
                   required
-                  className={`peer w-full p-3 sm:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                  className={`peer w-full p-3 md:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
+                    ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="title"
-                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
-                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                  className={`absolute left-3 px-1 text-sm transition-all duration-150 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                    ? 'text-gray-400 peer-focus:text-blue-400 bg-[#172553]'
+                    : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    } ${isFilled('title') ? 'top-0 text-sm' : 'peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base'} peer-focus:top-0 peer-focus:text-sm`}
                 >
                   Product Title (Required)
                 </label>
@@ -657,20 +793,22 @@ export default function AddProduct() {
                   placeholder=" "
                   value={formData.price}
                   onChange={handleChange}
+                  onKeyDown={handleKeyDownDecimal}
+                  onPaste={handlePasteNumeric}
                   min="0.01"
                   step="0.01"
                   required
-                  className={`peer w-full p-3 sm:p-4 pl-8 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                  className={`peer w-full p-3 md:p-4 pl-8 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
+                    ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="price"
-                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
-                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                  className={`absolute left-3 px-1 text-sm transition-all duration-150 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                    ? 'text-gray-400 peer-focus:text-blue-400 bg-[#172553]'
+                    : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    } ${isFilled('price') ? 'top-0 text-sm' : 'peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base'} peer-focus:top-0 peer-focus:text-sm`}
                 >
                   Price (Required)
                 </label>
@@ -690,31 +828,57 @@ export default function AddProduct() {
                   placeholder=" "
                   value={formData.discountPercentage}
                   onChange={(e) => {
-                    const value = Math.min(100, Math.max(1, parseInt(e.target.value) || 1));
-                    setFormData(prev => ({ ...prev, discountPercentage: value }));
+                    const raw = e.target.value;
+                    const normalized = sanitizeDecimal(raw);
+                    if (normalized === '') {
+                      setFormData(prev => ({ ...prev, discountPercentage: '' }));
+                      return;
+                    }
+                    if (raw.endsWith('.') && !normalized.endsWith('.')) {
+                      setFormData(prev => ({ ...prev, discountPercentage: normalized + '.' }));
+                      return;
+                    }
+                    const num = parseFloat(normalized);
+                    if (!Number.isNaN(num)) {
+                      const clamped = Math.max(0, Math.min(99, num));
+                      setFormData(prev => ({ ...prev, discountPercentage: String(clamped) }));
+                    } else {
+                      setFormData(prev => ({ ...prev, discountPercentage: normalized }));
+                    }
                   }}
-                  min="1"
-                  max="100"
-                  className={`peer w-full p-3 sm:p-4 pr-8 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                  onKeyDown={handleKeyDownDecimal}
+                  onPaste={handlePasteNumeric}
+                  min="0"
+                  max="99"
+                  step="0.01"
+                  className={`peer w-full p-3 md:p-4 pr-8 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
+                      ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                       : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="discountPercentage"
-                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
+                  className={`absolute left-3 px-1 text-sm transition-all duration-150 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#172553]'
                       : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                    } ${isFilled('discountPercentage') ? 'top-0 text-sm' : 'peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base'} peer-focus:top-0 peer-focus:text-sm`}
                 >
-                  Discount Percentage (1-100)
+                  Discount Percentage (0 - 99)
                 </label>
-                <div className={`absolute right-9 top-[34%] -translate-y-1/2 text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>%</div>
-                <span className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Set a discount between 0-100%
+                <div
+                  className={`absolute right-9 top-[34%] -translate-y-1/2 text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}
+                >
+                  %
+                </div>
+                <span
+                  className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                >
+                  Set a discount between 0 - 99% (decimals allowed)
                 </span>
               </div>
             </div>
+
             <div className="space-y-1">
               <div className="relative group">
                 {categoriesLoading ? (
@@ -732,8 +896,8 @@ export default function AddProduct() {
                         onChange={handleChange}
                         required
                         className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                            ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100'
-                            : 'bg-white/50 border-gray-300/50 text-gray-800'
+                          ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100'
+                          : 'bg-white/50 border-gray-300/50 text-gray-800'
                           } group-hover:border-blue-500/30`}
                       >
                         <option value="">Select a category</option>
@@ -745,10 +909,10 @@ export default function AddProduct() {
                       </select>
                       <label
                         htmlFor="category"
-                        className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                            ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
-                            : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                          } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                        className={`absolute left-3 px-1 text-sm transition-all duration-150 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                          ? 'text-gray-400 peer-focus:text-blue-400 bg-[#172553]'
+                          : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                          } ${isFilled('category') ? 'top-0 text-sm' : 'peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base'} peer-focus:top-0 peer-focus:text-sm`}
                       >
                         Category (Required)
                       </label>
@@ -758,7 +922,7 @@ export default function AddProduct() {
                         </svg>
                       </div>
                     </div>
-                    <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="mt-2 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Choose a category for your product</span>
                         {createdCategory && (
@@ -789,7 +953,7 @@ export default function AddProduct() {
                               value={newCategory}
                               onChange={(e) => setNewCategory(e.target.value)}
                               placeholder="New category"
-                              className={`p-2 rounded-lg text-sm border ${isDarkMode ? 'bg-[#131C34] border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-800'}`}
+                              className={`p-2 rounded-lg text-sm border ${isDarkMode ? 'bg-[#172553] border-gray-700 text-gray-100' : 'bg-white border-gray-300 text-gray-800'}`}
                             />
                             <button type="button" onClick={addNewCategory} className="px-3 py-1 rounded-lg bg-green-600 text-white text-sm">Add</button>
                             <button type="button" onClick={() => { setShowNewCategoryField(false); setNewCategory(''); }} className="px-3 py-1 rounded-lg bg-gray-400 text-sm">Cancel</button>
@@ -820,19 +984,21 @@ export default function AddProduct() {
                   placeholder=" "
                   value={formData.quantity}
                   onChange={handleChange}
+                  onKeyDown={handleKeyDownInteger}
+                  onPaste={handlePasteNumeric}
                   min="1"
                   required
-                  className={`peer w-full p-3 sm:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                  className={`peer w-full p-3 md:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
+                    ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="quantity"
-                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
-                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                  className={`absolute left-3 px-1 text-sm transition-all duration-150 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                    ? 'text-gray-400 peer-focus:text-blue-400 bg-[#172553]'
+                    : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    } ${isFilled('quantity') ? 'top-0 text-sm' : 'peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base'} peer-focus:top-0 peer-focus:text-sm`}
                 >
                   Quantity in Stock (Required)
                 </label>
@@ -852,16 +1018,16 @@ export default function AddProduct() {
                   value={formData.brand}
                   onChange={handleChange}
                   className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                    ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="brand"
-                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
-                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                  className={`absolute left-3 px-1 text-sm transition-all duration-150 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                    ? 'text-gray-400 peer-focus:text-blue-400 bg-[#172553]'
+                    : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    } ${isFilled('brand') ? 'top-0 text-sm' : 'peer-placeholder-shown:top-1/3 peer-placeholder-shown:text-base'} peer-focus:top-0 peer-focus:text-sm`}
                 >
                   Brand (Optional)
                 </label>
@@ -871,7 +1037,7 @@ export default function AddProduct() {
               </div>
             </div>
 
-            <div className="sm:col-span-2 space-y-1">
+            <div className="md:col-span-2 space-y-1">
               <div className="relative group">
                 <textarea
                   ref={descriptionRef}
@@ -882,36 +1048,28 @@ export default function AddProduct() {
                   onChange={handleChange}
                   rows="4"
                   required
-                  className={`peer w-full p-3 sm:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                      ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                  className={`peer w-full p-3 md:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
+                    ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="description"
-                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                      ? 'text-gray-400 peer-focus:text-blue-400 bg-[#131C34]'
-                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-7 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                  className={`absolute left-3 px-1 text-sm transition-all duration-150 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                    ? 'text-gray-400 peer-focus:text-blue-400 bg-[#172553]'
+                    : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                    } ${isFilled('description') ? 'top-0 text-sm' : 'peer-placeholder-shown:top-7 peer-placeholder-shown:text-base'} peer-focus:top-0 peer-focus:text-sm`}
                 >
                   Product Description (Required)
                 </label>
-                <div className={`mt-2 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <p>Provide a detailed description of your product. Include:</p>
-                  <ul className="list-disc ml-4 mt-1 space-y-1">
-                    <li>Key features and benefits</li>
-                    <li>Materials and specifications</li>
-                    <li>Usage instructions</li>
-                    <li>Any unique selling points</li>
-                  </ul>
-                </div>
+
               </div>
             </div>
           </div>
         )}
 
         {(activeSection === "details") && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 transition-opacity duration-150">
             <div className="md:col-span-2">
               <h3 className={`text-lg font-semibold mb-4 flex items-center ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
@@ -931,30 +1089,57 @@ export default function AddProduct() {
                   placeholder=" "
                   value={formData.weight}
                   onChange={handleChange}
+                  onKeyDown={handleKeyDownDecimal}
+                  onPaste={handlePasteNumeric}
                   min="0"
-                  className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                    ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                  className={`peer w-full p-4 md:p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
+                    ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="weight"
-                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
+                  className={`absolute left-3 px-1 text-sm transition-all duration-150 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#172553] bg-[#172553]'
                     : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                    } ${isFilled('weight') ? 'top-0 text-sm' : 'peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base'} peer-focus:top-0 peer-focus:text-sm`}
                 >
                   Weight (g) (optional)
                 </label>
               </div>
             </div>
+              <div className="space-y-1">
+                <div className="relative group">
+                  <input
+                    type="text"
+                    name="tags"
+                    id="tags"
+                    placeholder=" "
+                    value={formData.tags}
+                    onChange={handleChange}
+                    className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
+                      ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                      : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
+                      } group-hover:border-blue-500/30`}
+                  />
+                  <label
+                    htmlFor="tags"
+                    className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                      ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#172553] bg-[#172553]'
+                      : 'text-gray-500 peer-focus:text-blue-600 bg-white'
+                      } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                  >
+                    Tags (comma separated) (optional)
+                  </label>
+                </div>
+              </div>
 
-            <div className="sm:col-span-2 space-y-1">
+              <div className="md:col-span-2 space-y-1">
               <div className="relative group">
                 <label className={`block text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Dimensions (cm) (optional)
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="relative group">
                     <input
                       type="number"
@@ -963,19 +1148,21 @@ export default function AddProduct() {
                       placeholder=" "
                       value={formData.dimensions.width}
                       onChange={handleChange}
+                      onKeyDown={handleKeyDownDecimal}
+                      onPaste={handlePasteNumeric}
                       min="0"
                       step="0.1"
                       className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                        ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                        ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                         : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                         } group-hover:border-blue-500/30`}
                     />
                     <label
                       htmlFor="dimensions.width"
-                      className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                        ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
+                      className={`absolute left-3 px-1 text-sm transition-all duration-150 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                        ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#172553] bg-[#172553]'
                         : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                        } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                        } ${isFilled('dimensions.width') ? 'top-0 text-sm' : 'peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base'} peer-focus:top-0 peer-focus:text-sm`}
                     >
                       Width
                     </label>
@@ -988,19 +1175,21 @@ export default function AddProduct() {
                       placeholder=" "
                       value={formData.dimensions.height}
                       onChange={handleChange}
+                      onKeyDown={handleKeyDownDecimal}
+                      onPaste={handlePasteNumeric}
                       min="0"
                       step="0.1"
                       className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                        ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                        ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                         : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                         } group-hover:border-blue-500/30`}
                     />
                     <label
                       htmlFor="dimensions.height"
-                      className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                        ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
+                      className={`absolute left-3 px-1 text-sm transition-all duration-150 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                        ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#172553] bg-[#172553]'
                         : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                        } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                        } ${isFilled('dimensions.height') ? 'top-0 text-sm' : 'peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base'} peer-focus:top-0 peer-focus:text-sm`}
                     >
                       Height
                     </label>
@@ -1013,19 +1202,21 @@ export default function AddProduct() {
                       placeholder=" "
                       value={formData.dimensions.depth}
                       onChange={handleChange}
+                      onKeyDown={handleKeyDownDecimal}
+                      onPaste={handlePasteNumeric}
                       min="0"
                       step="0.1"
                       className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                        ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                        ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                         : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                         } group-hover:border-blue-500/30`}
                     />
                     <label
                       htmlFor="dimensions.depth"
-                      className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                        ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
+                      className={`absolute left-3 px-1 text-sm transition-all duration-150 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                        ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#172553] bg-[#172553]'
                         : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                        } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                        } ${isFilled('dimensions.depth') ? 'top-0 text-sm' : 'peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base'} peer-focus:top-0 peer-focus:text-sm`}
                     >
                       Depth
                     </label>
@@ -1044,14 +1235,14 @@ export default function AddProduct() {
                   value={formData.warrantyInformation}
                   onChange={handleChange}
                   className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                    ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="warrantyInformation"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
+                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#172553] bg-[#172553]'
                     : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
@@ -1070,14 +1261,14 @@ export default function AddProduct() {
                   value={formData.shippingInformation}
                   onChange={handleChange}
                   className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                    ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="shippingInformation"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
+                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#172553] bg-[#172553]'
                     : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
@@ -1096,14 +1287,14 @@ export default function AddProduct() {
                   value={formData.returnPolicy}
                   onChange={handleChange}
                   className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                    ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="returnPolicy"
                   className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
+                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#172553] bg-[#172553]'
                     : 'text-gray-500 peer-focus:text-blue-600 bg-white'
                     } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
                 >
@@ -1121,46 +1312,22 @@ export default function AddProduct() {
                   placeholder=" "
                   value={formData.minimumOrderQuantity}
                   onChange={handleChange}
+                  onKeyDown={handleKeyDownInteger}
+                  onPaste={handlePasteNumeric}
                   min="1"
                   className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                    ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
+                    ? 'bg-[#172553]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
                     : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
                     } group-hover:border-blue-500/30`}
                 />
                 <label
                   htmlFor="minimumOrderQuantity"
-                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
+                  className={`absolute left-3 px-1 text-sm transition-all duration-150 transform -translate-y-1/2 pointer-events-none ${isDarkMode
+                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#172553] bg-[#172553]'
                     : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
+                    } ${isFilled('minimumOrderQuantity') ? 'top-0 text-sm' : 'peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base'} peer-focus:top-0 peer-focus:text-sm`}
                 >
                   Minimum Order Quantity (optional)
-                </label>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="relative group">
-                <input
-                  type="text"
-                  name="tags"
-                  id="tags"
-                  placeholder=" "
-                  value={formData.tags}
-                  onChange={handleChange}
-                  className={`peer w-full p-4 rounded-lg transition-all duration-300 border appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDarkMode
-                    ? 'bg-[#131C34]/50 border-gray-700/50 text-gray-100 placeholder-transparent'
-                    : 'bg-white/50 border-gray-300/50 text-gray-800 placeholder-transparent'
-                    } group-hover:border-blue-500/30`}
-                />
-                <label
-                  htmlFor="tags"
-                  className={`absolute left-3 px-1 text-sm transition-all duration-200 transform -translate-y-1/2 pointer-events-none ${isDarkMode
-                    ? 'text-gray-400 peer-focus:text-blue-400 peer-placeholder-shown:bg-[#131C34] bg-[#131C34]'
-                    : 'text-gray-500 peer-focus:text-blue-600 bg-white'
-                    } peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-0 peer-focus:text-sm`}
-                >
-                  Tags (comma separated) (optional)
                 </label>
               </div>
             </div>
@@ -1168,7 +1335,7 @@ export default function AddProduct() {
         )}
 
         {(activeSection === "images") && (
-          <div className="space-y-8 animate-fade-in">
+          <div className="space-y-8 transition-opacity duration-150">
             <div className="md:col-span-2">
               <h3 className={`text-xl font-semibold mb-4 flex items-center ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
@@ -1186,14 +1353,15 @@ export default function AddProduct() {
                     Required • Max 5MB • JPEG, PNG supported
                   </span>
                 </label>
-                
+
                 {imagePreview ? (
                   <div className="relative inline-block group">
-                    <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-[#131C34]/50' : 'bg-white'} shadow-lg ring-1 ring-[#131C34]/5 transition duration-300 group-hover:shadow-xl`}>
+                    <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-[#172553]/50' : 'bg-white'} shadow-lg ring-1 ring-[#172553]/5 transition duration-300 group-hover:shadow-xl`}>
                       <img
                         src={imagePreview}
                         alt="Main preview"
-                        className="w-full max-w-xs sm:max-w-sm h-auto sm:h-64 object-contain rounded-lg"
+                        loading="lazy"
+                        className="w-full max-w-xs md:max-w-sm h-auto md:h-64 object-contain rounded-lg"
                       />
                       <button
                         type="button"
@@ -1213,27 +1381,24 @@ export default function AddProduct() {
                       onDragOver={(e) => { e.preventDefault(); setIsDraggingMain(true); }}
                       onDragLeave={(e) => { e.preventDefault(); setIsDraggingMain(false); }}
                       onDrop={handleMainDrop}
-                      className={`group flex flex-col items-center justify-center w-full h-48 sm:h-64 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${
-                        isDarkMode 
+                        className={`group flex flex-col items-center justify-center w-full h-48 md:h-64 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${isDarkMode
                           ? isDraggingMain
                             ? 'border-blue-500 bg-blue-500/10'
                             : 'border-gray-700 hover:border-blue-500/50 hover:bg-gray-800'
                           : isDraggingMain
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-300 hover:bg-gray-100/80 hover:border-blue-500/50'
-                      }`}
+                        }`}
                     >
                       <div className="flex flex-col items-center justify-center px-6 pt-5 pb-6 space-y-3">
-                        <div className={`rounded-full p-4 transition-colors duration-300 ${
-                          isDarkMode
+                        <div className={`rounded-full p-4 transition-colors duration-300 ${isDarkMode
                             ? 'bg-gray-800/80 group-hover:bg-gray-700'
                             : 'bg-gray-100 group-hover:bg-gray-200'
-                        }`}>
-                          <svg className={`w-8 h-8 transition-colors duration-300 ${
-                            isDarkMode
+                          }`}>
+                          <svg className={`w-8 h-8 transition-colors duration-300 ${isDarkMode
                               ? 'text-gray-400 group-hover:text-blue-400'
                               : 'text-gray-600 group-hover:text-blue-600'
-                          }`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            }`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                         </div>
@@ -1272,18 +1437,19 @@ export default function AddProduct() {
                 <div className="space-y-6">
                   {extraImagesPreviews.length > 0 && (
                     <div
-                      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3"
+                      className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"
                       onDragOver={(e) => { e.preventDefault(); setIsDraggingExtra(true); }}
                       onDragLeave={(e) => { e.preventDefault(); setIsDraggingExtra(false); }}
                       onDrop={handleExtraDrop}
                     >
                       {extraImagesPreviews.map((preview, index) => (
-                          <div key={index} className="relative group">
-                          <div className={`p-2 rounded-xl ${isDarkMode ? 'bg-[#131C34]/50' : 'bg-white'} shadow-sm ring-1 ring-[#131C34]/5 transition duration-300 group-hover:shadow-md`}>
+                        <div key={index} className="relative group">
+                          <div className={`p-2 rounded-xl ${isDarkMode ? 'bg-[#172553]/50' : 'bg-white'} shadow-sm ring-1 ring-[#172553]/5 transition duration-300 group-hover:shadow-md`}>
                             <img
                               src={preview}
                               alt={`Preview ${index + 1}`}
-                              className="w-full h-28 sm:h-32 object-contain rounded-md"
+                              loading="lazy"
+                              className="w-full h-28 md:h-32 object-contain rounded-md"
                             />
                             <button
                               type="button"
@@ -1307,27 +1473,24 @@ export default function AddProduct() {
                         onDragOver={(e) => { e.preventDefault(); setIsDraggingExtra(true); }}
                         onDragLeave={(e) => { e.preventDefault(); setIsDraggingExtra(false); }}
                         onDrop={handleExtraDrop}
-                        className={`group flex flex-col items-center justify-center w-full h-36 sm:h-40 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${
-                          isDarkMode 
+                        className={`group flex flex-col items-center justify-center w-full h-36 md:h-40 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-300 ${isDarkMode
                             ? isDraggingExtra
                               ? 'border-blue-500 bg-blue-500/10'
                               : 'border-gray-700 hover:border-blue-500/50 hover:bg-gray-800'
                             : isDraggingExtra
                               ? 'border-blue-500 bg-blue-50'
                               : 'border-gray-300 hover:bg-gray-100/80 hover:border-blue-500/50'
-                        }`}
+                          }`}
                       >
                         <div className="flex flex-col items-center justify-center px-6 pt-5 pb-6 space-y-3">
-                          <div className={`rounded-full p-3 transition-colors duration-300 ${
-                            isDarkMode
+                          <div className={`rounded-full p-3 transition-colors duration-300 ${isDarkMode
                               ? 'bg-gray-800/80 group-hover:bg-gray-700'
                               : 'bg-gray-100 group-hover:bg-gray-200'
-                          }`}>
-                            <svg className={`w-6 h-6 transition-colors duration-300 ${
-                              isDarkMode
+                            }`}>
+                            <svg className={`w-6 h-6 transition-colors duration-300 ${isDarkMode
                                 ? 'text-gray-400 group-hover:text-blue-400'
                                 : 'text-gray-600 group-hover:text-blue-600'
-                            }`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              }`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
                           </div>
@@ -1353,91 +1516,164 @@ export default function AddProduct() {
           </div>
         )}
 
-  <div className="mt-8">
-    <div className={`rounded-2xl shadow-lg border p-4 sm:p-6 transition-all duration-300 ${
-    isDarkMode 
-      ? 'bg-gray-800/90 border-gray-700' 
-      : 'bg-white border-gray-200'
-  }`}>
-    <div className="flex justify-between items-center">
-      
-      {activeSection !== "basic" && (
-        <button
-          type="button"
-          onClick={() => setActiveSection(activeSection === "details" ? "basic" : "details")}
-          className={`group px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-300 ${
-            isDarkMode
-              ? 'bg-gray-700/50 text-gray-300 hover:bg-gray-600 hover:text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 transition-transform group-hover:-translate-x-1" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-          </svg>
-          {activeSection === "details" ? "Back to Basic Info" : "Back to Details"}
-        </button>
-      )}
+<div className="mt-8">
+  <div
+    className={`rounded-2xl shadow-lg border p-4 md:p-6 transition-all duration-300 ${
+      isDarkMode ? "bg-gray-800/30 border-none" : "bg-white border-gray-200"
+    }`}
+  >
+    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="w-full md:w-auto md:flex-shrink-0 order-1 md:order-none">
+        {activeSection !== "basic" && (
+          <button
+            type="button"
+            onClick={() =>
+              setActiveSection(
+                activeSection === "details" ? "basic" : "details"
+              )
+            }
+            className={`group w-full md:w-auto px-4 py-3 md:py-2 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-all duration-300 ${
+              isDarkMode
+                ? "bg-gray-700/50 text-gray-300 hover:bg-gray-600 hover:text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 transition-transform group-hover:-translate-x-1"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="hidden xs:inline">
+              {activeSection === "details"
+                ? "Back to Basic Info"
+                : "Back to Details"}
+            </span>
+            <span className="xs:hidden">
+              {activeSection === "details" ? "Basic Info" : "Details"}
+            </span>
+          </button>
+        )}
+      </div>
 
-  <div className="flex-1 flex flex-col sm:flex-row items-center gap-3 sm:justify-end">
+      <div className="hidden md:flex flex-1"></div>
+
+      <div className="w-full md:w-auto md:flex-shrink-0 order-2 md:order-none">
         {activeSection !== "images" ? (
           <button
             type="button"
             onClick={() => {
-              if (activeSection === 'basic') {
-                handleChangeSection('details');
+              if (activeSection === "basic") {
+                handleChangeSection("details");
                 return;
               }
-              if (activeSection === 'details') {
-                setActiveSection('images');
+              if (activeSection === "details") {
+                setActiveSection("images");
                 return;
               }
             }}
-            className={`group px-4 sm:px-6 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 transform hover:-translate-y-0.5 shadow-md w-full sm:w-auto ${
+            className={`group w-full md:w-auto px-6 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 transform hover:-translate-y-0.5 shadow-md ${
               isDarkMode
-                ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white'
-                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white'
+                ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white"
+                : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white"
             }`}
           >
-            {activeSection === "basic" ? "Continue to Details" : "Continue to Images"}
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+            <span className="hidden xs:inline">
+              {activeSection === "basic"
+                ? "Continue to Details"
+                : "Continue to Images"}
+            </span>
+            <span className="xs:hidden">
+              {activeSection === "basic" ? "Details" : "Images"}
+            </span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 transition-transform group-hover:translate-x-1"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                clipRule="evenodd"
+              />
             </svg>
           </button>
         ) : (
           <button
             type="submit"
             disabled={loading}
-            className={`group px-6 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 transform hover:-translate-y-0.5 shadow-md w-full sm:w-auto ${
+            className={`group w-full md:w-auto px-8 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300 transform hover:-translate-y-0.5 shadow-md ${
               loading
                 ? isDarkMode
-                  ? 'bg-blue-500/50 cursor-not-allowed text-white/70'
-                  : 'bg-blue-400 cursor-not-allowed text-white/80'
+                  ? "bg-blue-500/50 cursor-not-allowed text-white/70"
+                  : "bg-blue-400 cursor-not-allowed text-white/80"
                 : saved
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : isDarkMode
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white'
-                    : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white'
+                ? "bg-green-600 hover:bg-green-700 text-white"
+                : isDarkMode
+                ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white"
+                : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white"
             }`}
           >
             {loading ? (
               <>
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg
+                  className="animate-spin h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
                 <span>Adding Product...</span>
               </>
             ) : saved ? (
               <>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 00-1.414-1.414L8 11.172 4.707 7.879a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8z" clipRule="evenodd" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.707 5.293a1 1 0 00-1.414-1.414L8 11.172 4.707 7.879a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l8-8z"
+                    clipRule="evenodd"
+                  />
                 </svg>
                 <span>Added</span>
               </>
             ) : (
               <>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
                 </svg>
                 <span>Add Product</span>
               </>
@@ -1448,6 +1684,7 @@ export default function AddProduct() {
     </div>
   </div>
 </div>
+
 
       </form>
 

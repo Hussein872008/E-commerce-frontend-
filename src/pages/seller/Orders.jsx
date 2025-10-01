@@ -1,9 +1,8 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import api, { setAuthToken } from "../../utils/api";
+import { useNavigate, useLocation } from "react-router-dom";
 import { updateSellerOrderStatus } from "../../redux/adminSlice";
-import "../../styles/highlight.css";
+import { searchOrders } from '../../redux/orders.slice';
 import { FiRefreshCw, FiFilter, FiShoppingCart, FiDollarSign, FiX, FiSearch, FiClock, FiTruck, FiCheckCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { FaSpinner } from 'react-icons/fa';
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,13 +10,14 @@ import { motion, AnimatePresence } from "framer-motion";
 const Orders = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  
   const { updating, updateError } = useSelector(state => state.admin || {});
   const isDarkMode = useSelector(state => state.theme.darkMode);
   const [successMsg, setSuccessMsg] = useState("");
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const ordersState = useSelector(state => state.orders || {});
+  const orders = ordersState.items || [];
+  const loading = ordersState.loading;
+  const error = ordersState.error;
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
@@ -25,46 +25,56 @@ const Orders = () => {
   const [sortOrder, setSortOrder] = useState("desc");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState([]);
-  const [highlightedOrderId, setHighlightedOrderId] = useState(null);
-  const highlightTimeout = useRef(null);
+
+
+  const location = useLocation();
+  const orderRefs = useRef(new Map());
+  const highlightTimerRef = useRef(null);
 
   useEffect(() => {
-    if (highlightTimeout.current) {
-      clearTimeout(highlightTimeout.current);
-    }
+    const params = new URLSearchParams(location.search || '');
+    const highlight = params.get('highlight');
+    if (!highlight) return;
 
-    const highlightId = searchParams.get('highlight');
-    
-    if (highlightId && orders.length > 0) {
-      setHighlightedOrderId(highlightId);
-      
-      const orderIndex = orders.findIndex(o => o._id === highlightId);
-      if (orderIndex !== -1) {
-        setTimeout(() => {
-          const element = document.getElementById(`order-${highlightId}`);
-          if (element) {
-            element.scrollIntoView({
-              behavior: 'smooth',
-              block: 'center'
-            });
+    let mounted = true;
+
+    const resolveAndScroll = async () => {
+      let target = highlight;
+      if (!/^[0-9a-fA-F]{24}$/.test(target) && /^[0-9a-fA-F]{6,24}$/.test(target)) {
+        try {
+          const res = await dispatch(searchOrders({ page: 1, limit: 100, search: target }));
+          if (searchOrders.fulfilled.match(res)) {
+            const payload = res.payload || {};
+            const found = Array.isArray(payload.orders) ? payload.orders.find(o => String(o._id).startsWith(target)) : (payload.items || []).find(o => String(o._id).startsWith(target));
+            if (found) target = String(found._id);
           }
-        }, 100);
-        
-        highlightTimeout.current = setTimeout(() => {
-          setHighlightedOrderId(null);
-          const newParams = new URLSearchParams(searchParams);
-          newParams.delete('highlight');
-          navigate(`?${newParams.toString()}`, { replace: true });
-        }, 3000);
+        } catch (e) {}
       }
-    }
 
-    return () => {
-      if (highlightTimeout.current) {
-        clearTimeout(highlightTimeout.current);
+      if (!mounted) return;
+      const el = orderRefs.current.get(target) || document.getElementById(`order-${target}`);
+      if (el && typeof el.scrollIntoView === 'function') {
+        try {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('highlight-order');
+          el.classList.add('highlight-persistent');
+          if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+          highlightTimerRef.current = setTimeout(() => { 
+            try { el.classList.remove('highlight-order'); el.classList.remove('highlight-persistent'); } catch (e) {}
+            try { const cur = new URL(window.location.href); cur.searchParams.delete('highlight'); window.history.replaceState({}, '', cur.toString()); } catch (e) {}
+          }, 4200);
+        } catch (e) {}
       }
     };
-  }, [orders, searchParams, navigate]);
+
+    resolveAndScroll();
+
+    return () => { mounted = false; if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current); };
+  }, [location.search, dispatch, orders]);
+
+  useEffect(() => {
+  
+  }, []);
 
   useEffect(() => {
     let timer;
@@ -74,31 +84,11 @@ const Orders = () => {
     return () => clearTimeout(timer);
   }, [successMsg]);
 
-  useEffect(() => {
-    let timer;
-    if (error) {
-      timer = setTimeout(() => setError(null), 3000);
-    }
-    return () => clearTimeout(timer);
-  }, [error]);
 
-  const fetchSellerOrders = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-  const token = localStorage.getItem("token");
-  setAuthToken(token);
-  const res = await api.get("/api/orders/seller");
-      setOrders(res.data.orders || []);
-    } catch (err) {
-      setError(err.response?.data?.error || "Failed to fetch seller orders");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    fetchSellerOrders();
+  
+    dispatch(searchOrders({ page: 1, limit: 100 }));
   }, []);
 
   const handleStatusUpdate = (orderId) => {
@@ -106,48 +96,29 @@ const Orders = () => {
       .then((res) => {
         if (!res.error) {
           setSuccessMsg("Order status updated successfully!");
-          fetchSellerOrders();
+          dispatch(searchOrders({ page: 1, limit: 100, search: searchTerm || undefined, status: statusFilter !== 'all' ? statusFilter : undefined }));
         }
       });
   };
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = !searchTerm || 
-      order._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.buyer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.buyer?.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || order.status === statusFilter;
-    
-    const matchesDate = dateFilter === "all" || (() => {
-      const orderDate = new Date(order.createdAt);
-      const now = new Date();
-      const daysDiff = Math.floor((now - orderDate) / (1000 * 60 * 60 * 24));
-      
-      switch (dateFilter) {
-        case "today": return daysDiff === 0;
-        case "week": return daysDiff <= 7;
-        case "month": return daysDiff <= 30;
-        default: return true;
-      }
-    })();
-    
-    return matchesSearch && matchesStatus && matchesDate;
-  }).sort((a, b) => {
-    let aValue = a[sortBy];
-    let bValue = b[sortBy];
-    
-    if (sortBy === "createdAt") {
-      aValue = new Date(aValue);
-      bValue = new Date(bValue);
-    }
-    
-    if (sortOrder === "asc") {
-      return aValue > bValue ? 1 : -1;
-    } else {
-      return aValue < bValue ? 1 : -1;
-    }
-  });
+
+  const searchDebounceRef = useRef(null);
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      const params = {
+        page: 1,
+        limit: 100,
+        search: searchTerm || undefined,
+        status: statusFilter && statusFilter !== 'all' ? statusFilter : undefined,
+        dateRange: dateFilter && dateFilter !== 'all' ? dateFilter : undefined,
+        sortBy,
+        sortOrder
+      };
+      dispatch(searchOrders(params));
+    }, 450);
+    return () => clearTimeout(searchDebounceRef.current);
+  }, [searchTerm, statusFilter, dateFilter, sortBy, sortOrder]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -157,6 +128,35 @@ const Orders = () => {
       case "Cancelled": return isDarkMode ? "bg-red-900/50 text-red-300" : "bg-red-100 text-red-800";
       default: return isDarkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-800";
     }
+  };
+
+
+  const getBuyerName = (order) => {
+    if (!order) return 'Unknown';
+    const b = order.buyer;
+    if (b) {
+      if (typeof b === 'string' && b.trim()) return b;
+      if (typeof b === 'object') {
+        if (b.name && b.name !== '-') return b.name;
+        if (b.fullName && b.fullName !== '-') return b.fullName;
+        if (b.username && b.username !== '-') return b.username;
+      }
+    }
+    if (order.buyerName && order.buyerName !== '-') return order.buyerName;
+    if (order.customerName && order.customerName !== '-') return order.customerName;
+
+    if (order.buyerEmail && order.buyerEmail !== '-') return order.buyerEmail;
+    if (order.email && order.email !== '-') return order.email;
+    return 'Unknown';
+  };
+
+  const getBuyerEmail = (order) => {
+    if (!order) return 'Unknown';
+    const b = order.buyer;
+    if (b && typeof b === 'object' && b.email && b.email !== '-') return b.email;
+    if (order.buyerEmail && order.buyerEmail !== '-') return order.buyerEmail;
+    if (order.email && order.email !== '-') return order.email;
+    return 'Unknown';
   };
 
   const getStatusIcon = (status) => {
@@ -177,6 +177,16 @@ const Orders = () => {
     setSortOrder("desc");
   };
 
+
+  const debugMode = useMemo(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('debug') === '1';
+    } catch (e) {
+      return false;
+    }
+  }, []);
+
   return (
     <div className={`max-w-6xl mx-auto p-4 pb-32 transition-colors duration-500 ${isDarkMode ? 'text-gray-100 bg-gradient-to-br from-gray-900 via-blue-950 to-purple-950' : ''}`}>
   <div className={`p-6 rounded-2xl mb-8 transition-all ${isDarkMode ? 'bg-gray-800/60 border border-gray-700/30 shadow-lg' : 'bg-gradient-to-br from-white/80 to-indigo-50 p-6 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-indigo-100/30'}`}>
@@ -190,7 +200,7 @@ const Orders = () => {
           
           <div className="flex gap-3">
           <button
-            onClick={fetchSellerOrders}
+            onClick={() => dispatch(searchOrders({ page: 1, limit: 100, search: searchTerm || undefined, status: statusFilter !== 'all' ? statusFilter : undefined }))}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow hover:from-blue-700 hover:to-blue-800 transition-all duration-300 font-semibold"
             disabled={loading}
             title="Refresh Orders"
@@ -306,10 +316,10 @@ const Orders = () => {
               
               <div className="flex justify-between items-center pt-2">
                 <div className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'} text-sm`}>
-                  {filteredOrders.length} orders found
+                  {orders.length} orders found
                 </div>
                 <div className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'} text-sm`}>
-                  Total: ${filteredOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0).toFixed(2)}
+                  Total: ${orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0).toFixed(2)}
                 </div>
               </div>
             </div>
@@ -364,7 +374,7 @@ const Orders = () => {
           <h3 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No Orders Yet</h3>
           <p className={`mb-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>You have not received any orders yet. Orders will appear here once buyers make purchases.</p>
           <button
-            onClick={fetchSellerOrders}
+            onClick={() => dispatch(searchOrders({ page: 1, limit: 100, search: searchTerm || undefined, status: statusFilter !== 'all' ? statusFilter : undefined }))}
             className="px-5 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors font-semibold"
           >
             Refresh
@@ -372,7 +382,7 @@ const Orders = () => {
         </div>
       ) : (
         <>
-          {filteredOrders.length === 0 ? (
+          {orders.length === 0 ? (
             <div className={`flex flex-col items-center justify-center py-24 rounded-xl min-h-[300px] ${isDarkMode ? 'bg-gray-800/60 border-gray-700' : 'bg-white shadow-md border border-gray-200'}`}>
               <FiSearch className={`h-16 w-16 mb-4 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'}`} />
               <h3 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No Orders Found</h3>
@@ -388,21 +398,19 @@ const Orders = () => {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <AnimatePresence>
-                {filteredOrders.map(order => {
+                {orders.map(order => {
+                  if (debugMode) {}
                   return (
          <motion.div 
-            layout
+           layout
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
             id={`order-${order._id}`}
             key={order._id} 
-            className={`rounded-xl shadow-md border p-5 flex flex-col gap-3 ${
-              order._id === highlightedOrderId 
-                ? 'ring-4 ring-indigo-500 scale-105 shadow-[0_0_30px_rgba(99,102,241,0.5)]' 
-                : 'hover:shadow-xl hover:scale-[1.02]'
-            } ${isDarkMode ? 'bg-gray-800/60 border-gray-700 hover:border-blue-600' : 'bg-white border-gray-200 hover:border-blue-200'}`}>
+            ref={(el) => orderRefs.current.set(order._id, el)}
+            className={`rounded-xl shadow-md border p-5 flex flex-col gap-3 hover:shadow-xl hover:scale-[1.02] ${isDarkMode ? 'bg-gray-800/60 border-gray-700 hover:border-blue-600' : 'bg-white border-gray-200 hover:border-blue-200'}`}>
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <span className={`font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>Order #{order._id}</span>
@@ -428,8 +436,8 @@ const Orders = () => {
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}><span className="font-semibold">Buyer:</span> {order.buyer?.name && order.buyer?.name !== '-' ? order.buyer.name : 'Unknown'}</div>
-                      <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}><span className="font-semibold">Email:</span> {order.buyer?.email && order.buyer?.email !== '-' ? order.buyer.email : 'Unknown'}</div>
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}><span className="font-semibold">Buyer:</span> {getBuyerName(order)}</div>
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}><span className="font-semibold">Email:</span> {getBuyerEmail(order)}</div>
                       <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                         <span className="font-semibold">Payment:</span> {order.paymentMethod || "-"} ({order.paymentStatus || "-"})
                         {order.paymentInfo && (
@@ -477,6 +485,12 @@ const Orders = () => {
                       </div>
                     </div>
                     <div className={`mt-2 text-right font-bold text-lg ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>Total: ${order.totalAmount?.toFixed(2) || "-"}</div>
+                    {debugMode && (
+                      <details className={`mt-3 p-3 rounded text-xs ${isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-50 text-gray-700'}`}>
+                        <summary className="cursor-pointer font-medium">Raw order JSON</summary>
+                        <pre className="whitespace-pre-wrap mt-2 max-h-64 overflow-auto text-[11px]">{JSON.stringify(order, null, 2)}</pre>
+                      </details>
+                    )}
                   </motion.div>
                 );
                 })}
@@ -485,11 +499,11 @@ const Orders = () => {
               <div className={`mt-8 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between font-bold text-lg ${isDarkMode ? 'bg-gray-800/60 border-gray-700' : 'bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100'}`}>
                 <div className={`flex items-center gap-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-700'}`}>
                   <FiShoppingCart className="w-5 h-5" />
-                  Total Orders: {filteredOrders.length}
+                  Total Orders: {orders.length}
                 </div>
                 <div className={`flex items-center gap-2 ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>
                   <FiDollarSign className="w-5 h-5" />
-                  Total Sales: ${filteredOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0).toFixed(2)}
+                  Total Sales: ${orders.reduce((sum, order) => sum + ((order.status === 'Delivered') ? (order.totalAmount || 0) : 0), 0).toFixed(2)}
                 </div>
               </div>
               {updateError && <div className="text-red-600 mt-2">{updateError}</div>}
@@ -498,17 +512,7 @@ const Orders = () => {
         </>
       )}
       <style>{`
-        @keyframes highlightPulse {
-          0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-          70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
-        }
-        
-        [id^="order-"].highlighted {
-          animation: highlightPulse 2s infinite;
-        }
-        
-        /* Smooth scrolling for the entire page */
+
         html {
           scroll-behavior: smooth;
           scroll-padding-top: 2rem;
@@ -519,4 +523,5 @@ const Orders = () => {
 }
 
 export default Orders;
+
 
